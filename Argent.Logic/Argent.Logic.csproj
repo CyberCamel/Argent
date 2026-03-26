@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CoreCLR-NCalc" Version="3.1.253" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Argent.Contracts\Argent.Contracts.csproj" />
+    <ProjectReference Include="..\Argent.Core\Argent.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,26 @@
+﻿@using Argent.WebComponents
+@inherits FormComponentBase
+
+@if (IsVisible)
+{
+    <div class="@Metadata.Layout.CssClass">
+        @((MarkupString)GetCurrentHtml())
+    </div>
+}
+
+@code {
+    private string GetCurrentHtml()
+    {
+        // Default to the base 'DefaultValue' if no templates match
+        var html = Metadata.DefaultValue?.ToString() ?? "";
+
+        // logic to pick a template based on context could go here
+        // For now, we return the first template if it exists
+        if (Metadata.Templates.Any())
+        {
+            html = Metadata.Templates.First().Html;
+        }
+
+        return html;
+    }
+}

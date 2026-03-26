@@ -1,0 +1,117 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <base href="/" />
+    <component type="typeof(Microsoft.AspNetCore.Components.Web.HeadOutlet)"
+               render-mode="ServerPrerendered" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Argent</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" ></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/lib/htmx.min.js" asp-append-version="true"></script>
+</head>
+<body class="d-flex flex-column" style="min-height:100vh">
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                <a class="navbar-brand" asp-area="" asp-page="/Index">Argent</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="UserAdministration">User administration</a>
+                        </li>
+                    </ul>
+
+                    <ul class="navbar-nav">
+                        @if (User.Identity?.IsAuthenticated ?? false)
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-dark" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                    Hello, @(User.FindFirst("FirstName")?.Value ?? User.Identity.Name)
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="/Profile">My Profile</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form asp-controller="Account" asp-action="Logout" method="post">
+                                            <button type="submit" class="dropdown-item">Logout</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-dark" href="#" id="loginDropdown"
+                                   role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                                    Login
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end p-4 shadow @(TempData["LoginError"] != null ? "show" : "")"
+                                     style="min-width: 300px;"
+                                     @(TempData["LoginError"] != null ? "data-bs-popper=static" : "")>
+
+                                    <form asp-controller="Account" asp-action="QuickLogin" method="post">
+
+                                        
+
+                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Username</label>
+                                            <input name="username" type="text" class="form-control" required>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Password</label>
+                                            <input name="password" type="password" class="form-control" required>
+                                        </div>
+                                        <div class="mb-3 form-check">
+                                            <input type="checkbox" name="rememberMe" class="form-check-input" id="rememberMeCheck" value="true">
+                                            <label class="form-check-label" for="rememberMeCheck">Remember me</label>
+                                        </div>
+                                        @if (TempData["LoginError"] != null)
+                                        {
+                                            <div class="alert alert-danger py-1 px-2 mb-3" style="font-size: 0.85rem;">
+                                                @TempData["LoginError"]
+                                            </div>
+                                        }
+                                        <button type="submit" class="btn btn-primary w-100">Sign in</button>
+                                    </form>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container flex-grow-1 d-flex flex-column">
+        <main role="main" class="pb-3 flex-grow-1">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2026 - Argent - <a asp-area="" asp-page="/Privacy">Privacy</a>
+        </div>
+    </footer>
+
+    
+
+    @await RenderSectionAsync("Scripts", required: false)
+    <script src="_framework/blazor.server.js"></script>
+</body>
+</html>

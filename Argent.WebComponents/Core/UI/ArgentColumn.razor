@@ -1,0 +1,11 @@
+﻿@inherits FormComponentBase
+
+@if (IsVisible)
+{
+    <div class="@(string.IsNullOrEmpty(Metadata.Layout.Width) ? "col" : Metadata.Layout.Width) @Metadata.Layout.CssClass">
+        @foreach (var child in Metadata.Children)
+        {
+            <ArgentRenderer Metadata="child" />
+        }
+    </div>
+}

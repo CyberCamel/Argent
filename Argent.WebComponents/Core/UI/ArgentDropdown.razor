@@ -1,0 +1,28 @@
+﻿@using Argent.WebComponents
+@inherits FormComponentBase
+
+@if (IsVisible)
+{
+    <div class="mb-3 @Metadata.Layout.CssClass">
+        <label class="form-label">@Metadata.Label</label>
+        <select class="form-select" value="@CurrentValue" @onchange="(e) => OnValueChanged(e.Value)">
+            <option value="">-- Select --</option>
+            @* Simplified for now: Assuming we have a list of strings *@
+            @if (Metadata.DataProvider?.DataSource == "Static")
+            {
+                @* In a real app, you'd fetch this from a service *@
+                <option value="Opt1">Option 1</option>
+                <option value="Opt2">Option 2</option>
+            }
+        </select>
+    </div>
+}
+
+@code {
+    private string? CurrentValue => Context.GetValue<string>(Metadata.DataKey ?? Metadata.Id);
+
+    private void OnValueChanged(object? val)
+    {
+        Context.SetValue(Metadata.DataKey ?? Metadata.Id, val?.ToString());
+    }
+}

@@ -1,0 +1,25 @@
+﻿@using Argent.WebComponents
+@inherits FormComponentBase
+
+@if (IsVisible)
+{
+    <div class="form-check mb-3 @Metadata.Layout.CssClass">
+        <input class="form-check-input"
+               type="checkbox"
+               id="@Metadata.Id"
+               checked="@CurrentValue"
+               @onchange="(e) => OnValueChanged(e.Value)" />
+        <label class="form-check-label" for="@Metadata.Id">
+            @Metadata.Label
+        </label>
+    </div>
+}
+
+@code {
+    private bool CurrentValue => Context.GetValue<bool>(Metadata.DataKey ?? Metadata.Id);
+
+    private void OnValueChanged(object? val)
+    {
+        Context.SetValue(Metadata.DataKey ?? Metadata.Id, val is bool b && b);
+    }
+}

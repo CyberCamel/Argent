@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Argent Form Definition",
+  "type": "object",
+  "required": [ "formId", "version", "components" ],
+  "properties": {
+    "formId": { "type": "string" },
+    "version": { "type": "integer" },
+    "title": { "type": "string" },
+    "components": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/formComponent" }
+    }
+  },
+
+  "definitions": {
+    "formComponent": {
+      "type": "object",
+      "required": [ "id", "type" ],
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "description": "e.g., TextField, HtmlBox, Repeater"
+        },
+        "dataKey": {
+          "type": "string",
+          "description": "JSON property name in the payload"
+        },
+
+        "label": { "type": "string" },
+        "labelKey": { "type": "string" },
+        "description": { "type": "string" },
+        "placeholderKey": { "type": "string" },
+
+        "defaultValue": { "type": [ "string", "number", "boolean", "null", "object" ] },
+
+        "logic": {
+          "type": "object",
+          "properties": {
+            "visibleIf": { "type": "string" },
+            "requiredIf": { "type": "string" },
+            "formula": {
+              "type": "string",
+              "description": "NCalc for NumericField"
+            },
+            "isSensitive": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
+
+        "layoutConfig": {
+          "type": "object",
+          "properties": {
+            "width": { "type": "string" },
+            "cssClass": { "type": "string" },
+            "spacing": { "type": "string" }
+          }
+        },
+
+        "dataProvider": {
+          "type": "object",
+          "properties": {
+            "dataSource": { "type": "string" },
+            "dependsOn": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "filter": { "$ref": "#/definitions/queryGroup" }
+          }
+        },
+
+        "action": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string" },
+            "command": { "type": "string" },
+            "target": { "type": "string" },
+            "params": { "type": "object" }
+          }
+        },
+
+        "templates": {
+          "type": "array",
+          "description": "Used by HtmlBox for context-aware info text",
+          "items": {
+            "type": "object",
+            "properties": {
+              "match": { "type": "string" },
+              "html": { "type": "string" }
+            }
+          }
+        },
+
+        "validators": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/validator" }
+        },
+
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/formComponent" }
+        },
+
+        "template": {
+          "type": "array",
+          "description": "The row blueprint for Repeaters",
+          "items": { "$ref": "#/definitions/formComponent" }
+        }
+      }
+    },
+
+    "validator": {
+      "type": "object",
+      "required": [ "type" ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [ "expression", "regex", "required", "specific" ]
+        },
+        "expression": { "type": "string" },
+        "pattern": {
+          "type": "string",
+          "description": "Regex pattern"
+        },
+        "errorKey": { "type": "string" },
+        "errorMessage": { "type": "string" },
+        "errorArgs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Keys to pull from data to format the message"
+        }
+      }
+    },
+
+    "queryGroup": {
+      "type": "object",
+      "properties": {
+        "logic": {
+          "type": "string",
+          "enum": [ "AND", "OR" ],
+          "default": "AND"
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "$ref": "#/definitions/filterItem" },
+              { "$ref": "#/definitions/queryGroup" }
+            ]
+          }
+        }
+      }
+    },
+
+    "filterItem": {
+      "type": "object",
+      "required": [ "field", "operator" ],
+      "properties": {
+        "field": { "type": "string" },
+        "operator": { "type": "string" },
+        "source": { "type": "string" },
+        "value": { "type": [ "string", "number", "boolean" ] }
+      }
+    }
+  }
+}
+
+
+
+
