@@ -22,7 +22,7 @@ namespace Argent.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("Argent.Core.Models.InternalUser", b =>
+            modelBuilder.Entity("Argent.Core.Identity.InternalUser", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -106,18 +106,16 @@ namespace Argent.Infrastructure.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("Argent.Core.Models.Organization", b =>
+            modelBuilder.Entity("Argent.Core.Identity.Organization", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("DisplayName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("OuFullPath")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -125,7 +123,7 @@ namespace Argent.Infrastructure.Migrations
                     b.ToTable("Organization");
                 });
 
-            modelBuilder.Entity("Argent.Core.Models.Position", b =>
+            modelBuilder.Entity("Argent.Core.Identity.Position", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -147,11 +145,9 @@ namespace Argent.Infrastructure.Migrations
                         .HasColumnType("date");
 
                     b.Property<string>("Title")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Title2")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -294,15 +290,15 @@ namespace Argent.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Argent.Core.Models.Position", b =>
+            modelBuilder.Entity("Argent.Core.Identity.Position", b =>
                 {
-                    b.HasOne("Argent.Core.Models.Organization", "Organization")
+                    b.HasOne("Argent.Core.Identity.Organization", "Organization")
                         .WithMany()
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Argent.Core.Models.InternalUser", "Person")
+                    b.HasOne("Argent.Core.Identity.InternalUser", "Person")
                         .WithMany("Positions")
                         .HasForeignKey("PersonId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -324,7 +320,7 @@ namespace Argent.Infrastructure.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
-                    b.HasOne("Argent.Core.Models.InternalUser", null)
+                    b.HasOne("Argent.Core.Identity.InternalUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -333,7 +329,7 @@ namespace Argent.Infrastructure.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
                 {
-                    b.HasOne("Argent.Core.Models.InternalUser", null)
+                    b.HasOne("Argent.Core.Identity.InternalUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -348,7 +344,7 @@ namespace Argent.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Argent.Core.Models.InternalUser", null)
+                    b.HasOne("Argent.Core.Identity.InternalUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -357,14 +353,14 @@ namespace Argent.Infrastructure.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
                 {
-                    b.HasOne("Argent.Core.Models.InternalUser", null)
+                    b.HasOne("Argent.Core.Identity.InternalUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Argent.Core.Models.InternalUser", b =>
+            modelBuilder.Entity("Argent.Core.Identity.InternalUser", b =>
                 {
                     b.Navigation("Positions");
                 });

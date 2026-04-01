@@ -1,0 +1,13 @@
+﻿@using Argent.WebComponents
+@inherits FormLayoutComponentBase
+
+@if (IsVisible)
+{
+    <div class="row @Metadata.CssClass mb-3">
+        @foreach (var child in Metadata.Children)
+        {
+            @* We wrap each child in a renderer to keep the tree growing *@
+            <ArgentRenderer Metadata="child" />
+        }
+    </div>
+}

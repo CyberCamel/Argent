@@ -8,11 +8,16 @@
 
   <ItemGroup>
     <PackageReference Include="CoreCLR-NCalc" Version="3.1.253" />
+    <PackageReference Include="Jint" Version="4.7.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Argent.Contracts\Argent.Contracts.csproj" />
     <ProjectReference Include="..\Argent.Core\Argent.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Workflows\Execution\" />
   </ItemGroup>
 
 </Project>

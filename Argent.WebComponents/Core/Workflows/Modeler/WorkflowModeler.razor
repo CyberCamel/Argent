@@ -1,0 +1,71 @@
+﻿@using Argent.Logic.Workflows.Modeling
+@inject DesignerService State
+
+<div class="d-flex flex-row">
+    <DesignerToolbox />
+    <div class="canvas-container w-100 h-100 bg-white"
+         style="overflow: hidden; cursor: crosshair; position: relative;"
+         @onmouseenter="HandleMouseEnter" @onmouseleave="HandleMouseLeave"
+         @onmousemove="HandleMouseMove" @ondrop="HandleDrop" ondragover="event.preventDefault();" >
+    
+        <svg width="5000" height="5000" class="workflow-svg">
+            <defs>
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#f0f0f0" stroke-width="1" />
+                </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+        
+            @if (_mouseInside)
+            {
+                <text>
+                    <text x="@(_mouseX + 15)" y="@(_mouseY + 15)" style="fill: red; font-size: 12px; font-weight: bold;">
+                            X: @((int)_mouseX), Y: @((int)_mouseY)
+                    </text>
+                </text>
+            }
+
+
+            @foreach (var node in State.CanvasNodes)
+            {
+                <g transform="translate(@node.X, @node.Y)" style="cursor: move;">
+                    @* This would eventually be your BpmnTaskRenderer *@
+                    <rect width="140" height="60" rx="8" fill="white" stroke="#333" stroke-width="2" />
+                    <text x="70" y="35" text-anchor="middle" class="user-select-none">@node.Title</text>
+                </g>
+            }
+        </svg>
+    </div>
+    <JsonViewer />
+</div>
+
+@code {
+    private void HandleDrop(DragEventArgs e)
+    {
+        // Simple math to place node at drop coordinates
+        State.AddNode("UserTask", "New User Task", e.OffsetX, e.OffsetY);
+    }
+
+    protected override void OnInitialized() => State.OnChange += StateHasChanged;
+
+    private double _mouseX;
+    private double _mouseY;
+    private bool _mouseInside;
+
+    private void HandleMouseMove(MouseEventArgs e)
+    {
+        // OffsetX/Y are relative to the element (the div)
+        _mouseX = e.OffsetX;
+        _mouseY = e.OffsetY;
+    }
+
+    private void HandleMouseEnter()
+    {
+        _mouseInside = true;
+    }
+
+    private void HandleMouseLeave()
+    {
+        _mouseInside = false;
+    }
+}

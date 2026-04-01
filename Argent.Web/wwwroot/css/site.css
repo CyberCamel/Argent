@@ -20,3 +20,56 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+.bpmn-shape {
+    filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.1));
+    cursor: move;
+}
+
+.bpmn-text {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 12px;
+    pointer-events: none;
+}
+
+.bpmn-node:hover {
+    stroke-width: 3px;
+}
+
+
+.node-item {
+    cursor: grab;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+    .node-item:hover {
+        background-color: #fff;
+        border-color: #dee2e6;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        transform: translateY(-1px);
+    }
+
+    .node-item:active {
+        cursor: grabbing;
+    }
+
+/* Make the icon wrapper look like the actual node shape */
+.node-icon-wrapper {
+    transition: transform 0.2s ease;
+}
+
+.node-item:hover .node-icon-wrapper {
+    transform: scale(1.1);
+    color: #0d6efd;
+}
+
+/* Custom Scrollbar for the toolbox */
+.accordion::-webkit-scrollbar {
+    width: 5px;
+}
+
+.accordion::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+}

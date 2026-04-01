@@ -1,4 +1,5 @@
 using Argent.Contracts;
+using Argent.Contracts.Forms;
 using Argent.Core.Identity;
 using Argent.Infrastructure.Data;
 using Argent.Logic;
@@ -6,18 +7,23 @@ using Argent.Web;
 using Argent.Web.Extensions;
 using Argent.Web.Factories;
 using Argent.Web.Services.Forms;
-using Argent.WebComponents.Core.UI;
+using Argent.WebComponents.Core.Forms;
 using Camunda.Api.Client;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Win32;
 using System.Diagnostics;
+using Newtonsoft.Json.Schema;
+using Newtonsoft.Json.Schema.Generation;
+using Argent.Core.Forms.Components;
+using Argent.Logic.Workflows.Modeling;
+using Argent.Contracts.Workflows;
+using Argent.Logic.Forms;
 
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseStaticWebAssets();
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
+var connectionString = builder.Configuration.GetConnectionString("AppDatabase");
 
 // ----- MVC & Razor Pages -----
 builder.Services.AddRazorPages();
@@ -46,6 +52,10 @@ builder.Services.AddIdentity<InternalUser, IdentityRole<Guid>>(options =>
 .AddRoles<IdentityRole<Guid>>()
 .AddDefaultTokenProviders();
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/login";
+});
 
 builder.Services.AddSignalR();
 
@@ -62,7 +72,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 
 
-var componentRegistry = new ArgentRegistry();
+var componentRegistry = new ArgentFormComponentRegistry();
 componentRegistry.Register("Row", typeof(ArgentRow));
 componentRegistry.Register("Column", typeof(ArgentColumn));
 componentRegistry.Register("HtmlBox", typeof(ArgentHtml));
@@ -71,8 +81,11 @@ componentRegistry.Register("DropdownField", typeof(ArgentDropdown));
 componentRegistry.Register("NumericField", typeof(ArgentDropdown));
 componentRegistry.Register("CheckboxField", typeof(ArgentCheckbox));
 
-builder.Services.AddSingleton<IComponentRegistry>(componentRegistry);
+builder.Services.AddSingleton<IFormComponentRegistry>(componentRegistry);
+builder.Services.AddSingleton<IValidationRegistry>(new ArgentValidationRegistry());
 builder.Services.AddScoped<IFormContext, ArgentFormContext>();
+builder.Services.AddScoped<DesignerService, DesignerService>();
+builder.Services.AddSingleton<IWorkflowNodeRegistry, ArgentWorkflowNodeRegistry>();
 
 
 var app = builder.Build();
@@ -108,9 +121,16 @@ app.MapRazorComponents<Program>()
 Debug.WriteLine("Seeding data...");
 using (var scope = app.Services.CreateScope())
 {
+
+    scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.Migrate();
+
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<InternalUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     await DbInitializer.SeedUsers(userManager, roleManager);
+
+    var serializer = new JSchemaGenerator();
+    var formSchema = serializer.Generate(typeof(FormDefinition));
+    System.IO.File.WriteAllLines(".\\resources\\form-schema.json", formSchema.ToString().Split('\n'));
 }
 
 app.Run();

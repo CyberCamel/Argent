@@ -1,0 +1,72 @@
+﻿@using Argent.Contracts.Forms
+@using Argent.Contracts.Workflows
+@using Argent.Core.Workflows
+@inject IWorkflowNodeRegistry Registry
+
+<div class="designer-toolbox p-0 border-end bg-light d-flex flex-column" style="width: 280px; height: 100vh;">
+    <div class="p-3 border-bottom bg-white">
+        <h6 class="text-uppercase fw-bold mb-0" style="font-size: 0.8rem; letter-spacing: 1px;">
+            <i class="bi bi-box-seam me-2"></i>Components
+        </h6>
+    </div>
+
+    <div class="accordion accordion-flush overflow-auto flex-grow-1" id="toolboxAccordion">
+        @{
+            var groupedNodes = Registry.GetRegisteredTypes()
+                                       .GroupBy(x => x.Category)
+                                       .OrderBy(g => g.Key);
+        }
+
+        @foreach (var group in groupedNodes)
+        {
+            var categoryId = $"cat-{group.Key.Replace(" ", "")}";
+            
+            <div class="accordion-item border-0">
+                <h2 class="accordion-header">
+                    <button class="accordion-button py-2 px-3 bg-light fw-semibold text-secondary"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#@categoryId"
+                            style="font-size: 0.75rem; text-transform: uppercase;">
+                        @group.Key
+                    </button>
+                </h2>
+                <div id="@categoryId" class="accordion-collapse collapse show">
+                    <div class="accordion-body p-2">
+                        @foreach (var metadata in group)
+                        {
+                            <div class="node-item d-flex align-items-center p-2 mb-1 rounded draggable-node"
+                                 draggable="true"
+                                 @ondragstart="@(() => HandleDragStart(metadata))">
+                                
+                                <div class="node-icon-wrapper d-flex align-items-center justify-content-center rounded bg-white border shadow-sm me-3"
+                                     style="width: 36px; height: 36px; min-width: 36px;">
+                                    <span class="material-symbols-outlined text-primary fs-5">
+                                        @metadata.Icon
+                                    </span>
+                                </div>
+                                
+                                <div class="overflow-hidden">
+                                    <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem;">
+                                        @metadata.DisplayName
+                                    </div>
+                                    <div class="text-muted text-truncate" style="font-size: 0.7rem;">
+                                        @metadata.Description
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+
+    private void HandleDragStart(NodeMetadata metadata)
+    {
+        // Logic to store the being-dragged type
+    }
+}

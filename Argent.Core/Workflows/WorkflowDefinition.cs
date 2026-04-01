@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Argent.Core.Workflows
 {
-    internal class WorkflowDefinition
+    public class WorkflowDefinition
     {
     }
 }

@@ -28,8 +28,8 @@ public class ApplicationDbContext : IdentityDbContext<InternalUser, IdentityRole
         {
             entity.Property(e => e.ExtraAttributes)
                 .HasConversion(
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
-                    v => JsonSerializer.Deserialize<Dictionary<string, string>>(v, (JsonSerializerOptions)null)
+                    v => JsonSerializer.Serialize(v),
+                    v => JsonSerializer.Deserialize<Dictionary<string, string>>(v)
                          ?? new Dictionary<string, string>())
                 .HasColumnType("nvarchar(max)");
         });

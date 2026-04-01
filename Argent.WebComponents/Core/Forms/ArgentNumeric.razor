@@ -1,0 +1,25 @@
+﻿@using Argent.WebComponents
+@inherits FormInputComponentBase
+
+@if (IsVisible)
+{
+    <div class="mb-3 @Metadata.CssClass">
+        <label class="form-label">@Metadata.Label</label>
+        <input type="number"
+               class="form-control"
+               value="@CurrentValue"
+               @onchange="(e) => OnValueChanged(e.Value)" />
+    </div>
+}
+
+@code {
+    private double? CurrentValue => Context.GetValue<double?>(Metadata.DataKey ?? Metadata.Id);
+
+    private void OnValueChanged(object? val)
+    {
+        if (double.TryParse(val?.ToString(), out var result))
+            Context.SetValue(Metadata.DataKey ?? Metadata.Id, result);
+        else
+            Context.SetValue(Metadata.DataKey ?? Metadata.Id, null);
+    }
+}
