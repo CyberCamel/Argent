@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 
-namespace Argent.Logic.Forms
+namespace Argent.Logic.Workflows
 {
     public class ArgentWorkflowNodeRegistry : IWorkflowNodeRegistry
     {
@@ -15,27 +15,28 @@ namespace Argent.Logic.Forms
         public ArgentWorkflowNodeRegistry()
         {
             // Scan the Assembly where Node lives
-            _cache = typeof(Node).Assembly.GetTypes()
+            _cache = [.. typeof(INode).Assembly.GetTypes()
                 .Select(t => new { Type = t, Attr = t.GetCustomAttribute<WorkflowCanvasElementAttribute>() })
                 .Where(x => x.Attr != null)
                 .Select(x => new NodeMetadata
                 {
-                    TypeIdentifier = x.Type.Name,
+                    Type = x.Type,
                     DisplayName = x.Attr!.DisplayName,
                     Icon = x.Attr.Icon,
                     Category = x.Attr.Category,
-                    Description = x.Attr.Description
-                })
-                .ToList();
+                    Description = x.Attr.Description,
+                    CssClass = x.Attr.CssClass,
+                    Shape=x.Attr.Shape
+                })];
         }
 
         public IEnumerable<NodeMetadata> GetRegisteredTypes() => _cache;
         public Type Resolve(string name)
         {
-            var metadata = _cache.FirstOrDefault(m => m.TypeIdentifier.Equals(name, StringComparison.OrdinalIgnoreCase));
+            var metadata = _cache.FirstOrDefault(m => m.Type.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
             if (metadata == null)
                 throw new InvalidOperationException($"Workflow node type '{name}' is not registered.");
-            return typeof(Node).Assembly.GetType(metadata.TypeIdentifier) ?? throw new InvalidOperationException($"Type '{metadata.TypeIdentifier}' not found in assembly.");
+            return typeof(INode).Assembly.GetType(metadata.Type.Name) ?? throw new InvalidOperationException($"Type '{metadata.Type.Name}' not found in assembly.");
         }
     }
 

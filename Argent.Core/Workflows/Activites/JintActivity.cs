@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Argent.Core.Workflows.Activites;
 
-[WorkflowCanvasElement("Jint Script", "code", "Server", "An activity that runs server-side JavaScript")]
+[WorkflowCanvasElement("Jint Script", "code", "Server", NodeShape.Rectangle, "An activity that runs server-side JavaScript", "workflow-node node-script")]
 public class JintActivity : ServerActivity
 {
     

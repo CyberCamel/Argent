@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Argent.Core.Workflows.Activites;
 
-[WorkflowCanvasElement("User Activity", "assignment_ind", "Task", "An activity that requires user interaction")]
+[WorkflowCanvasElement("User Activity", "assignment_ind", "Task", NodeShape.Rectangle, "An activity that requires user interaction", "node-user")]
 public class UserActivity : Activity
 {
     public UserExperience UX { get; set; } = new RedirectExperience("https://example.com");

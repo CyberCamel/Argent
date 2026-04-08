@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Argent.Core.Workflows.Activites;
 
-[WorkflowCanvasElement("REST Activity", "cloud_sync", "Server", "Calls a REST service")]
+[WorkflowCanvasElement("REST Activity", "cloud_sync", "Server", NodeShape.Rectangle, "Calls a REST service", "node-script")]
 public class RestActivity : ServerActivity
 {
     public string Url { get; set; } = string.Empty;

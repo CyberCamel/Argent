@@ -1,24 +1,26 @@
 using Argent.Contracts;
 using Argent.Contracts.Forms;
+using Argent.Contracts.Workflows;
+using Argent.Core.Forms.Components;
 using Argent.Core.Identity;
 using Argent.Infrastructure.Data;
 using Argent.Logic;
+using Argent.Logic.Workflows;
+using Argent.Logic.Workflows.Modeling;
 using Argent.Web;
 using Argent.Web.Extensions;
 using Argent.Web.Factories;
-using Argent.Web.Services.Forms;
 using Argent.WebComponents.Core.Forms;
 using Camunda.Api.Client;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Win32;
-using System.Diagnostics;
-using Newtonsoft.Json.Schema;
 using Newtonsoft.Json.Schema.Generation;
-using Argent.Core.Forms.Components;
-using Argent.Logic.Workflows.Modeling;
-using Argent.Contracts.Workflows;
-using Argent.Logic.Forms;
+using System.Diagnostics;
+using System.Globalization;
+
+var rootCulture = CultureInfo.InvariantCulture;
+CultureInfo.DefaultThreadCurrentCulture = rootCulture;
+CultureInfo.DefaultThreadCurrentUICulture = rootCulture;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -130,7 +132,7 @@ using (var scope = app.Services.CreateScope())
 
     var serializer = new JSchemaGenerator();
     var formSchema = serializer.Generate(typeof(FormDefinition));
-    System.IO.File.WriteAllLines(".\\resources\\form-schema.json", formSchema.ToString().Split('\n'));
+    File.WriteAllLines(".\\resources\\form-schema.json", formSchema.ToString().Split('\n'));
 }
 
 app.Run();

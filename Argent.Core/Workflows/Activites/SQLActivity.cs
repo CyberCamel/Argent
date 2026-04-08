@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Argent.Core.Workflows.Activites;
 
-[WorkflowCanvasElement("SQL Activity", "database", "Server", "Executes SQL")]
+[WorkflowCanvasElement("SQL Activity", "database", "Server", NodeShape.Rectangle, "Executes SQL", "workflow-node node-script")]
 public class SQLActivity : ServerActivity
 {
     public string ConnectionKey { get; set; } = string.Empty;

@@ -2,11 +2,10 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Workflows
+namespace Argent.Core.Workflows;
+
+public class CanvasElement
 {
-    public class CanvasElement
-    {
-        public Guid Id { get; set; } = new Guid();
-        public string Name { get; set; } = string.Empty;
-    }
+    public Guid Id { get; set; } = new Guid();
+    public string Name { get; set; } = string.Empty;
 }

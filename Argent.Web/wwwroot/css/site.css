@@ -73,3 +73,48 @@ body {
     background: #ccc;
     border-radius: 10px;
 }
+
+.node circle {
+    opacity: 0;
+    transform: scale(0);
+    transform-origin: center;
+    transform-box: fill-box;
+    /* Ensure transition is here so it animates when .node-selected is REMOVED */
+    transition: all 0.2s ease-in;
+    fill: #0d6efd;
+    stroke: white;
+    stroke-width: 1.5px;
+    pointer-events: none; /* Can't click them while they are hidden */
+}
+
+/* Selected State (The "Entry" animation happens here) */
+.node-selected circle {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: all; /* Enable clicking */
+    /* Use the bouncier transition for the "Pop" in */
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Hover State */
+.node-selected circle:hover {
+    fill: #00d2ff;
+    transform: scale(1.4);
+    transition: all 0.1s ease-out; /* Fast response for hover */
+}
+
+.is-interacting circle{
+    transition:0s!important;
+}
+
+.canvas-container svg {
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none; /* CRITICAL: Stops browser from hijacking touch for scrolling/zooming */
+}
+
+/* Ensure handles don't show a 'text' cursor */
+.node rect[style*="cursor"] {
+    user-select: none;
+    pointer-events: all;
+}

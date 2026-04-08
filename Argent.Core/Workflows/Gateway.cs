@@ -4,9 +4,8 @@ using System.Text;
 
 namespace Argent.Core.Workflows
 {
-    public class WorkflowDefinition
+    public abstract class Gateway
     {
-        public List<Connection> Connections;
-        public List<INode> Nodes;
+
     }
 }

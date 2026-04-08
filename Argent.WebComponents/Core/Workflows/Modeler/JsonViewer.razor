@@ -1,5 +1,27 @@
-﻿<h3>JsonViewer</h3>
+﻿@using Argent.Logic.Workflows.Modeling
+@using System.Text.Json
+@using System.Text.Json.Serialization
+<div class="w-20">
+    @if(State.CompiledDefintion is not null)
+    {
+        <p>@(Render())</p>
+    }
+</div>
 
 @code {
+    [Parameter] public required  DesignerService State { get; set; }
+    string _lastCompilation;
 
+    private string Render()
+    {
+        if(State.CompileToJson() is string result)
+        {
+            _lastCompilation = result;
+            return result;
+        }
+        else
+        {
+            return _lastCompilation;
+        }
+    }
 }

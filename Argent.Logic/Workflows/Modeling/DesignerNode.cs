@@ -1,17 +1,32 @@
-﻿using System;
+﻿using Argent.Core.Workflows;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Argent.Logic.Workflows.Modeling;
 
+using Argent.Core.Attributes;
+using Argent.Core.Workflows;
+using Argent.Logic.Workflows.Modeling;
+
 public class DesignerNode
 {
+    public required INode NodeData { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string NodeType { get; set; } = default!;
-    public string Title { get; set; } = default!;
-    public int Height { get; set; } = 80;
-    public int Width { get; set; } = 150;
+
+    // Metadata for the UI
+    public string Title { get; set; } = "New Node";
+    public string Description { get; set; } = string.Empty;
+    public string Icon { get; set; } = "question";
+    public string CssClass { get; set; } = string.Empty;
+    public NodeShape Shape { get; set; }
+
+    // Transformation
     public double X { get; set; }
     public double Y { get; set; }
-    public string Icon { get; set; } = "bi-gear"; // Bootstrap Icon
+    public double Width { get => Shape == NodeShape.Circle ? Height : 160; set ; }
+    public double Height { get; set; } = 80;
+
+    public bool IsSelected { get; set; }
+    public List<AnchorDirection> AvailableAnchors { get; set; } = [AnchorDirection.Left, AnchorDirection.Right];
 }

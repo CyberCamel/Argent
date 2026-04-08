@@ -3,6 +3,11 @@
 
 @model Argent.Web.Pages.Workflows.ModelerModel
 @{
+    ViewData["Title"] = "Workflow Modeler";
+    ViewData["IsFullWidth"] = true;
+}
+
+@{
     <component type="typeof(WorkflowModeler)" render-mode="ServerPrerendered" />
     
 }

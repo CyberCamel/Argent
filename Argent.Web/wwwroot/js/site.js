@@ -3,3 +3,14 @@
 
 // Write your JavaScript code.
 console.log("Hello from site.js!");
+
+
+window.getDimensions = (element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height
+    };
+};

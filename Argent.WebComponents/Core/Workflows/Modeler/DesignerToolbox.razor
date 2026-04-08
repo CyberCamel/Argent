@@ -1,9 +1,9 @@
-﻿@using Argent.Contracts.Forms
-@using Argent.Contracts.Workflows
+﻿@using Argent.Contracts.Workflows
 @using Argent.Core.Workflows
+@using Argent.Logic.Workflows.Modeling
 @inject IWorkflowNodeRegistry Registry
 
-<div class="designer-toolbox p-0 border-end bg-light d-flex flex-column" style="width: 280px; height: 100vh;">
+<div class="designer-toolbox p-0 border-end bg-light d-flex flex-column @CssClass" style="width: 280px; height: 100vh; z-index: 10;">
     <div class="p-3 border-bottom bg-white">
         <h6 class="text-uppercase fw-bold mb-0" style="font-size: 0.8rem; letter-spacing: 1px;">
             <i class="bi bi-box-seam me-2"></i>Components
@@ -24,9 +24,7 @@
             <div class="accordion-item border-0">
                 <h2 class="accordion-header">
                     <button class="accordion-button py-2 px-3 bg-light fw-semibold text-secondary"
-                            type="button"
-                            data-bs-toggle="collapse"
-                            data-bs-target="#@categoryId"
+                            type="button" data-bs-toggle="collapse" data-bs-target="#@categoryId"
                             style="font-size: 0.75rem; text-transform: uppercase;">
                         @group.Key
                     </button>
@@ -36,8 +34,8 @@
                         @foreach (var metadata in group)
                         {
                             <div class="node-item d-flex align-items-center p-2 mb-1 rounded draggable-node"
-                                 draggable="true"
-                                 @ondragstart="@(() => HandleDragStart(metadata))">
+                                 style="cursor: grab;"
+                                 @onpointerdown="@(() => HandleDragStart(metadata))">
                                 
                                 <div class="node-icon-wrapper d-flex align-items-center justify-content-center rounded bg-white border shadow-sm me-3"
                                      style="width: 36px; height: 36px; min-width: 36px;">
@@ -53,6 +51,9 @@
                                     <div class="text-muted text-truncate" style="font-size: 0.7rem;">
                                         @metadata.Description
                                     </div>
+                                    <div class="text-muted text-truncate" style="font-size: 0.7rem;">
+                                        @metadata.Shape
+                                    </div>
                                 </div>
                             </div>
                         }
@@ -64,9 +65,29 @@
 </div>
 
 @code {
+    [Parameter] public required DesignerService State { get; set; }
+    [Parameter] public string CssClass { get; set; }
 
     private void HandleDragStart(NodeMetadata metadata)
     {
-        // Logic to store the being-dragged type
+        var instance = Activator.CreateInstance(metadata.Type);
+
+        if (instance is INode coreData)
+        {
+            // Create the wrapper with all visual metadata restored
+            State.PendingNewNode = new DesignerNode
+            {
+                NodeData = coreData,
+                Title = metadata.DisplayName,
+                Description = metadata.Description,
+                Icon = metadata.Icon,
+                CssClass = metadata.CssClass,
+                Shape = metadata.Shape,
+                X = -500, // Hide it until the mouse enters the canvas
+                Y = -500
+            };
+            
+            State.Notify();
+        }
     }
 }

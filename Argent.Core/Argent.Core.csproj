@@ -7,8 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<Folder Include="Interfaces\" />
-	<Folder Include="Workflows\Tasks\" />
 	<None Include="Workflows\Activites\UserActivity.cs" />
     <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="10.0.5" />
     <PackageReference Include="Newtonsoft.Json.Schema" Version="4.0.1" />

@@ -6,7 +6,7 @@ using Argent.Core.Workflows;
 
 namespace Argent.Contracts.Workflows
 {
-    internal interface INodeHandler<in TNode> where TNode : Node
+    internal interface INodeHandler<in TNode> where TNode : INode
     {
         Task ExecuteAsync(TNode node, IWorkflowContext workflowContext);
     }

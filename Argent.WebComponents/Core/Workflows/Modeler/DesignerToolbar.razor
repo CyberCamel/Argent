@@ -1,0 +1,12 @@
+﻿@using Argent.Logic.Workflows.Modeling
+
+<button @onpointerdown="HandleCompile">COMPILE!</button>
+
+@code {
+    [Parameter] public required DesignerService State { get; set; }
+
+    private void HandleCompile()
+    {
+        State.Compile();
+    }
+}
