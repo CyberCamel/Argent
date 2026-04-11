@@ -53,16 +53,13 @@
                             <circle cx="@end.X" cy="@end.Y" r="7" fill="white" stroke="#0d6efd" stroke-width="2"
                                     @onpointerdown="e => StartReRoute(e, connection, isSource: false)" @onpointerdown:stopPropagation />
 
-                            @for (var i = 0; i < routePoints.Count - 1; i++)
+                            @for (var i = 1; i < routePoints.Count - 1; i++)
                             {
-                                var segmentStart = routePoints[i];
-                                var segmentEnd = routePoints[i + 1];
-                                var horizontal = Math.Abs(segmentEnd.X - segmentStart.X) >= Math.Abs(segmentEnd.Y - segmentStart.Y);
-                                <line x1="@segmentStart.X" y1="@segmentStart.Y" x2="@segmentEnd.X" y2="@segmentEnd.Y"
-                                      stroke="transparent" stroke-width="14"
-                                      style="cursor:@(horizontal ? "ns-resize" : "ew-resize")"
-                                      @onpointerdown="e => StartSegmentDrag(e, connection, i)"
-                                      @onpointerdown:stopPropagation />
+                                var waypoint = routePoints[i];
+                                <circle cx="@waypoint.X" cy="@waypoint.Y" r="5" fill="white" stroke="#0d6efd" stroke-width="2"
+                                        style="cursor:move"
+                                        @onpointerdown="e => StartWaypointDrag(e, connection, i - 1)"
+                                        @onpointerdown:stopPropagation />
                             }
                         }
                     </g>
@@ -187,8 +184,7 @@
     private ResizeDirection _currentResizeDir = ResizeDirection.None;
     private string _activeEdge = "";
     private DesignerConnection? _routingConnection;
-    private int _routingSegmentIndex = -1;
-    private bool _routingHorizontal;
+    private int _routingWaypointIndex = -1;
     private const double ElasticTakeoverDistance = 180;
 
     protected override void OnInitialized() => State.OnChange += StateHasChanged;
@@ -320,9 +316,11 @@
                 }
                 break;
             case DesignerState.Routing:
-                if (_routingConnection != null)
+                if (_routingConnection != null && _routingWaypointIndex >= 0 && _routingWaypointIndex < _routingConnection.Waypoints.Count)
                 {
-                    DragRoutedSegment(_routingConnection, worldX, worldY);
+                    _routingConnection.Waypoints[_routingWaypointIndex].X = worldX;
+                    _routingConnection.Waypoints[_routingWaypointIndex].Y = worldY;
+                    _routingConnection.IsUserRouted = true;
                 }
                 break;
         }
@@ -343,7 +341,7 @@
         _currentMode = DesignerState.None;
         State.ActiveDraft = null;
         _routingConnection = null;
-        _routingSegmentIndex = -1;
+        _routingWaypointIndex = -1;
         State.Notify();
     }
 
@@ -524,75 +522,23 @@
         State.Notify();
     }
 
-    private async Task StartSegmentDrag(PointerEventArgs e, DesignerConnection connection, int segmentIndex)
+    private async Task StartWaypointDrag(PointerEventArgs e, DesignerConnection connection, int waypointIndex)
     {
-        EnsureUserRoutePoints(connection);
-        var points = GetRoutePoints(connection,
-            State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection),
-            State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection));
-        if (segmentIndex < 0 || segmentIndex >= points.Count - 1)
+        if (!connection.IsUserRouted || connection.Waypoints.Count == 0)
         {
-            return;
+            var start = State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection);
+            var end = State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection);
+            var autoPoints = GetAutoRoutePoints(start, end, connection.SourceDir, connection.TargetDir);
+            connection.Waypoints = autoPoints.Skip(1).Take(autoPoints.Count - 2)
+                .Select(p => new DesignerWaypoint { X = p.X, Y = p.Y }).ToList();
         }
 
-        var segmentStart = points[segmentIndex];
-        var segmentEnd = points[segmentIndex + 1];
-        _routingHorizontal = Math.Abs(segmentEnd.X - segmentStart.X) >= Math.Abs(segmentEnd.Y - segmentStart.Y);
-        _routingConnection = connection;
-        _routingSegmentIndex = segmentIndex;
         connection.IsUserRouted = true;
         SetRoutingBaseline(connection);
+        _routingConnection = connection;
+        _routingWaypointIndex = Math.Clamp(waypointIndex, 0, connection.Waypoints.Count - 1);
+
         await StartInteraction(e, null, DesignerState.Routing);
-    }
-
-    private void DragRoutedSegment(DesignerConnection connection, double worldX, double worldY)
-    {
-        EnsureUserRoutePoints(connection);
-        var waypointCount = connection.Waypoints.Count;
-        if (_routingSegmentIndex < 0 || _routingSegmentIndex > waypointCount)
-        {
-            return;
-        }
-
-        var firstWaypointIndex = _routingSegmentIndex - 1;
-        var secondWaypointIndex = _routingSegmentIndex;
-
-        if (_routingHorizontal)
-        {
-            if (firstWaypointIndex >= 0)
-            {
-                connection.Waypoints[firstWaypointIndex].Y = worldY;
-            }
-            if (secondWaypointIndex < waypointCount)
-            {
-                connection.Waypoints[secondWaypointIndex].Y = worldY;
-            }
-        }
-        else
-        {
-            if (firstWaypointIndex >= 0)
-            {
-                connection.Waypoints[firstWaypointIndex].X = worldX;
-            }
-            if (secondWaypointIndex < waypointCount)
-            {
-                connection.Waypoints[secondWaypointIndex].X = worldX;
-            }
-        }
-    }
-
-    private void EnsureUserRoutePoints(DesignerConnection connection)
-    {
-        if (connection.IsUserRouted && connection.Waypoints.Count > 0)
-        {
-            return;
-        }
-
-        var start = State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection);
-        var end = State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection);
-        var autoPoints = GetAutoRoutePoints(start, end, connection.SourceDir, connection.TargetDir);
-        connection.Waypoints = autoPoints.Skip(1).Take(autoPoints.Count - 2)
-            .Select(p => new DesignerWaypoint { X = p.X, Y = p.Y }).ToList();
     }
 
     private void ResnapNodeConnections(DesignerNode movedNode)
