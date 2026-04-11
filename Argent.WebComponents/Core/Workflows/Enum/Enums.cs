@@ -11,6 +11,7 @@ namespace Argent.WebComponents.Core.Workflows.Enum
         Panning,
         Connecting,
         Selecting,
-        Resizing
+        Resizing,
+        Routing
     }
 }

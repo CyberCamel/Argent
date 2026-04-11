@@ -36,7 +36,8 @@
                 {
                     var start = State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection);
                     var end = State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection);
-                    var pathData = GetOrthogonalPath(start, end, connection.SourceDir, connection.TargetDir);
+                    var routePoints = GetRoutePoints(connection, start, end);
+                    var pathData = BuildPolylinePath(routePoints);
 
                     <g @onclick="() => State.Select(connection)" @onclick:stopPropagation>
                         <path d="@pathData" stroke="transparent" stroke-width="15" fill="none" />
@@ -51,6 +52,18 @@
                             @* Target Handle *@
                             <circle cx="@end.X" cy="@end.Y" r="7" fill="white" stroke="#0d6efd" stroke-width="2"
                                     @onpointerdown="e => StartReRoute(e, connection, isSource: false)" @onpointerdown:stopPropagation />
+
+                            @for (var i = 0; i < routePoints.Count - 1; i++)
+                            {
+                                var segmentStart = routePoints[i];
+                                var segmentEnd = routePoints[i + 1];
+                                var horizontal = Math.Abs(segmentEnd.X - segmentStart.X) >= Math.Abs(segmentEnd.Y - segmentStart.Y);
+                                <line x1="@segmentStart.X" y1="@segmentStart.Y" x2="@segmentEnd.X" y2="@segmentEnd.Y"
+                                      stroke="transparent" stroke-width="14"
+                                      style="cursor:@(horizontal ? "ns-resize" : "ew-resize")"
+                                      @onpointerdown="e => StartSegmentDrag(e, connection, i)"
+                                      @onpointerdown:stopPropagation />
+                            }
                         }
                     </g>
                 }
@@ -70,7 +83,7 @@
                     var mousePoint = (State.ActiveDraft.MouseX, State.ActiveDraft.MouseY);
                     var adaptiveTargetDir = GetOppositeDirection(State.ActiveDraft.SourceDir);
 
-                    <path d="@GetOrthogonalPath(startPoint, mousePoint, State.ActiveDraft.SourceDir, adaptiveTargetDir)"
+                    <path d="@BuildPolylinePath(GetAutoRoutePoints(startPoint, mousePoint, State.ActiveDraft.SourceDir, adaptiveTargetDir))"
                           stroke="#0d6efd" stroke-width="2" fill="none" stroke-dasharray="4" />
                 }
 
@@ -173,6 +186,10 @@
 
     private ResizeDirection _currentResizeDir = ResizeDirection.None;
     private string _activeEdge = "";
+    private DesignerConnection? _routingConnection;
+    private int _routingSegmentIndex = -1;
+    private bool _routingHorizontal;
+    private const double ElasticTakeoverDistance = 180;
 
     protected override void OnInitialized() => State.OnChange += StateHasChanged;
 
@@ -251,6 +268,7 @@
             case DesignerState.Dragging:
                 _activeNode!.X = _startNodeX + deltaX;
                 _activeNode!.Y = _startNodeY + deltaY;
+                ResnapNodeConnections(_activeNode);
                 break;
             case DesignerState.Resizing:
                 if (_activeEdge == "right")
@@ -301,6 +319,12 @@
                     _activeAnchorDirection = currentBestDir;
                 }
                 break;
+            case DesignerState.Routing:
+                if (_routingConnection != null)
+                {
+                    DragRoutedSegment(_routingConnection, worldX, worldY);
+                }
+                break;
         }
     }
 
@@ -318,6 +342,8 @@
 
         _currentMode = DesignerState.None;
         State.ActiveDraft = null;
+        _routingConnection = null;
+        _routingSegmentIndex = -1;
         State.Notify();
     }
 
@@ -394,16 +420,24 @@
         return string.Create(CultureInfo.InvariantCulture, $"M {start.X} {start.Y} C {control1X} {control1Y}, {control2X} {control2Y}, {end.X} {end.Y}");
     }
 
-    private string GetOrthogonalPath((double X, double Y) start, (double X, double Y) end, AnchorDirection startDir, AnchorDirection endDir)
+    private List<(double X, double Y)> GetRoutePoints(DesignerConnection connection, (double X, double Y) start, (double X, double Y) end)
     {
-        const double exitBuffer = 30;
-    
-        // 1. Calculate the initial exit point and final entry point
+        if (connection.IsUserRouted && connection.Waypoints.Count > 0)
+        {
+            return [start, .. connection.Waypoints.Select(w => (w.X, w.Y)), end];
+        }
+
+        return GetAutoRoutePoints(start, end, connection.SourceDir, connection.TargetDir);
+    }
+
+    private List<(double X, double Y)> GetAutoRoutePoints((double X, double Y) start, (double X, double Y) end, AnchorDirection startDir, AnchorDirection endDir)
+    {
+        var span = Math.Sqrt(Math.Pow(end.X - start.X, 2) + Math.Pow(end.Y - start.Y, 2));
+        var exitBuffer = Math.Clamp(span * 0.18, 10, 50);
+
         var p1 = (X: start.X + GetDirectionX(startDir) * exitBuffer, Y: start.Y + GetDirectionY(startDir) * exitBuffer);
         var p4 = (X: end.X + GetDirectionX(endDir) * exitBuffer, Y: end.Y + GetDirectionY(endDir) * exitBuffer);
 
-        // 2. Calculate midpoints (the "elbows")
-        // We try to split the distance to create a clean 'Z' or 'U' shape
         var p2 = (X: 0.0, Y: 0.0);
         var p3 = (X: 0.0, Y: 0.0);
 
@@ -418,8 +452,17 @@
             p3 = (X: p4.X, Y: p2.Y);
         }
 
-        return string.Create(CultureInfo.InvariantCulture,
-            $"M {start.X} {start.Y} L {p1.X} {p1.Y} L {p2.X} {p2.Y} L {p3.X} {p3.Y} L {p4.X} {p4.Y} L {end.X} {end.Y}");
+        return [start, p1, p2, p3, p4, end];
+    }
+
+    private string BuildPolylinePath(List<(double X, double Y)> points)
+    {
+        if (points.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return $"M {string.Join(" L ", points.Select(p => string.Create(CultureInfo.InvariantCulture, $"{p.X} {p.Y}")))}";
     }
 
     private double GetDirectionX(AnchorDirection dir) => dir switch { AnchorDirection.Left => -1, AnchorDirection.Right => 1, _ => 0 };
@@ -479,6 +522,119 @@
         _activeAnchorDirection = State.ActiveDraft.SourceDir;
     
         State.Notify();
+    }
+
+    private async Task StartSegmentDrag(PointerEventArgs e, DesignerConnection connection, int segmentIndex)
+    {
+        EnsureUserRoutePoints(connection);
+        var points = GetRoutePoints(connection,
+            State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection),
+            State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection));
+        if (segmentIndex < 0 || segmentIndex >= points.Count - 1)
+        {
+            return;
+        }
+
+        var segmentStart = points[segmentIndex];
+        var segmentEnd = points[segmentIndex + 1];
+        _routingHorizontal = Math.Abs(segmentEnd.X - segmentStart.X) >= Math.Abs(segmentEnd.Y - segmentStart.Y);
+        _routingConnection = connection;
+        _routingSegmentIndex = segmentIndex;
+        connection.IsUserRouted = true;
+        SetRoutingBaseline(connection);
+        await StartInteraction(e, null, DesignerState.Routing);
+    }
+
+    private void DragRoutedSegment(DesignerConnection connection, double worldX, double worldY)
+    {
+        EnsureUserRoutePoints(connection);
+        var waypointCount = connection.Waypoints.Count;
+        if (_routingSegmentIndex < 0 || _routingSegmentIndex > waypointCount)
+        {
+            return;
+        }
+
+        var firstWaypointIndex = _routingSegmentIndex - 1;
+        var secondWaypointIndex = _routingSegmentIndex;
+
+        if (_routingHorizontal)
+        {
+            if (firstWaypointIndex >= 0)
+            {
+                connection.Waypoints[firstWaypointIndex].Y = worldY;
+            }
+            if (secondWaypointIndex < waypointCount)
+            {
+                connection.Waypoints[secondWaypointIndex].Y = worldY;
+            }
+        }
+        else
+        {
+            if (firstWaypointIndex >= 0)
+            {
+                connection.Waypoints[firstWaypointIndex].X = worldX;
+            }
+            if (secondWaypointIndex < waypointCount)
+            {
+                connection.Waypoints[secondWaypointIndex].X = worldX;
+            }
+        }
+    }
+
+    private void EnsureUserRoutePoints(DesignerConnection connection)
+    {
+        if (connection.IsUserRouted && connection.Waypoints.Count > 0)
+        {
+            return;
+        }
+
+        var start = State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection);
+        var end = State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection);
+        var autoPoints = GetAutoRoutePoints(start, end, connection.SourceDir, connection.TargetDir);
+        connection.Waypoints = autoPoints.Skip(1).Take(autoPoints.Count - 2)
+            .Select(p => new DesignerWaypoint { X = p.X, Y = p.Y }).ToList();
+    }
+
+    private void ResnapNodeConnections(DesignerNode movedNode)
+    {
+        foreach (var connection in State.Connections.Where(c => c.Source == movedNode || c.Target == movedNode))
+        {
+            connection.SourceDir = GetBestDirectionTowardsNode(connection.Source, connection.Target);
+            connection.TargetDir = GetBestDirectionTowardsNode(connection.Target, connection.Source);
+
+            if (connection.IsUserRouted && ShouldReturnToAuto(connection))
+            {
+                connection.IsUserRouted = false;
+                connection.Waypoints.Clear();
+            }
+        }
+    }
+
+    private AnchorDirection GetBestDirectionTowardsNode(DesignerNode source, DesignerNode destination)
+    {
+        var targetX = destination.X + (destination.Width / 2);
+        var targetY = destination.Y + (destination.Height / 2);
+        return GetBestDirectionFromPoint(targetX, targetY, source);
+    }
+
+    private bool ShouldReturnToAuto(DesignerConnection connection)
+    {
+        var source = State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection);
+        var target = State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection);
+
+        var sourceShift = Math.Sqrt(Math.Pow(source.X - connection.BaselineSourceX, 2) + Math.Pow(source.Y - connection.BaselineSourceY, 2));
+        var targetShift = Math.Sqrt(Math.Pow(target.X - connection.BaselineTargetX, 2) + Math.Pow(target.Y - connection.BaselineTargetY, 2));
+        return sourceShift > ElasticTakeoverDistance || targetShift > ElasticTakeoverDistance;
+    }
+
+    private void SetRoutingBaseline(DesignerConnection connection)
+    {
+        var source = State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection);
+        var target = State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection);
+        connection.BaselineSourceX = source.X;
+        connection.BaselineSourceY = source.Y;
+        connection.BaselineTargetX = target.X;
+        connection.BaselineTargetY = target.Y;
     }
 
     private async Task StartResize(PointerEventArgs e, DesignerNode n, ResizeDirection edge)
