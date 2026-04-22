@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Logic.Workflows.Modeling
+namespace Argent.Logic.Workflows.Modeling;
+
+public class DesignerAnchor
 {
-    public class DesignerAnchor
-    {
-        public double RelativeX { get; set; }
-        public double RelativeY { get; set; }
-        public AnchorDirection Direction { get; set; }
-    }
+    public double RelativeX { get; set; }
+    public double RelativeY { get; set; }
+    public AnchorDirection Direction { get; set; }
 }

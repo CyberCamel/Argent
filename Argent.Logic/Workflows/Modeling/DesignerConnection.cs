@@ -21,6 +21,7 @@ public class DesignerConnection
     public double BaselineSourceY { get; set; }
     public double BaselineTargetX { get; set; }
     public double BaselineTargetY { get; set; }
+    public string PathString { get; set; }
 }
 
 public class DesignerWaypoint

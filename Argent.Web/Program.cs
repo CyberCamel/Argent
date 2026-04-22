@@ -61,12 +61,6 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 builder.Services.AddSignalR();
 
-builder.Services.AddScoped<CamundaClient>(sp =>
-{
-    var baseUrl = builder.Configuration.GetSection("CIBSeven")["BaseUrl"];
-    return CamundaClient.Create(baseUrl);
-});
-
 
 // ----- DbContext -----
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

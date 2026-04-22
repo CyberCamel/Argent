@@ -118,3 +118,7 @@ body {
     user-select: none;
     pointer-events: all;
 }
+
+rect{
+    opacity:0.2;
+}

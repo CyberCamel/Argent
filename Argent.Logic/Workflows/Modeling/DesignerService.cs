@@ -27,7 +27,7 @@ public class DesignerService
         var def = new WorkflowDefinition
         {
             Connections = Connections.Select(c => c.EngineConnection).ToList(),
-            Nodes = Nodes.Select(n => n.NodeData).ToList()
+            Nodes = [.. Nodes.Select(n => n.NodeData)]
         };
         CompiledDefintion = def;
         _doCompile = true;
@@ -75,45 +75,6 @@ public class DesignerService
 
 
     public void Notify() => OnChange?.Invoke();
-
-    // Logic: Find where a wire should land on a node edge
-
-    private (double X, double Y) GetBaseAnchor(DesignerNode node, AnchorDirection dir)
-    {
-        return dir switch
-        {
-            AnchorDirection.Left => (node.X, node.Y + (node.Height / 2)),
-            AnchorDirection.Right => (node.X + node.Width, node.Y + (node.Height / 2)),
-            AnchorDirection.Top => (node.X + (node.Width / 2), node.Y),
-            AnchorDirection.Bottom => (node.X + (node.Width / 2), node.Y + node.Height),
-            _ => (node.X, node.Y)
-        };
-    }
-    public (double X, double Y) GetAnchorWorldPos(DesignerNode node, AnchorDirection dir, DesignerConnection? current = null)
-    {
-        var (baseX, baseY) = GetBaseAnchor(node, dir);
-
-        if (current != null)
-        {
-            // Find all connections sharing this specific node + side
-            var siblings = Connections.Where(c =>
-                (c.Target == node && c.TargetDir == dir) ||
-                (c.Source == node && c.SourceDir == dir)).ToList();
-
-            if (siblings.Count > 1)
-            {
-                int index = siblings.IndexOf(current);
-                double offset = (index - (siblings.Count - 1) / 2.0) * 0.1; // 10% step
-
-                // If it's a vertical side, offset the Y. If horizontal, offset the X.
-                if (dir == AnchorDirection.Left || dir == AnchorDirection.Right)
-                    baseY += (offset * node.Height);
-                else
-                    baseX += (offset * node.Width);
-            }
-        }
-        return (baseX, baseY);
-    }
 
     public void DeleteSelected()
     {

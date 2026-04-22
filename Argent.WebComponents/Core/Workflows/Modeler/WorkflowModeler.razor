@@ -1,7 +1,9 @@
-﻿@using Argent.Core.Attributes
+﻿@using Argent.Contracts.Workflows
+@using Argent.Core.Attributes
 @using Argent.Core.Workflows
 @using Argent.Logic.Workflows.Modeling
 @using System.Globalization
+@using Argent.Logic.Workflows.Modeling.Routing
 @using Argent.WebComponents.Core.Workflows.Enum
 @using Microsoft.JSInterop
 @inject DesignerService State
@@ -17,6 +19,7 @@
              @onpointermove="HandlePointerMove"
              @onpointerup="HandlePointerUp"
              @onwheel="HandleMouseWheel"
+             @onwheel:preventDefault
              @onkeydown="HandleKeyDown">
 
                 <svg viewBox="@State.Session.ViewBox" width="100%" height="100%" @oncontextmenu:preventDefault class=@(_currentMode ==DesignerState.Resizing ? "is-interacting" : "")>
@@ -25,6 +28,7 @@
                         <circle cx="2" cy="2" r="1" fill="#444" />
                     </pattern>
                 </defs>
+                    
 
                 <rect x="@State.Session.PanX" y="@State.Session.PanY"
                       width="@(State.Session.ViewportWidth / State.Session.Zoom)"
@@ -32,16 +36,19 @@
                       fill="url(#gridPattern)"
                       @onpointerdown="HandleBackgroundPointerDown" />
 
-                @foreach (var connection in State.Connections)
-                {
-                    var start = State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection);
-                    var end = State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection);
-                    var routePoints = GetRoutePoints(connection, start, end);
-                    var pathData = BuildPolylinePath(routePoints);
+                    @foreach (var connection in State.Connections)
+                    {
+                        // Pass the explicit directions stored in the connection model
+                        var pathData = RoutingService.GetOrthogonalPath(
+                            connection.Source, connection.SourceDir,
+                            connection.Target, connection.TargetDir);
 
-                    <g @onclick="() => State.Select(connection)" @onclick:stopPropagation>
-                        <path d="@pathData" stroke="transparent" stroke-width="15" fill="none" />
-                        <path d="@pathData" stroke="@(State.SelectedConnection == connection ? "#0d6efd" : "#888")" stroke-width="2" fill="none" />
+                        var start = AnchorService.GetBaseAnchor(connection.Source, connection.SourceDir);
+                        var end = AnchorService.GetBaseAnchor(connection.Target, connection.TargetDir);
+
+                        <g @onclick="() => State.Select(connection)" @onclick:stopPropagation>
+                            <path d="@pathData" stroke="transparent" stroke-width="15" fill="none" />
+                            <path d="@pathData" stroke="@(State.SelectedConnection == connection ? "#0d6efd" : "#888")" stroke-width="2" fill="none" />
 
                         @if (State.SelectedConnection == connection)
                         {
@@ -53,14 +60,6 @@
                             <circle cx="@end.X" cy="@end.Y" r="7" fill="white" stroke="#0d6efd" stroke-width="2"
                                     @onpointerdown="e => StartReRoute(e, connection, isSource: false)" @onpointerdown:stopPropagation />
 
-                            @for (var i = 1; i < routePoints.Count - 1; i++)
-                            {
-                                var waypoint = routePoints[i];
-                                <circle cx="@waypoint.X" cy="@waypoint.Y" r="5" fill="white" stroke="#0d6efd" stroke-width="2"
-                                        style="cursor:move"
-                                        @onpointerdown="e => StartWaypointDrag(e, connection, i - 1)"
-                                        @onpointerdown:stopPropagation />
-                            }
                         }
                     </g>
                 }
@@ -76,17 +75,18 @@
 
                 @if (State.ActiveDraft != null)
                 {
-                    var startPoint = State.GetAnchorWorldPos(State.ActiveDraft.Source, State.ActiveDraft.SourceDir);
                     var mousePoint = (State.ActiveDraft.MouseX, State.ActiveDraft.MouseY);
-                    var adaptiveTargetDir = GetOppositeDirection(State.ActiveDraft.SourceDir);
-
-                    <path d="@BuildPolylinePath(GetAutoRoutePoints(startPoint, mousePoint, State.ActiveDraft.SourceDir, adaptiveTargetDir))"
-                          stroke="#0d6efd" stroke-width="2" fill="none" stroke-dasharray="4" />
+                    <path d="@RoutingService.GetOrthogonalPath(State.ActiveDraft.Source, State.ActiveDraft.SourceDir, mousePoint)"
+                            stroke="#0d6efd" stroke-width="2" fill="none" stroke-dasharray="4" />
                 }
 
                 @foreach (var node in State.Nodes)
                 {
-                        <g transform="translate(@(node.X), @(node.Y))" class="node @(node.IsSelected ? "node-selected" : "")">
+                        <g transform="translate(@(node.X), @(node.Y))"
+                               class="node @(node.IsSelected ? "node-selected" : "")"
+                               @onpointerdown="e => HandleNodePointerDown(e, node)"
+                               @ondblclick="() => _editingNode = node"
+                               @onpointerdown:stopPropagation>
     
                             @* The dynamic shape *@
                             @switch (node.Shape)
@@ -135,21 +135,36 @@
                                 @node.Title
                             </text>
                         
+                            @foreach (var direction in Enum.GetValues<AnchorDirection>())
+                            {
+                                if (direction == AnchorDirection.None) continue;
+    
+                                // Get absolute world position
+                                var anchor = AnchorService.GetBaseAnchor(node, direction);
 
-                        @foreach (var direction in Enum.GetValues<AnchorDirection>())
-                        {
-                            var anchor = GetLocalAnchorPosition(node, direction);
-                            <circle cx="@anchor.X" cy="@anchor.Y" r="6" fill="#0d6efd" style="cursor:crosshair"
-                                    @onpointerdown="e => StartInteraction(e, node, DesignerState.Connecting, direction)"
-                                    @onpointerdown:stopPropagation />
-                        }
+                                // Subtract node X/Y because we are inside a <g transform="translate(node.X, node.Y)">
+                                var relativeX = anchor.X - node.X;
+                                var relativeY = anchor.Y - node.Y;
+
+                                <circle cx="@relativeX" cy="@relativeY" r="6" fill="#0d6efd" style="cursor:crosshair"
+                                        @onpointerdown="e => StartInteraction(e, node, DesignerState.Connecting, direction)"
+                                        @onpointerdown:stopPropagation />
+                            }
 
                         @if (_currentMode == DesignerState.Connecting)
                         {
                             @foreach (var direction in Enum.GetValues<AnchorDirection>())
                             {
-                                var anchor = GetLocalAnchorPosition(node, direction);
-                                <circle cx="@anchor.X" cy="@anchor.Y" r="4" fill="#0d6efd" style="cursor:crosshair"
+                                if (direction == AnchorDirection.None) continue;
+    
+                                // Get absolute world position
+                                var anchor = AnchorService.GetBaseAnchor(node, direction);
+
+                                // Subtract node X/Y because we are inside a <g transform="translate(node.X, node.Y)">
+                                var relativeX = anchor.X - node.X;
+                                var relativeY = anchor.Y - node.Y;
+
+                                <circle cx="@relativeX" cy="@relativeY" r="6" fill="#0d6efd" style="cursor:crosshair"
                                         @onpointerdown="e => StartInteraction(e, node, DesignerState.Connecting, direction)"
                                         @onpointerdown:stopPropagation />
                             }
@@ -157,7 +172,20 @@
                     </g>
                 }
             </svg>
-        </div>
+                @if (_editingNode != null)
+                {
+                    <div class="property-floating-card shadow-lg border rounded bg-white"
+                         style="@GetCardStyle(_editingNode)">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center py-1 px-2 border-bottom">
+                            <span class="small fw-bold text-uppercase text-muted">@_editingNode.Title</span>
+                            <button type="button" class="btn-close" style="scale: 0.6;" @onclick="() => _editingNode = null"></button>
+                        </div>
+                        <div class="card-body p-0" style="width: 320px; max-height: 450px; overflow-y: auto;">
+                            <DesignerNodePropertyPanel Node="_editingNode" State="State" />
+                        </div>
+                    </div>
+                }
+            </div>
     </div>
     </div>
     <JsonViewer State="@State" />
@@ -167,8 +195,8 @@
     private ElementReference _canvasContainer;
     private DesignerState _currentMode = DesignerState.None;
     private DesignerNode? _activeNode;
+    private DesignerNode? _editingNode;
     private AnchorDirection _activeAnchorDirection;
-
     private double _startMouseX, _startMouseY;
     private double _startNodeX, _startNodeY;
     private double _startNodeWidth, _startNodeHeight;
@@ -182,7 +210,6 @@
     }
 
     private ResizeDirection _currentResizeDir = ResizeDirection.None;
-    private string _activeEdge = "";
     private DesignerConnection? _routingConnection;
     private int _routingWaypointIndex = -1;
     private const double ElasticTakeoverDistance = 180;
@@ -195,8 +222,18 @@
         await StartInteraction(e, null, DesignerState.Panning);
     }
 
+    private string GetCardStyle(DesignerNode node)
+    {
+        // Convert world coords to screen pixels
+        double x = (node.X + node.Width + 10 - State.Session.PanX) * State.Session.Zoom;
+        double y = (node.Y - State.Session.PanY) * State.Session.Zoom;
+
+        return $"position: absolute; left: 0; top: 0; z-index: 100; transform: translate({x}px, {y}px); pointer-events: all;";
+    }
+
     private async Task HandleNodePointerDown(PointerEventArgs e, DesignerNode node)
     {
+        if (_editingNode != null && _editingNode != node) _editingNode = null;
         State.Select(node);
         await StartInteraction(e, node, DesignerState.Dragging);
     }
@@ -262,18 +299,23 @@
         switch (_currentMode)
         {
             case DesignerState.Dragging:
-                _activeNode!.X = _startNodeX + deltaX;
-                _activeNode!.Y = _startNodeY + deltaY;
-                ResnapNodeConnections(_activeNode);
+                double rawX = _startNodeX + deltaX;
+                double rawY = _startNodeY + deltaY;
+
+                // Apply Snapping
+                var (snappedX, snappedY) = GetSnappedPosition(_activeNode!, State.Nodes, rawX, rawY);
+
+                _activeNode!.X = snappedX;
+                _activeNode!.Y = snappedY;
                 break;
             case DesignerState.Resizing:
-                if (_activeEdge == "right")
+                if (_currentResizeDir == ResizeDirection.Right || _currentResizeDir == ResizeDirection.TopRight || _currentResizeDir == ResizeDirection.BottomRight)
                     _activeNode!.Width = Math.Max(100, _startNodeWidth + deltaX);
-    
-                if (_activeEdge == "bottom")
+
+                if (_currentResizeDir == ResizeDirection.Bottom || _currentResizeDir == ResizeDirection.BottomLeft || _currentResizeDir == ResizeDirection.BottomRight)
                     _activeNode!.Height = Math.Max(50, _startNodeHeight + deltaY);
-    
-                if (_activeEdge == "left")
+
+                if (_currentResizeDir == ResizeDirection.Left || _currentResizeDir == ResizeDirection.TopLeft || _currentResizeDir == ResizeDirection.BottomLeft)
                 {
                     var newWidth = Math.Max(100, _startNodeWidth - deltaX);
                     if (newWidth > 100)
@@ -282,8 +324,7 @@
                         _activeNode!.Width = newWidth;
                     }
                 }
-    
-                if (_activeEdge == "top")
+                if (_currentResizeDir == ResizeDirection.Top || _currentResizeDir == ResizeDirection.TopLeft || _currentResizeDir == ResizeDirection.TopRight)
                 {
                     var newHeight = Math.Max(50, _startNodeHeight - deltaY);
                     if (newHeight > 50)
@@ -292,6 +333,7 @@
                         _activeNode!.Height = newHeight;
                     }
                 }
+
                 State.Notify();
                 break;
             case DesignerState.Panning:
@@ -305,8 +347,8 @@
                 // RE-SNAP LOGIC:
                 // If the mouse moves significantly away from the original anchor,
                 // switch the SourceDir to the one currently "facing" the mouse.
-                var currentBestDir = GetBestDirectionFromPoint(worldX, worldY, _activeNode!);
-    
+                var currentBestDir = AnchorService.GetClosestAnchor(_activeNode!, (worldX, worldY)).dir;
+
                 if (State.ActiveDraft.SourceDir != currentBestDir)
                 {
                     State.ActiveDraft.SourceDir = currentBestDir;
@@ -351,142 +393,51 @@
 
         if (targetNode != null)
         {
-            var targetDir = GetClosestAnchorDirection(State.ActiveDraft!.MouseX, State.ActiveDraft.MouseY, targetNode);
+            var targetDir = AnchorService.GetClosestAnchor(targetNode, (State.ActiveDraft!.MouseX, State.ActiveDraft.MouseY)).dir;
             State.Connections.Add(new DesignerConnection
             {
                 Source = _activeNode!,
                 SourceDir = _activeAnchorDirection,
                 Target = targetNode,
                 TargetDir = targetDir,
-                EngineConnection = new Connection { From = _activeNode!.NodeData, To = targetNode.NodeData }
+                EngineConnection = new Connection { From = _activeNode!.NodeData, To = targetNode.NodeData },
             });
         }
     }
 
-    private AnchorDirection GetBestDirectionFromPoint(double mouseX, double mouseY, DesignerNode node)
-    {
-        double centerX = node.X + (node.Width / 2);
-        double centerY = node.Y + (node.Height / 2);
-
-        double dx = mouseX - centerX;
-        double dy = mouseY - centerY;
-
-        // Use the aspect ratio to normalize the vector (important for wide/tall nodes)
-        double absX = Math.Abs(dx) / node.Width;
-        double absY = Math.Abs(dy) / node.Height;
-
-        if (absX > absY)
-        {
-            return dx > 0 ? AnchorDirection.Right : AnchorDirection.Left;
-        }
-        else
-        {
-            return dy > 0 ? AnchorDirection.Bottom : AnchorDirection.Top;
-        }
-    }
-
-
     private void HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Delete" || e.Key == "Backspace") State.DeleteSelected();
+        if (e.Key == "Delete") State.DeleteSelected();
     }
 
-    private void HandleMouseWheel(WheelEventArgs e)
+    private async Task HandleMouseWheel(WheelEventArgs e)
     {
-        State.Session.Zoom = Math.Clamp(State.Session.Zoom * (e.DeltaY > 0 ? 0.9 : 1.1), 0.1, 3.0);
+        var rect = await JS.InvokeAsync<BoundingRect>("getDimensions", _canvasContainer);
+
+        // Mouse position in screen space → world space BEFORE zoom
+        var (mouseWorldXBefore, mouseWorldYBefore) =
+            State.Session.ScreenToWorld(e.ClientX, e.ClientY, rect.Left, rect.Top);
+
+        // Apply zoom
+        var zoomFactor = Math.Pow(1.001, -e.DeltaY);
+        var newZoom = Math.Clamp(State.Session.Zoom * zoomFactor, 0.1, 3.0);
+
+        State.Session.Zoom = newZoom;
+
+        // Mouse position in world space AFTER zoom
+        var (mouseWorldXAfter, mouseWorldYAfter) =
+            State.Session.ScreenToWorld(e.ClientX, e.ClientY, rect.Left, rect.Top);
+
+        // Adjust pan so the point under cursor stays fixed
+        State.Session.PanX += mouseWorldXBefore - mouseWorldXAfter;
+        State.Session.PanY += mouseWorldYBefore - mouseWorldYAfter;
+
         State.Notify();
     }
 
-    private (double X, double Y) GetLocalAnchorPosition(DesignerNode node, AnchorDirection direction) => direction switch
-    {
-        AnchorDirection.Right => (node.Width, node.Height / 2),
-        AnchorDirection.Left => (0, node.Height / 2),
-        AnchorDirection.Bottom => (node.Width / 2, node.Height),
-        _ => (node.Width / 2, 0)
-    };
-
-    private string GetBezierCurvePath((double X, double Y) start, (double X, double Y) end, AnchorDirection startDir, AnchorDirection endDir)
-    {
-        const double intensity = 50;
-
-        double control1X = start.X + (startDir == AnchorDirection.Right ? intensity : startDir == AnchorDirection.Left ? -intensity : 0);
-        double control1Y = start.Y + (startDir == AnchorDirection.Bottom ? intensity : startDir == AnchorDirection.Top ? -intensity : 0);
-
-        double control2X = end.X + (endDir == AnchorDirection.Right ? intensity : endDir == AnchorDirection.Left ? -intensity : 0);
-        double control2Y = end.Y + (endDir == AnchorDirection.Bottom ? intensity : endDir == AnchorDirection.Top ? -intensity : 0);
-
-        return string.Create(CultureInfo.InvariantCulture, $"M {start.X} {start.Y} C {control1X} {control1Y}, {control2X} {control2Y}, {end.X} {end.Y}");
-    }
-
-    private List<(double X, double Y)> GetRoutePoints(DesignerConnection connection, (double X, double Y) start, (double X, double Y) end)
-    {
-        if (connection.IsUserRouted && connection.Waypoints.Count > 0)
-        {
-            return [start, .. connection.Waypoints.Select(w => (w.X, w.Y)), end];
-        }
-
-        return GetAutoRoutePoints(start, end, connection.SourceDir, connection.TargetDir);
-    }
-
-    private List<(double X, double Y)> GetAutoRoutePoints((double X, double Y) start, (double X, double Y) end, AnchorDirection startDir, AnchorDirection endDir)
-    {
-        var span = Math.Sqrt(Math.Pow(end.X - start.X, 2) + Math.Pow(end.Y - start.Y, 2));
-        var exitBuffer = Math.Clamp(span * 0.18, 10, 50);
-
-        var p1 = (X: start.X + GetDirectionX(startDir) * exitBuffer, Y: start.Y + GetDirectionY(startDir) * exitBuffer);
-        var p4 = (X: end.X + GetDirectionX(endDir) * exitBuffer, Y: end.Y + GetDirectionY(endDir) * exitBuffer);
-
-        var p2 = (X: 0.0, Y: 0.0);
-        var p3 = (X: 0.0, Y: 0.0);
-
-        if (startDir == AnchorDirection.Left || startDir == AnchorDirection.Right)
-        {
-            p2 = (X: p1.X + (p4.X - p1.X) / 2, Y: p1.Y);
-            p3 = (X: p2.X, Y: p4.Y);
-        }
-        else // Top or Bottom
-        {
-            p2 = (X: p1.X, Y: p1.Y + (p4.Y - p1.Y) / 2);
-            p3 = (X: p4.X, Y: p2.Y);
-        }
-
-        return [start, p1, p2, p3, p4, end];
-    }
-
-    private string BuildPolylinePath(List<(double X, double Y)> points)
-    {
-        if (points.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        return $"M {string.Join(" L ", points.Select(p => string.Create(CultureInfo.InvariantCulture, $"{p.X} {p.Y}")))}";
-    }
-
-    private double GetDirectionX(AnchorDirection dir) => dir switch { AnchorDirection.Left => -1, AnchorDirection.Right => 1, _ => 0 };
-    private double GetDirectionY(AnchorDirection dir) => dir switch { AnchorDirection.Top => -1, AnchorDirection.Bottom => 1, _ => 0 };
-
-
-    private AnchorDirection GetOppositeDirection(AnchorDirection dir) => dir switch
-    {
-        AnchorDirection.Left => AnchorDirection.Right,
-        AnchorDirection.Right => AnchorDirection.Left,
-        AnchorDirection.Top => AnchorDirection.Bottom,
-        _ => AnchorDirection.Top
-    };
 
     private bool IsPointInsideNode(double x, double y, DesignerNode n) => x >= n.X && x <= n.X + n.Width && y >= n.Y && y <= n.Y + n.Height;
 
-    private AnchorDirection GetClosestAnchorDirection(double x, double y, DesignerNode n)
-    {
-        var distances = new Dictionary<AnchorDirection, double> {
-            { AnchorDirection.Left, Math.Abs(x - n.X) },
-            { AnchorDirection.Right, Math.Abs(x - (n.X + n.Width)) },
-            { AnchorDirection.Top, Math.Abs(y - n.Y) },
-            { AnchorDirection.Bottom, Math.Abs(y - (n.Y + n.Height)) }
-        };
-        return distances.MinBy(kvp => kvp.Value).Key;
-    }
 
     private void StartReRoute(PointerEventArgs e, DesignerConnection connection, bool isSource)
     {
@@ -522,65 +473,14 @@
         State.Notify();
     }
 
-    private async Task StartWaypointDrag(PointerEventArgs e, DesignerConnection connection, int waypointIndex)
-    {
-        if (!connection.IsUserRouted || connection.Waypoints.Count == 0)
-        {
-            var start = State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection);
-            var end = State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection);
-            var autoPoints = GetAutoRoutePoints(start, end, connection.SourceDir, connection.TargetDir);
-            connection.Waypoints = autoPoints.Skip(1).Take(autoPoints.Count - 2)
-                .Select(p => new DesignerWaypoint { X = p.X, Y = p.Y }).ToList();
-        }
-
-        connection.IsUserRouted = true;
-        SetRoutingBaseline(connection);
-        _routingConnection = connection;
-        _routingWaypointIndex = Math.Clamp(waypointIndex, 0, connection.Waypoints.Count - 1);
-
-        await StartInteraction(e, null, DesignerState.Routing);
-    }
-
-    private void ResnapNodeConnections(DesignerNode movedNode)
-    {
-        foreach (var connection in State.Connections.Where(c => c.Source == movedNode || c.Target == movedNode))
-        {
-            connection.SourceDir = GetBestDirectionTowardsNode(connection.Source, connection.Target);
-            connection.TargetDir = GetBestDirectionTowardsNode(connection.Target, connection.Source);
-
-            if (connection.IsUserRouted && ShouldReturnToAuto(connection))
-            {
-                connection.IsUserRouted = false;
-                connection.Waypoints.Clear();
-            }
-        }
-    }
-
-    private AnchorDirection GetBestDirectionTowardsNode(DesignerNode source, DesignerNode destination)
-    {
-        var targetX = destination.X + (destination.Width / 2);
-        var targetY = destination.Y + (destination.Height / 2);
-        return GetBestDirectionFromPoint(targetX, targetY, source);
-    }
-
     private bool ShouldReturnToAuto(DesignerConnection connection)
     {
-        var source = State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection);
-        var target = State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection);
+        var source = AnchorService.GetClosestAnchor(connection.Source, connection.Target);
+        var target = AnchorService.GetClosestAnchor(connection.Target, connection.Source);
 
         var sourceShift = Math.Sqrt(Math.Pow(source.X - connection.BaselineSourceX, 2) + Math.Pow(source.Y - connection.BaselineSourceY, 2));
         var targetShift = Math.Sqrt(Math.Pow(target.X - connection.BaselineTargetX, 2) + Math.Pow(target.Y - connection.BaselineTargetY, 2));
         return sourceShift > ElasticTakeoverDistance || targetShift > ElasticTakeoverDistance;
-    }
-
-    private void SetRoutingBaseline(DesignerConnection connection)
-    {
-        var source = State.GetAnchorWorldPos(connection.Source, connection.SourceDir, connection);
-        var target = State.GetAnchorWorldPos(connection.Target, connection.TargetDir, connection);
-        connection.BaselineSourceX = source.X;
-        connection.BaselineSourceY = source.Y;
-        connection.BaselineTargetX = target.X;
-        connection.BaselineTargetY = target.Y;
     }
 
     private async Task StartResize(PointerEventArgs e, DesignerNode n, ResizeDirection edge)
@@ -588,6 +488,46 @@
         _currentResizeDir = edge;
         await StartInteraction(e, n, DesignerState.Resizing);
     }
+
+    public static (double x, double y) GetSnappedPosition(DesignerNode draggingNode, List<DesignerNode> allNodes, double rawX, double rawY, double threshold = 10)
+    {
+        double snappedX = rawX;
+        double snappedY = rawY;
+
+        foreach (var otherNode in allNodes.Where(n => n != draggingNode))
+        {
+            // --- Horizontal Snapping (X-Axis) ---
+        
+            // Left edge to Left edge
+            if (Math.Abs(rawX - otherNode.X) < threshold) snappedX = otherNode.X;
+        
+            // Right edge to Right edge
+            else if (Math.Abs((rawX + draggingNode.Width) - (otherNode.X + otherNode.Width)) < threshold)
+                snappedX = otherNode.X + otherNode.Width - draggingNode.Width;
+            
+            // Center to Center
+            else if (Math.Abs((rawX + draggingNode.Width / 2) - (otherNode.X + otherNode.Width / 2)) < threshold)
+                snappedX = (otherNode.X + otherNode.Width / 2) - (draggingNode.Width / 2);
+
+            // --- Vertical Snapping (Y-Axis) ---
+        
+            // Top edge to Top edge
+            if (Math.Abs(rawY - otherNode.Y) < threshold) snappedY = otherNode.Y;
+        
+            // Bottom edge to Bottom edge
+            else if (Math.Abs((rawY + draggingNode.Height) - (otherNode.Y + otherNode.Height)) < threshold)
+                snappedY = otherNode.Y + otherNode.Height - draggingNode.Height;
+
+            // Center to Center
+            else if (Math.Abs((rawY + draggingNode.Height / 2) - (otherNode.Y + otherNode.Height / 2)) < threshold)
+                snappedY = (otherNode.Y + otherNode.Height / 2) - (draggingNode.Height / 2);
+        }
+
+        return (snappedX, snappedY);
+    }
+
+
+
 
     public class BoundingRect { public double Left { get; set; } public double Top { get; set; } public double Width { get; set; } public double Height { get; set; } }
 

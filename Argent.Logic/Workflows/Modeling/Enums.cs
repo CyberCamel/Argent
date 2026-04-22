@@ -4,6 +4,12 @@ using System.Text;
 
 namespace Argent.Logic.Workflows.Modeling;
 
-public enum AnchorDirection { Top,Bottom,Left,Right}
+public enum AnchorDirection { 
+    Top,
+    Bottom,
+    Left,
+    Right,
+    None
+}
 
 

@@ -5,24 +5,13 @@ using System.Text;
 namespace Argent.Core.Attributes;
 
 [AttributeUsage(AttributeTargets.Class)]
-public class WorkflowCanvasElementAttribute : Attribute
+public class WorkflowCanvasElementAttribute(string displayName, string icon, string category, NodeShape shape, string description = "", string cssClass = "") : Attribute
 {
-    public string DisplayName { get; }
-    public string Icon { get; }
-    public string Category { get; }
-    public string Description { get; }
-    public string CssClass { get; }
-    public NodeShape Shape { get; init; } = NodeShape.Rectangle;
-
-    public WorkflowCanvasElementAttribute(string displayName, string icon, string category, NodeShape shape, string description = "", string cssClass = null)
-    {
-        DisplayName = displayName;
-        Icon = icon;
-        Category = category;
-        Description = description;
-        CssClass = cssClass;
-        Shape = shape;
-
-    }
+    public string DisplayName { get; } = displayName;
+    public string Icon { get; } = icon;
+    public string Category { get; } = category;
+    public string Description { get; } = description;
+    public string CssClass { get; } = cssClass;
+    public NodeShape Shape { get; init; } = shape;
 }
 public enum NodeShape { Circle, Rectangle, Diamond }
