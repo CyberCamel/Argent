@@ -1,0 +1,16 @@
+@using Argent.Core.Workflows
+@using Argent.Logic.Workflows.Modeling
+@using Argent.Logic.Workflows.Modeling.Routing
+
+@if (Draft is not null)
+{
+    var mousePoint = (Draft.MouseX, Draft.MouseY);
+    var pathData = RoutingService.GetOrthogonalPath(Draft.Source, Draft.SourceDir, mousePoint);
+    <path d="@pathData"
+          stroke="#0d6efd" stroke-width="2" fill="none" stroke-dasharray="4" />
+}
+
+@code {
+    [Parameter]
+    public ConnectionDraft? Draft { get; set; }
+}

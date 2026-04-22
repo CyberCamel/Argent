@@ -1,0 +1,18 @@
+@using Argent.Core.Workflows
+@using Argent.Logic.Workflows.Modeling
+@using System.Globalization
+
+<g transform="translate(@Node.X.ToString(CultureInfo.InvariantCulture), @Node.Y.ToString(CultureInfo.InvariantCulture))"
+   style="opacity: 0.6; pointer-events: none;">
+    <rect width="@Node.Width" height="@Node.Height"
+          rx="6" fill="#0d6efd" stroke="#0d6efd" stroke-width="2" stroke-dasharray="4" />
+    <text x="12" y="30" fill="white" style="font-weight:bold">@Node.Title</text>
+</g>
+
+@code {
+    [Parameter]
+    public DesignerNode Node { get; set; } = default!;
+
+    [Parameter]
+    public DesignerService State { get; set; } = default!;
+}
