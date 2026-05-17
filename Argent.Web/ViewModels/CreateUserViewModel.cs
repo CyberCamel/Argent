@@ -6,15 +6,15 @@ namespace Argent.Web.ViewModels
     {
         [Required(ErrorMessage = "RequiredField")]
         [Display(Name = "Username")]
-        public string? UserName { get; set; }
+        public string UserName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "RequiredField")]
         [Display(Name = "First name")]
-        public string? FirstName { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "RequiredField")]
         [Display(Name = "Last name")]
-        public string? LastName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "RequiredField")]
         [EmailAddress(ErrorMessage = "Please enter a valid email (e.g. name@domain.com)")]
@@ -23,7 +23,7 @@ namespace Argent.Web.ViewModels
 
         [Required(ErrorMessage = "RequiredField")]
         [DataType(DataType.Password)]
-        public string? Password { get; set; }
+        public string Password { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "RequiredField")]
         [DataType(DataType.Password)]

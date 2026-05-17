@@ -1,5 +1,5 @@
-@using Argent.Logic.Workflows.Modeling
-@using Argent.Logic.Workflows.Modeling.Routing
+@using Argent.Runtime.Workflows.Modeling
+@using Argent.Runtime.Workflows.Modeling.Routing
 
 <g @onclick="() => State.Select(Connection)" @onclick:stopPropagation>
     @{
@@ -18,11 +18,11 @@
     {
         @* Source Handle *@
         <circle cx="@start.X" cy="@start.Y" r="7" fill="white" stroke="#0d6efd" stroke-width="2"
-                @onpointerdown="e => OnStartReRoute.InvokeAsync((e, Connection, isSource: true))" @onpointerdown:stopPropagation />
+                @onpointerdown="e => OnStartReRoute.InvokeAsync((e, Connection, true))" @onpointerdown:stopPropagation />
 
         @* Target Handle *@
         <circle cx="@end.X" cy="@end.Y" r="7" fill="white" stroke="#0d6efd" stroke-width="2"
-                @onpointerdown="e => OnStartReRoute.InvokeAsync((e, Connection, isSource: false))" @onpointerdown:stopPropagation />
+                @onpointerdown="e => OnStartReRoute.InvokeAsync((e, Connection, false))" @onpointerdown:stopPropagation />
     }
 </g>
 

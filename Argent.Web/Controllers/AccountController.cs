@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Argent.Core.Identity;
+using Argent.Models.Identity;
 
 namespace Argent.Web.Controllers;
 

@@ -1,7 +1,8 @@
 ﻿@using System.Reflection
-@using Argent.Core.Attributes
-@using Argent.Core.Workflows.Modeler.Enums
-@using Argent.Logic.Workflows.Modeling
+@using Argent.Models.Attributes
+@using Argent.Models.Workflows.Modeler.Enums
+@using Argent.Runtime.Workflows.Modeling
+@using System.Globalization
 
 
 @if (Node != null)
@@ -15,6 +16,22 @@
             <button type="button" class="btn-close" style="scale: 0.6;" @onclick="HandleClose"></button>
         </div>
         <div class="card-body p-0" style="width: 320px; max-height: 450px; overflow-y: auto;">
+
+            <div class="p-3 border-bottom">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Name</label>
+                    <input class="form-control form-control-sm"
+                           value="@Node.Title"
+                           @oninput="@(e => { Node.Title = e.Value?.ToString() ?? ""; State.Notify(); })" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Description</label>
+                    <textarea class="form-control form-control-sm" rows="2"
+                              value="@Node.Description"
+                              @oninput="@(e => { Node.Description = e.Value?.ToString() ?? ""; State.Notify(); })"></textarea>
+                </div>
+            </div>
+
             <div class="p-3">
                 @foreach (var prop in GetProperties())
                 {
@@ -92,23 +109,37 @@
     {
         if (Node == null) return "display: none;";
 
-        // Logic: (WorldPos - Pan) * Zoom
-        double x = (Node.X + Node.Width + 10 - State.Session.PanX) * State.Session.Zoom;
+        // We calculate the screen pixels relative to the canvas origin
+        double x = (Node.X + Node.Width - State.Session.PanX) * State.Session.Zoom;
         double y = (Node.Y - State.Session.PanY) * State.Session.Zoom;
 
+        // Add a 15px gap
+        x += 15;
+
         return $@"
-            position: absolute;
-            left: 0;
-            top: 0;
-            z-index: 1050;
-            transform: translate({x}px, {y}px);
-            pointer-events: all;
-            width: 320px;
-        ";
+        position: absolute;
+        top: 0;
+        width: 350px;
+        z-index: 1000;
+        /* translate3d uses the GPU and handles the actual positioning */
+        transform: translate3d({x.ToString(CultureInfo.InvariantCulture)}px, {y.ToString(CultureInfo.InvariantCulture)}px, 0);
+        pointer-events: all;
+    ";
     }
 
     private void HandleClose()
     {
         OnClose.InvokeAsync();
+    }
+
+    protected override void OnInitialized()
+    {
+        State.OnChange += StateHasChanged;
+    }
+
+    // Don't forget to implement IDisposable to unhook the event!
+    public void Dispose()
+    {
+        State.OnChange -= StateHasChanged;
     }
 }

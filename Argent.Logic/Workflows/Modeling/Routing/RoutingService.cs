@@ -4,83 +4,200 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace Argent.Logic.Workflows.Modeling.Routing;
+namespace Argent.Runtime.Workflows.Modeling.Routing;
 
 public class RoutingService
 {
-    private const double Padding = 25;
+
+    private const double Offset = 30;
+
+    private enum RouteType
+    {
+        LShape,
+        ZShape
+    }
+
+    private enum SegmentDirection
+    {
+        Horizontal,
+        Vertical,
+        None
+    }
+
+    private static SegmentDirection GetInitialDirection(AnchorDirection dir)
+    {
+        return dir switch
+        {
+            AnchorDirection.Left => SegmentDirection.Horizontal,
+            AnchorDirection.Right => SegmentDirection.Horizontal,
+            AnchorDirection.Top => SegmentDirection.Vertical,
+            AnchorDirection.Bottom => SegmentDirection.Vertical,
+            _ => SegmentDirection.None
+        };
+    }
+
+    private static bool IsDirectionCompatible(SegmentDirection current, AnchorDirection next)
+    {
+        return (current, next) switch
+        {
+            (SegmentDirection.Horizontal, AnchorDirection.Left) => true,
+            (SegmentDirection.Horizontal, AnchorDirection.Right) => true,
+
+            (SegmentDirection.Vertical, AnchorDirection.Top) => true,
+            (SegmentDirection.Vertical, AnchorDirection.Bottom) => true,
+
+            _ => false
+        };
+    }
 
     // Use this for standard auto-routing
     public static string GetOrthogonalPath(IDesignerItem source, IDesignerItem target)
     {
-        var start = AnchorService.GetClosestAnchor(source, target);
-        var end = AnchorService.GetClosestAnchor(target, source);
-        return GeneratePath(start, end, source, target);
+        var (X, Y, dir) = AnchorService.GetClosestAnchor(source, target);
+        var (endX, endY, endDir) = AnchorService.GetClosestAnchor(target, source);
+
+        var sourceAnchors = AnchorService.GetAnchors(source);
+        var targetAnchors = AnchorService.GetAnchors(target);
+
+        var candidates = new List<(string path, double score)>();
+
+        foreach (var a in sourceAnchors)
+        {
+            var initialDir = GetInitialDirection(a.dir);
+
+            foreach (var t in targetAnchors)
+            {
+                if (!IsDirectionCompatible(initialDir, t.dir))
+                    continue;
+
+                // NOW you generate BOTH L and Z for this pair
+                candidates.Add(BuildL((a.X, a.Y, a.dir), (t.X, t.Y, t.dir)));
+                candidates.Add(BuildZ((a.X, a.Y, a.dir), (t.X, t.Y, t.dir)));
+            }
+        }
+
+        return candidates
+            .OrderBy(c => c.score)
+            .First()
+            .path;
     }
 
     // NEW: Use this when you want to force specific directions (Fixes your re-route!)
     public static string GetOrthogonalPath(IDesignerItem source, AnchorDirection sourceDir, IDesignerItem target, AnchorDirection targetDir)
     {
-        var start = AnchorService.GetBaseAnchor(source, sourceDir);
-        var end = AnchorService.GetBaseAnchor(target, targetDir);
-        return GeneratePath(start, end, source, target);
-    }
+        var (X, Y, dir) = AnchorService.GetBaseAnchor(source, sourceDir);
+        var (endX, endY, endDir) = AnchorService.GetBaseAnchor(target, targetDir);
 
-    // For dragging to mouse
-    public static string GetOrthogonalPath(IDesignerItem source, AnchorDirection sourceDir, (double x, double y) mouse)
-    {
-        var start = AnchorService.GetBaseAnchor(source, sourceDir);
-        var end = (mouse.x, mouse.y, AnchorDirection.None);
-        return GeneratePath(start, end, source, null);
-    }
 
-    private static string GeneratePath((double x, double y, AnchorDirection dir) source,
-                                     (double x, double y, AnchorDirection dir) target,
-                                     IDesignerItem sourceNode,
-                                     IDesignerItem? targetNode)
-    {
-        StringBuilder path = new StringBuilder();
-        path.Append($"M {source.x.ToString(CultureInfo.InvariantCulture)} {source.y.ToString(CultureInfo.InvariantCulture)} ");
+        var sourceAnchors = AnchorService.GetAnchors(source);
+        var targetAnchors = AnchorService.GetAnchors(target);
 
-        // 1. Calculate preferred 1-bend "elbow"
-        double elbowX = (source.dir == AnchorDirection.Left || source.dir == AnchorDirection.Right) ? target.x : source.x;
-        double elbowY = (source.dir == AnchorDirection.Left || source.dir == AnchorDirection.Right) ? source.y : target.y;
+        var candidates = new List<(string path, double score)>();
 
-        // 2. Intersection Check: Is the target "behind" the exit direction?
-        bool collision = source.dir switch
+        foreach (var a in sourceAnchors)
         {
-            AnchorDirection.Right => target.x < source.x + Padding,
-            AnchorDirection.Left => target.x > source.x - Padding,
-            AnchorDirection.Bottom => target.y < source.y + Padding,
-            AnchorDirection.Top => target.y > source.y - Padding,
-            _ => false
-        };
+            var initialDir = GetInitialDirection(a.dir);
 
-        if (collision)
-        {
-            // 2 Bends (Z/S-Shape) to go around the node
-            double exitX = source.x;
-            double exitY = source.y;
+            foreach (var t in targetAnchors)
+            {
+                if (!IsDirectionCompatible(initialDir, t.dir))
+                    continue;
 
-            if (source.dir == AnchorDirection.Right) exitX += Padding;
-            else if (source.dir == AnchorDirection.Left) exitX -= Padding;
-            else if (source.dir == AnchorDirection.Top) exitY -= Padding;
-            else if (source.dir == AnchorDirection.Bottom) exitY += Padding;
-
-            path.Append($"L {exitX.ToString(CultureInfo.InvariantCulture)} {exitY.ToString(CultureInfo.InvariantCulture)} ");
-
-            if (source.dir == AnchorDirection.Left || source.dir == AnchorDirection.Right)
-                path.Append($"L {exitX.ToString(CultureInfo.InvariantCulture)} {target.y.ToString(CultureInfo.InvariantCulture)} ");
-            else
-                path.Append($"L {target.x.ToString(CultureInfo.InvariantCulture)} {exitY.ToString(CultureInfo.InvariantCulture)} ");
-        }
-        else
-        {
-            // 1 Bend (The Red Line)
-            path.Append($"L {elbowX.ToString(CultureInfo.InvariantCulture)} {elbowY.ToString(CultureInfo.InvariantCulture)} ");
+                // NOW you generate BOTH L and Z for this pair
+                candidates.Add(BuildL((a.X, a.Y, a.dir), (t.X, t.Y, t.dir)));
+                candidates.Add(BuildZ((a.X, a.Y, a.dir), (t.X, t.Y, t.dir)));
+            }
         }
 
-        path.Append($"L {target.x.ToString(CultureInfo.InvariantCulture)} {target.y.ToString(CultureInfo.InvariantCulture)}");
-        return path.ToString();
+        return candidates
+            .OrderBy(c => c.score)
+            .First()
+            .path;
+    }
+
+    public static string GetOrthogonalPath(
+    IDesignerItem source,
+    AnchorDirection sourceDir,
+    (double x, double y) mouse)
+    {
+        var (startX, startY, startDir) = AnchorService.GetBaseAnchor(source, sourceDir);
+
+        var (endX, endY, endDir) = (mouse.x, mouse.y, AnchorDirection.None);
+
+        // Only ONE anchor matters here: the source
+        var initialDir = GetInitialDirection(sourceDir);
+
+        var candidates = new List<(string path, double score)>
+    {
+        BuildL((startX, startY, startDir), (endX, endY, endDir)),
+        BuildZ((startX, startY, startDir), (endX, endY, endDir))
+    };
+
+        return candidates
+            .OrderBy(c => c.score)
+            .First()
+            .path;
+    }
+
+    private static (string path, double score) BuildL(
+    (double x, double y, AnchorDirection dir) source,
+    (double x, double y, AnchorDirection dir) target)
+    {
+        var sb = new StringBuilder();
+
+        sb.Append($"M {source.x} {source.y} ");
+
+        // horizontal-first L (you can also invert later if you want smarter scoring)
+        double midX = target.x;
+
+        sb.Append($"L {midX} {source.y} ");
+        sb.Append($"L {target.x} {target.y}");
+
+        double score = Math.Abs(source.x - target.x) + Math.Abs(source.y - target.y);
+
+        return (sb.ToString(), score);
+    }
+
+    private static (string path, double score) BuildZ(
+    (double x, double y, AnchorDirection dir) source,
+    (double x, double y, AnchorDirection dir) target)
+    {
+        var sb = new StringBuilder();
+
+        sb.Append($"M {source.x} {source.y} ");
+
+        // first segment respects anchor direction slightly
+        double exitX = source.x;
+        double exitY = source.y;
+
+        switch (source.dir)
+        {
+            case AnchorDirection.Left:
+                exitX -= Offset;
+                break;
+            case AnchorDirection.Right:
+                exitX += Offset;
+                break;
+            case AnchorDirection.Top:
+                exitY -= Offset;
+                break;
+            case AnchorDirection.Bottom:
+                exitY += Offset;
+                break;
+        }
+
+        sb.Append($"L {exitX} {exitY} ");
+
+        // Z-corner (orthogonal turn)
+        sb.Append($"L {exitX} {target.y} ");
+        sb.Append($"L {target.x} {target.y}");
+
+        // score: slightly penalize bends
+        double score =
+            Math.Abs(source.x - target.x) +
+            Math.Abs(source.y - target.y) +
+            5; // bend penalty
+
+        return (sb.ToString(), score);
     }
 }

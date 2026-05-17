@@ -1,4 +1,4 @@
-﻿using Argent.Core.Identity;
+﻿using Argent.Models.Identity;
 using Microsoft.AspNetCore.Identity;
 
 namespace Argent.Web;
@@ -8,7 +8,7 @@ public static class DbInitializer
     public static async Task SeedUsers(UserManager<InternalUser> userManager, RoleManager<IdentityRole<Guid>> roleManager)
     {
         // 1. Ensure all Roles exist (Master Key logic)
-        string[] roleNames = { "SuperAdmin", "UserAdmin", "FormAdmin", "FlowAdmin" };
+        string[] roleNames = ["SuperAdmin", "UserAdmin", "FormAdmin", "FlowAdmin", "User"];
 
         foreach (var roleName in roleNames)
         {
@@ -53,6 +53,24 @@ public static class DbInitializer
             };
 
             var result = await userManager.CreateAsync(boss, "UltimateSecret123!");
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(boss, "SuperAdmin");
+            }
+        }
+        var userName = "alexb";
+        if (await userManager.FindByNameAsync(superUserName) == null)
+        {
+            var boss = new InternalUser
+            {
+                UserName = userName,
+                Email = "alex.badiee@gmail.com",
+                FirstName = "Alex",
+                LastName = "Sandgren",
+                EmailConfirmed = true
+            };
+
+            var result = await userManager.CreateAsync(boss, "MyPassword123");
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(boss, "SuperAdmin");

@@ -1,4 +1,4 @@
-﻿using Argent.Core.Identity;
+﻿using Argent.Models.Identity;
 using Argent.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -98,7 +98,7 @@ public class UserAdministrationController(UserManager<InternalUser> _userManager
 
         var model = new EditUserViewModel
         {
-            UserName = user.UserName,
+            UserName = user.UserName ?? string.Empty,
             FirstName = user.FirstName,
             LastName = user.LastName,
             Email = user.Email,

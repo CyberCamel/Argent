@@ -1,6 +1,6 @@
 ﻿@using Argent.Contracts.Workflows
-@using Argent.Core.Workflows
-@using Argent.Logic.Workflows.Modeling
+@using Argent.Models.Workflows
+@using Argent.Runtime.Workflows.Modeling
 @inject IWorkflowNodeRegistry Registry
 
 <div class="designer-toolbox p-0 border-end bg-light d-flex flex-column @CssClass" style="width: 280px; height: 100vh; z-index: 10;">
@@ -66,13 +66,13 @@
 
 @code {
     [Parameter] public required DesignerService State { get; set; }
-    [Parameter] public string CssClass { get; set; }
+    [Parameter] public string? CssClass { get; set; }
 
     private void HandleDragStart(NodeMetadata metadata)
     {
         var instance = Activator.CreateInstance(metadata.Type);
 
-        if (instance is INode coreData)
+        if (instance is NodeBase coreData)
         {
             // Create the wrapper with all visual metadata restored
             State.PendingNewNode = new DesignerNode

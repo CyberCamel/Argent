@@ -1,12 +1,12 @@
 ﻿using Argent.Contracts.Workflows;
-using Argent.Core.Attributes;
-using Argent.Core.Workflows;
+using Argent.Models.Attributes;
+using Argent.Models.Workflows;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 
-namespace Argent.Logic.Workflows
+namespace Argent.Runtime.Workflows
 {
     public class ArgentWorkflowNodeRegistry : IWorkflowNodeRegistry
     {
@@ -15,7 +15,7 @@ namespace Argent.Logic.Workflows
         public ArgentWorkflowNodeRegistry()
         {
             // Scan the Assembly where Node lives
-            _cache = [.. typeof(INode).Assembly.GetTypes()
+            _cache = [.. typeof(NodeBase).Assembly.GetTypes()
                 .Select(t => new { Type = t, Attr = t.GetCustomAttribute<WorkflowCanvasElementAttribute>() })
                 .Where(x => x.Attr != null)
                 .Select(x => new NodeMetadata
@@ -36,7 +36,7 @@ namespace Argent.Logic.Workflows
             var metadata = _cache.FirstOrDefault(m => m.Type.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
             if (metadata == null)
                 throw new InvalidOperationException($"Workflow node type '{name}' is not registered.");
-            return typeof(INode).Assembly.GetType(metadata.Type.Name) ?? throw new InvalidOperationException($"Type '{metadata.Type.Name}' not found in assembly.");
+            return typeof(NodeBase).Assembly.GetType(metadata.Type.Name) ?? throw new InvalidOperationException($"Type '{metadata.Type.Name}' not found in assembly.");
         }
     }
 

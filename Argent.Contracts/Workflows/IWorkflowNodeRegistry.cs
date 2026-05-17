@@ -1,4 +1,4 @@
-﻿using Argent.Core.Workflows;
+﻿using Argent.Models.Workflows;
 using System;
 using System.Collections.Generic;
 using System.Text;

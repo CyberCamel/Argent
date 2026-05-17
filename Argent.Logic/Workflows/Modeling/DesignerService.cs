@@ -1,18 +1,18 @@
-﻿using Argent.Core.Workflows;
+﻿using Argent.Models.Workflows;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
 
-namespace Argent.Logic.Workflows.Modeling;
+namespace Argent.Runtime.Workflows.Modeling;
 
 public class DesignerService
 {
     public DesignerSession Session { get; } = new();
-    public List<DesignerNode> Nodes { get; } = new();
-    public List<DesignerConnection> Connections { get; } = new();
+    public List<DesignerNode> Nodes { get; } = [];
+    public List<DesignerConnection> Connections { get; } = [];
     public ConnectionDraft? ActiveDraft { get; set; }
-    public DesignerNode? PendingNewNode { get; set; } // For toolbox dragging
+    public DesignerNode? PendingNewNode { get; set; }
     public DesignerNode? SelectedNode { get; set; }
     public DesignerConnection? SelectedConnection { get; set; }
 
@@ -26,7 +26,7 @@ public class DesignerService
     {
         var def = new WorkflowDefinition
         {
-            Connections = Connections.Select(c => c.EngineConnection).ToList(),
+            Connections = [.. Connections.Select(c => c.EngineConnection)],
             Nodes = [.. Nodes.Select(n => n.NodeData)]
         };
         CompiledDefintion = def;
@@ -55,9 +55,9 @@ public class DesignerService
             Metadata = new { CompiledAt = DateTime.Now, Version = "1.0" },
             // We project the nodes into a flat structure to break the circularity
             Activities = Nodes.Select(n => new {
-                Id = n.Id,
+                n.Id,
                 Type = n.NodeData.GetType().Name,
-                Title = n.Title,
+                n.Title,
                 // Use reflection or a specific check to get the 'Code' or other properties
                 Data = n.NodeData
             }),
@@ -65,7 +65,7 @@ public class DesignerService
                 SourceId = c.Source.Id,
                 TargetId = c.Target.Id,
                 // We only save the IDs, not the whole object, to stop the recursion
-                Expression = c.EngineConnection.Expression
+                c.EngineConnection.Expression
             })
         };
 
@@ -97,7 +97,7 @@ public class DesignerService
     public void Select(object? item)
     {
         // Clear previous selections
-        if (SelectedNode != null) SelectedNode.IsSelected = false;
+        SelectedNode?.IsSelected = false;
         SelectedNode = null;
         SelectedConnection = null;
 

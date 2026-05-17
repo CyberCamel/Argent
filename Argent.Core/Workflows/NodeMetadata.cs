@@ -1,6 +1,6 @@
-﻿using Argent.Core.Attributes;
+﻿using Argent.Models.Attributes;
 
-namespace Argent.Core.Workflows;
+namespace Argent.Models.Workflows;
 
 public record NodeMetadata()
 {

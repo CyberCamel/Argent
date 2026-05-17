@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Logic.Workflows.Modeling;
+namespace Argent.Runtime.Workflows.Modeling;
 
 public class ConnectionDraft
 {

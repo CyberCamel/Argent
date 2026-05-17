@@ -1,9 +1,9 @@
 <Solution>
 <Project Path="Argent.Contracts/Argent.Contracts.csproj" />
-<Project Path="Argent.Core/Argent.Core.csproj" />
+<Project Path="Argent.Core/Argent.Models.csproj" />
 <Project Path="Argent.Host/Argent.Host.csproj" Id="e32ca8c1-03b4-4369-a1dc-df4d6180bc5c" />
 <Project Path="Argent.Infrastructure/Argent.Infrastructure.csproj" />
-<Project Path="Argent.Logic/Argent.Logic.csproj" Id="12b8497a-1a4c-4686-a00c-2c5745b1d22c" />
+<Project Path="Argent.Logic/Argent.Runtime.csproj" Id="12b8497a-1a4c-4686-a00c-2c5745b1d22c" />
 <Project Path="Argent.Web/Argent.Web.csproj" />
 <Project Path="Argent.WebComponents/Argent.WebComponents.csproj" Id="92a4f5c8-17b6-45fb-9efb-c627a0fa616f" />
 </Solution> 

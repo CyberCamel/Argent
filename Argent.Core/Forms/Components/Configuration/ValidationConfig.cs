@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.Json.Serialization;
 
-namespace Argent.Core.Forms.Components.Configuration;
+namespace Argent.Models.Forms.Components.Configuration;
 
 
 public enum ValidationType

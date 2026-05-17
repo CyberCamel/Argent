@@ -1,17 +1,17 @@
-using Argent.Contracts;
 using Argent.Contracts.Forms;
 using Argent.Contracts.Workflows;
-using Argent.Core.Forms.Components;
-using Argent.Core.Identity;
+using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
-using Argent.Logic;
-using Argent.Logic.Workflows;
-using Argent.Logic.Workflows.Modeling;
+using Argent.Models.Forms.Components;
+using Argent.Models.Identity;
+using Argent.Runtime.Forms;
+using Argent.Runtime.Workflows;
+using Argent.Runtime.Workflows.Execution;
+using Argent.Runtime.Workflows.Modeling;
 using Argent.Web;
 using Argent.Web.Extensions;
 using Argent.Web.Factories;
 using Argent.WebComponents.Core.Forms;
-using Camunda.Api.Client;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Schema.Generation;
@@ -83,6 +83,16 @@ builder.Services.AddScoped<IFormContext, ArgentFormContext>();
 builder.Services.AddScoped<DesignerService, DesignerService>();
 builder.Services.AddSingleton<IWorkflowNodeRegistry, ArgentWorkflowNodeRegistry>();
 
+
+builder.Services.AddScoped<IWorkItemRepository, WorkItemRepository>();
+builder.Services.AddScoped<IWorkRouter, WorkRouter>();
+builder.Services.AddHostedService<WorkflowEngine>();
+
+builder.Services.AddLogging(config =>
+{
+    config.AddConsole();
+    config.SetMinimumLevel(LogLevel.Debug);
+});
 
 var app = builder.Build();
 

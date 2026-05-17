@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Logic.JavaScript;
+namespace Argent.Runtime.Jint;
 
 internal class JintExecutor
 {

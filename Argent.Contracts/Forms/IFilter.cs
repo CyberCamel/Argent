@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Forms.Filtering
+namespace Argent.Contracts.Forms
 {
     public interface IFilter
     {

@@ -2,7 +2,6 @@ using Projects;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// 1. SQL Server
 var sqlServer = builder.AddSqlServer("sql-server")
                        .WithDataVolume()
                        .WithLifetime(ContainerLifetime.Persistent);

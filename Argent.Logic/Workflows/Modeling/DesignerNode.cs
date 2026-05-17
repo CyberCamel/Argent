@@ -1,18 +1,16 @@
-﻿using Argent.Core.Workflows;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Logic.Workflows.Modeling;
+namespace Argent.Runtime.Workflows.Modeling;
 
 using Argent.Contracts.Workflows;
-using Argent.Core.Attributes;
-using Argent.Core.Workflows;
-using Argent.Logic.Workflows.Modeling;
+using Argent.Models.Attributes;
+using Argent.Models.Workflows;
 
 public class DesignerNode : IDesignerItem
 {
-    public required INode NodeData { get; set; }
+    public required NodeBase NodeData { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
 
     private double _width = 160;

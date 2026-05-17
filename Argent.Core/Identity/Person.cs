@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
-namespace Argent.Core.Identity;
+namespace Argent.Models.Identity;
 
 public abstract class Person : IdentityUser<Guid>
 {

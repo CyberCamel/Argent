@@ -1,10 +1,10 @@
-﻿using Argent.Core.Attributes;
-using Argent.Core.Workflows.Modeler.Enums;
+﻿using Argent.Models.Attributes;
+using Argent.Models.Workflows.Modeler.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Workflows.Activites;
+namespace Argent.Models.Workflows.Activites;
 
 public abstract class ServerActivity: Activity
 {

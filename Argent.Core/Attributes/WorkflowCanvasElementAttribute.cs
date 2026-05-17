@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Attributes;
+namespace Argent.Models.Attributes;
 
 [AttributeUsage(AttributeTargets.Class)]
 public class WorkflowCanvasElementAttribute(string displayName, string icon, string category, NodeShape shape, string description = "", string cssClass = "") : Attribute

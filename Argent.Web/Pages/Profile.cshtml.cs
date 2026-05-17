@@ -1,4 +1,4 @@
-using Argent.Core.Identity;
+using Argent.Models.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;

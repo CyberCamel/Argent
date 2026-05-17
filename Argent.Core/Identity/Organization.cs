@@ -1,11 +1,11 @@
-﻿using Argent.Core.Identity.Enums;
+﻿using Argent.Models.Identity.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Argent.Core.Identity;
+namespace Argent.Models.Identity;
 
 public class Organization
 {

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Forms.Filtering;
+namespace Argent.Models.Forms.Filtering;
 
 internal class FilterItem : IFilter
 {

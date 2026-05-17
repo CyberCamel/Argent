@@ -1,9 +1,9 @@
-﻿using Argent.Contracts;
+﻿using Argent.Contracts.Forms;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Logic
+namespace Argent.Runtime.Forms
 {
     public class ArgentValidationRegistry : IValidationRegistry
     {

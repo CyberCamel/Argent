@@ -1,9 +1,9 @@
-﻿using Argent.Core.Attributes;
+﻿using Argent.Models.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Workflows.Activites;
+namespace Argent.Models.Workflows.Activites;
 
 [WorkflowCanvasElement("User Activity", "assignment_ind", "Task", NodeShape.Rectangle, "An activity that requires user interaction", "node-user")]
 public class UserActivity : Activity

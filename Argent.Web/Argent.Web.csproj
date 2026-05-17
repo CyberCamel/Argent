@@ -7,14 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Argent.Core\Argent.Core.csproj" />
+    <ProjectReference Include="..\Argent.Core\Argent.Models.csproj" />
     <ProjectReference Include="..\Argent.Infrastructure\Argent.Infrastructure.csproj" />
-    <ProjectReference Include="..\Argent.Logic\Argent.Logic.csproj" />
+    <ProjectReference Include="..\Argent.Logic\Argent.Runtime.csproj" />
     <ProjectReference Include="..\Argent.WebComponents\Argent.WebComponents.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Komsa.Camunda.Api.Client" Version="2.8.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

@@ -1,10 +1,10 @@
-﻿using Argent.Core.Forms.Components.Configuration;
+﻿using Argent.Models.Forms.Components.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json.Serialization;
 
-namespace Argent.Core.Forms.Components.Base;
+namespace Argent.Models.Forms.Components.Base;
 
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$kind")]

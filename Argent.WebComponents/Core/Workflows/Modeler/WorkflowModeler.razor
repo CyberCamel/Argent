@@ -1,9 +1,8 @@
-﻿@using Argent.Contracts.Workflows
-@using Argent.Core.Attributes
-@using Argent.Core.Workflows
-@using Argent.Logic.Workflows.Modeling
-@using Argent.Logic.Workflows.Modeling.Routing
+﻿@using Argent.Models.Workflows
+@using Argent.Runtime.Workflows.Modeling
+@using Argent.Runtime.Workflows.Modeling.Routing
 @using Argent.WebComponents.Core.Workflows.Enum
+@using Argent.WebComponents.Core.Workflows.Modeler.Utils
 @using Microsoft.JSInterop
 @inject DesignerService State
 @inject IJSRuntime JS
@@ -50,8 +49,132 @@
                     {
                         <DesignerDraftLine Draft="@State.ActiveDraft" />
                     }
+                    <g class="snap-guides" style="pointer-events: none;">
 
-                    @foreach (var node in State.Nodes)
+                        @if (_snapResult?.TargetNode != null)
+                        {
+                            var target = _snapResult.TargetNode;
+
+                            // Highlight rectangle
+                            <rect x="@(target.X - highlightPadding)"
+                            y="@(target.Y - highlightPadding)"
+                            width="@(target.Width + highlightPadding * 2)"
+                            height="@(target.Height + highlightPadding * 2)"
+                            fill="none"
+                            stroke="#007bff"
+                            stroke-width="2"
+                            />
+
+
+                            // Vertical guide (X alignment)
+                            @if (_snapResult.XSnapAxis != null && _activeNode != null)
+                            {
+                                double x = _snapResult.XSnapAxis switch
+                                {
+                                    SnapAxis.Start => _snapResult.SnappedX,
+                                    SnapAxis.Center => _snapResult.SnappedX + _activeNode.Width / 2,
+                                    SnapAxis.End => _snapResult.SnappedX + _activeNode.Width,
+                                    _ => _snapResult.SnappedX
+                                };
+
+                                if (_snapResult.XSnapAxis == SnapAxis.Center)
+                                {
+                                    double dragTop = _snapResult.SnappedY;
+                                    double dragBottom = _snapResult.SnappedY + _activeNode.Height;
+
+                                    double targetCenterY = target.Y + target.Height / 2;
+
+                                    double rectTop = target.Y - highlightPadding;
+                                    double rectBottom = target.Y + target.Height + highlightPadding;
+
+                                    double y1, y2;
+
+                                    if (dragBottom < targetCenterY)
+                                    {
+                                        y1 = dragBottom;
+                                        y2 = rectTop;
+                                    }
+                                    else
+                                    {
+                                        y1 = dragTop;
+                                        y2 = rectBottom;
+                                    }
+
+                                    <line x1="@x" y1="@y1"
+                                    x2="@x" y2="@y2"
+                                    stroke="#007bff"
+                                    stroke-width="1"
+                                     />
+                                }
+                                else
+                                {
+                                    double top = Math.Min(_snapResult.SnappedY, target.Y) - 1000;
+                                    double bottom = Math.Max(_snapResult.SnappedY + _activeNode.Height, target.Y + target.Height) + 1000;
+
+                                    <line x1="@x" y1="@top"
+                                    x2="@x" y2="@bottom"
+                                    stroke="#007bff"
+                                    stroke-width="1"
+                                     />
+                                }
+                            }
+
+                            // Horizontal guide (Y alignment)
+                            @if (_snapResult.YSnapAxis != null && _activeNode != null)
+                            {
+                                double y = _snapResult.YSnapAxis switch
+                                {
+                                    SnapAxis.Start => _snapResult.SnappedY,
+                                    SnapAxis.Center => _snapResult.SnappedY + _activeNode.Height / 2,
+                                    SnapAxis.End => _snapResult.SnappedY + _activeNode.Height,
+                                    _ => _snapResult.SnappedY
+                                };
+
+                                if (_snapResult.YSnapAxis == SnapAxis.Center)
+                                {
+                                    double dragLeft = _snapResult.SnappedX;
+                                    double dragRight = _snapResult.SnappedX + _activeNode.Width;
+
+                                    double targetCenterX = target.X + target.Width / 2;
+
+                                    double rectLeft = target.X - highlightPadding;
+                                    double rectRight = target.X + target.Width + highlightPadding;
+
+                                    double x1, x2;
+
+                                    if (dragRight < targetCenterX)
+                                    {
+                                        x1 = dragRight;
+                                        x2 = rectLeft;
+                                    }
+                                    else
+                                    {
+                                        x1 = dragLeft;
+                                        x2 = rectRight;
+                                    }
+
+                                    <line x1="@x1" y1="@y"
+                                    x2="@x2" y2="@y"
+                                    stroke="#007bff"
+                                    stroke-width="1"
+                                     />
+                                }
+                                else
+                                {
+                                    double left = Math.Min(_snapResult.SnappedX, target.X) - 20;
+                                    double right = Math.Max(_snapResult.SnappedX + _activeNode.Width, target.X + target.Width) + 20;
+
+                                    <line x1="@left" y1="@y"
+                                    x2="@right" y2="@y"
+                                    stroke="#007bff"
+                                    stroke-width="1"
+                                    />
+                                }
+                            }
+                        }
+                        </g>
+                        
+                        @foreach (var node in State.Nodes)
                     {
                         <DesignerNodeElement Node="@node"
                                              State="@State"
@@ -62,12 +185,13 @@
                                              OnNodeDoubleClick="@((node) => _editingNode = node)" />
                     }
                 </svg>
+                @if (_editingNode != null)
+                {
+                    <DesignerNodePropertyPanel Node="_editingNode" State="State" OnClose="() => _editingNode = null" />
+                }
             </div>
 
-            @if (_editingNode != null)
-            {
-                <DesignerNodePropertyPanel Node="_editingNode" State="State" OnClose="() => _editingNode = null" />
-            }
+            
         </div>
     </div>
     <JsonViewer State="@State" />
@@ -76,12 +200,24 @@
 @code {
     private ElementReference _canvasContainer;
     private DesignerState _currentMode = DesignerState.None;
+
+
     private DesignerNode? _activeNode;
     private DesignerNode? _editingNode;
+    private SnapResult? _snapResult;
+
+
     private AnchorDirection _activeAnchorDirection;
+
     private double _startMouseX, _startMouseY;
     private double _startNodeX, _startNodeY;
     private double _startNodeWidth, _startNodeHeight;
+
+    private double _lastSafeX;
+    private double _lastSafeY;
+    private bool _isColliding;
+
+    const double highlightPadding = 8;
 
     [Flags]
     private enum ResizeDirection
@@ -117,7 +253,7 @@
 
     private async Task OnPointerUp(PointerEventArgs e)
     {
-        if (State.PendingNewNode != null)
+        if (State.PendingNewNode != null && !_isColliding)
         {
             State.Nodes.Add(State.PendingNewNode);
             State.PendingNewNode = null;
@@ -126,7 +262,24 @@
         {
             TryFinalizeConnection();
         }
+        else if (_currentMode == DesignerState.Dragging && _isColliding)
+        {
+            if (State.PendingNewNode != null)
+            {
+                // If it's a fresh drag from the palette, kill it
+                State.PendingNewNode = null;
 
+            }
+            else
+            {
+                // If it's an existing node, snap it back
+                _activeNode!.X = _lastSafeX;
+                _activeNode!.Y = _lastSafeY;
+            }
+        }
+
+
+        _snapResult = null;
         _currentMode = DesignerState.None;
         State.ActiveDraft = null;
         _routingConnection = null;
@@ -146,6 +299,8 @@
         var (e, node) = args;
         if (_editingNode != null && _editingNode != node) _editingNode = null;
         State.Select(node);
+        _lastSafeX = node.X;
+        _lastSafeY = node.Y;
         await StartInteraction(e, node, DesignerState.Dragging);
     }
 
@@ -154,6 +309,7 @@
         _currentMode = mode;
         _activeNode = node;
         _activeAnchorDirection = direction;
+        _snapResult = null;
 
         var dimensions = await JS.InvokeAsync<BoundingRect>("getDimensions", _canvasContainer);
         State.Session.ViewportWidth = dimensions.Width;
@@ -213,10 +369,18 @@
                 double rawX = _startNodeX + deltaX;
                 double rawY = _startNodeY + deltaY;
 
-                var (snappedX, snappedY) = GetSnappedPosition(_activeNode!, State.Nodes, rawX, rawY);
+                var snap = GetSnappedPosition(_activeNode!, State.Nodes, rawX, rawY);
+    
+                // Check for any overlap
+                _isColliding = State.Nodes.Any(other =>
+                    other != _activeNode &&
+                    IsOverlapping(snap.SnappedX, snap.SnappedY, _activeNode!.Width, _activeNode!.Height,
+                                  other.X, other.Y, other.Width, other.Height));
 
-                _activeNode!.X = snappedX;
-                _activeNode!.Y = snappedY;
+                // Move the node regardless (so they can see the collision)
+                _activeNode!.X = snap.SnappedX;
+                _activeNode!.Y = snap.SnappedY;
+                _snapResult = snap;
                 break;
             case DesignerState.Resizing:
                 if (_currentResizeDir == ResizeDirection.Right || _currentResizeDir == ResizeDirection.TopRight || _currentResizeDir == ResizeDirection.BottomRight)
@@ -360,27 +524,71 @@
         await StartInteraction(e, node, DesignerState.Connecting, direction);
     }
 
-    public static (double x, double y) GetSnappedPosition(DesignerNode draggingNode, List<DesignerNode> allNodes, double rawX, double rawY, double threshold = 10)
+    public static SnapResult GetSnappedPosition(
+    DesignerNode draggingNode,
+    List<DesignerNode> allNodes,
+    double rawX,
+    double rawY,
+    double threshold = 10)
     {
-        double snappedX = rawX;
-        double snappedY = rawY;
+        var result = new SnapResult
+        {
+            SnappedX = rawX,
+            SnappedY = rawY
+        };
 
         foreach (var otherNode in allNodes.Where(n => n != draggingNode))
         {
-            if (Math.Abs(rawX - otherNode.X) < threshold) snappedX = otherNode.X;
+            // X axis snapping
+            if (Math.Abs((rawX + draggingNode.Width / 2) - (otherNode.X + otherNode.Width / 2)) < threshold)
+            {
+                result.SnappedX = (otherNode.X + otherNode.Width / 2) - (draggingNode.Width / 2);
+                result.XSnapAxis = SnapAxis.Center;
+                result.TargetNode = otherNode;
+            }
+            else if (Math.Abs(rawX - otherNode.X) < threshold)
+            {
+                result.SnappedX = otherNode.X;
+                result.XSnapAxis = SnapAxis.Start;
+                result.TargetNode = otherNode;
+            }
             else if (Math.Abs((rawX + draggingNode.Width) - (otherNode.X + otherNode.Width)) < threshold)
-                snappedX = otherNode.X + otherNode.Width - draggingNode.Width;
-            else if (Math.Abs((rawX + draggingNode.Width / 2) - (otherNode.X + otherNode.Width / 2)) < threshold)
-                snappedX = (otherNode.X + otherNode.Width / 2) - (draggingNode.Width / 2);
+            {
+                result.SnappedX = otherNode.X + otherNode.Width - draggingNode.Width;
+                result.XSnapAxis = SnapAxis.End;
+                result.TargetNode = otherNode;
+            }
 
-            if (Math.Abs(rawY - otherNode.Y) < threshold) snappedY = otherNode.Y;
+            // Y axis snapping
+            if (Math.Abs((rawY + draggingNode.Height / 2) - (otherNode.Y + otherNode.Height / 2)) < threshold)
+            {
+                result.SnappedY = (otherNode.Y + otherNode.Height / 2) - (draggingNode.Height / 2);
+                result.YSnapAxis = SnapAxis.Center;
+                result.TargetNode = otherNode;
+            }
+            else if (Math.Abs(rawY - otherNode.Y) < threshold)
+            {
+                result.SnappedY = otherNode.Y;
+                result.YSnapAxis = SnapAxis.Start;
+                result.TargetNode = otherNode;
+            }
             else if (Math.Abs((rawY + draggingNode.Height) - (otherNode.Y + otherNode.Height)) < threshold)
-                snappedY = otherNode.Y + otherNode.Height - draggingNode.Height;
-            else if (Math.Abs((rawY + draggingNode.Height / 2) - (otherNode.Y + otherNode.Height / 2)) < threshold)
-                snappedY = (otherNode.Y + otherNode.Height / 2) - (draggingNode.Height / 2);
+            {
+                result.SnappedY = otherNode.Y + otherNode.Height - draggingNode.Height;
+                result.YSnapAxis = SnapAxis.End;
+                result.TargetNode = otherNode;
+            }
         }
 
-        return (snappedX, snappedY);
+        return result;
+    }
+
+    public static bool IsOverlapping(double x1, double y1, double w1, double h1, double x2, double y2, double w2, double h2)
+    {
+        return x1 < x2 + w2 &&
+               x1 + w1 > x2 &&
+               y1 < y2 + h2 &&
+               y1 + h1 > y2;
     }
 
     public class BoundingRect 

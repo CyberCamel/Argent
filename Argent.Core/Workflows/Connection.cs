@@ -1,14 +1,14 @@
-﻿using Argent.Core.Workflows.Modeler;
+﻿using Argent.Models.Workflows.Modeler;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Workflows;
+namespace Argent.Models.Workflows;
 
-public class Connection : CanvasElement
+public class Connection
 {
     public string? Expression { get; set; }
-    public required INode From { get; set; }
-    public required INode To { get; set; }
+    public required NodeBase From { get; set; }
+    public required NodeBase To { get; set; }
 
 }

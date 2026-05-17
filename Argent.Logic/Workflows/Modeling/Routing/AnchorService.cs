@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Logic.Workflows.Modeling.Routing;
+namespace Argent.Runtime.Workflows.Modeling.Routing;
 
 public static class AnchorService
 {
@@ -36,11 +36,34 @@ public static class AnchorService
         return anchors.OrderBy(a => Math.Sqrt(Math.Pow(a.X - point.X, 2) + Math.Pow(a.Y - point.Y, 2))).First();
     }
 
-    public static (double X, double Y, AnchorDirection dir) GetClosestAnchor(IDesignerItem item, IDesignerItem item2)
+    public static (double X, double Y, AnchorDirection dir) GetClosestAnchor(
+    IDesignerItem item,
+    IDesignerItem target)
     {
         var anchors = GetAnchors(item);
-        var targetAnchors = GetAnchors(item2);
-        return anchors.OrderBy(a => targetAnchors.Min(t => Math.Sqrt(Math.Pow(a.X - t.X, 2) + Math.Pow(a.Y - t.Y, 2)))).First();
+        var targetAnchors = GetAnchors(target);
+
+        (double X, double Y, AnchorDirection dir)? best = null;
+        double bestDistance = double.MaxValue;
+
+        foreach (var a in anchors)
+        {
+            foreach (var t in targetAnchors)
+            {
+
+                double dx = a.X - t.X;
+                double dy = a.Y - t.Y;
+                double dist = dx * dx + dy * dy;
+
+                if (dist < bestDistance)
+                {
+                    bestDistance = dist;
+                    best = a;
+                }
+            }
+        }
+
+        return best ?? anchors.First();
     }
 
 }

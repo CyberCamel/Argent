@@ -18,8 +18,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Argent.Contracts\Argent.Contracts.csproj" />
-    <ProjectReference Include="..\Argent.Core\Argent.Core.csproj" />
-    <ProjectReference Include="..\Argent.Logic\Argent.Logic.csproj" />
+    <ProjectReference Include="..\Argent.Core\Argent.Models.csproj" />
+    <ProjectReference Include="..\Argent.Logic\Argent.Runtime.csproj" />
   </ItemGroup>
 
 </Project>

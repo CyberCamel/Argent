@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Forms.Components.Base;
+namespace Argent.Models.Forms.Components.Base;
 
 public class ComponentLogic
 {

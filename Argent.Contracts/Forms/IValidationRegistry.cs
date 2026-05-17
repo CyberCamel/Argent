@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Contracts
+namespace Argent.Contracts.Forms
 {
     public interface IValidationRegistry
     {

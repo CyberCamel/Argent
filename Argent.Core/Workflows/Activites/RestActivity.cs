@@ -1,10 +1,10 @@
-﻿using Argent.Core.Attributes;
-using Argent.Core.Workflows.Modeler.Enums;
+﻿using Argent.Models.Attributes;
+using Argent.Models.Workflows.Modeler.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Workflows.Activites;
+namespace Argent.Models.Workflows.Activites;
 
 [WorkflowCanvasElement("REST Activity", "cloud_sync", "Server", NodeShape.Rectangle, "Calls a REST service", "node-script")]
 public class RestActivity : ServerActivity

@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Workflows
+namespace Argent.Models.Workflows;
+
+[Serializable]
+public class WorkflowDefinition
 {
-    public class WorkflowDefinition
-    {
-        public List<Connection> Connections;
-        public List<INode> Nodes;
-    }
+    public List<Connection> Connections { get; set; } = [];
+    public List<NodeBase> Nodes { get; set; } = [];
+
 }

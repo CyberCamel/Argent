@@ -2,21 +2,26 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
-using Argent.Core.Identity;
+using Argent.Models.Identity;
+using Argent.Models.Workflows.Execution;
+using Argent.Models.Workflows;
 
 namespace Argent.Infrastructure.Data;
 
-public class ApplicationDbContext : IdentityDbContext<InternalUser, IdentityRole<Guid>, Guid>
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<InternalUser, IdentityRole<Guid>, Guid>(options)
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : base(options)
-    {
-    }
 
-    // --- YOUR CUSTOM TABLES ---
     public DbSet<Position> Positions { get; set; }
     // Add your other tables here as you create them, e.g.:
     // public DbSet<FormDefinition> FormDefinitions { get; set; }
+
+    public DbSet<WorkItem> WorkItems { get; set; }
+
+    public DbSet<WorkflowInstance> WorkflowInstances { get; set; }
+
+    public DbSet<Workflow> WorkflowDefinitions { get; set; }
+
+
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -39,5 +44,16 @@ public class ApplicationDbContext : IdentityDbContext<InternalUser, IdentityRole
             .HasOne(p => p.Person)
             .WithMany(u => u.Positions)
             .HasForeignKey(p => p.PersonId);
+
+        builder.Entity<Workflow>(entity =>
+        {
+            entity.Property(e => e.Definition)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v),
+                    v => JsonSerializer.Deserialize<WorkflowDefinition>(v) ?? new WorkflowDefinition())
+                .HasColumnType("nvarchar(max)");
+        });
+
+
     }
 }

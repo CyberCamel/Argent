@@ -1,9 +1,9 @@
-﻿using Argent.Core.Forms.Filtering;
+﻿using Argent.Models.Forms.Filtering;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Forms.Components.Configuration
+namespace Argent.Models.Forms.Components.Configuration
 {
     public class DataProviderConfig
     {

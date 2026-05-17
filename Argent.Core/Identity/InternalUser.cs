@@ -1,4 +1,4 @@
-﻿namespace Argent.Core.Identity;
+﻿namespace Argent.Models.Identity;
 
 public class InternalUser : Person
 {

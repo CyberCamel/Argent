@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Argent.Core.Identity.Enums;
+namespace Argent.Models.Identity.Enums;
 
 public enum ExternalUserType
 {

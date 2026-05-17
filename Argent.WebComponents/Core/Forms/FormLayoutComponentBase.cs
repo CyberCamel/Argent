@@ -1,11 +1,11 @@
 ﻿using Argent.Contracts.Forms;
-using Argent.Core.Forms.Components.Base;
+using Argent.Models.Forms.Components.Base;
 using Microsoft.AspNetCore.Components;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.WebComponents.Core.UI;
+namespace Argent.WebComponents.Core.Forms;
 
 public abstract class FormLayoutComponentBase : ComponentBase
 {

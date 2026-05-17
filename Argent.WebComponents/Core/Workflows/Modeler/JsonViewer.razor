@@ -1,6 +1,5 @@
-﻿@using Argent.Logic.Workflows.Modeling
-@using System.Text.Json
-@using System.Text.Json.Serialization
+﻿@using Argent.Runtime.Workflows.Modeling
+
 <div class="w-20">
     @if(State.CompiledDefintion is not null)
     {
@@ -12,9 +11,9 @@
 
 @code {
     [Parameter] public required  DesignerService State { get; set; }
-    string _lastCompilation;
+    string? _lastCompilation;
 
-    private string Render()
+    private string? Render()
     {
         if(State.CompileToJson() is string result)
         {

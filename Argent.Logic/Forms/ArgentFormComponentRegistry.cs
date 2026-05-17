@@ -1,8 +1,8 @@
-﻿using Argent.Contracts;
+﻿using Argent.Contracts.Forms;
 using System;
 using System.Collections.Generic;
 
-namespace Argent.Logic
+namespace Argent.Runtime.Forms
 {
     public class ArgentFormComponentRegistry : IFormComponentRegistry
     {

@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using Argent.Contracts.Workflows.Core;
-using Argent.Core.Workflows;
+using Argent.Contracts.Workflows.Execution;
+using Argent.Models.Workflows;
 
 namespace Argent.Contracts.Workflows
 {
-    internal interface INodeHandler<in TNode> where TNode : INode
+    internal interface INodeHandler<in TNode> where TNode : NodeBase
     {
-        Task ExecuteAsync(TNode node, IWorkflowContext workflowContext);
+        Task ExecuteAsync(TNode node, IWorkflowExecutionContext ctx);
     }
 }

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
-using Argent.Core.Identity;
+using Argent.Models.Identity;
 
 namespace Argent.Web.Factories;
 

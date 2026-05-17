@@ -1,9 +1,9 @@
-﻿using Argent.Core.Workflows.Modeler.Enums;
+﻿using Argent.Models.Workflows.Modeler.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Attributes;
+namespace Argent.Models.Attributes;
 
 [AttributeUsage(AttributeTargets.Property)]
 public class NodePropertyAttribute(string name, string description, bool required = false, PropertyDataType dataType = PropertyDataType.Text, int order = 100) : Attribute

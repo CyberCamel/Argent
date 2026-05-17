@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Argent.Core.Workflows;
+namespace Argent.Models.Workflows;
 
 public abstract record UserExperience();
 public record RedirectExperience(string Url): UserExperience;
