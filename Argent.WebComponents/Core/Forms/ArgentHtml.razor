@@ -1,0 +1,20 @@
+﻿@using Argent.WebComponents
+@inherits FormLayoutComponentBase
+
+@if (IsVisible)
+{
+    <div class="@Metadata.CssClass">
+        @((MarkupString)GetCurrentHtml())
+    </div>
+}
+
+@code {
+    private string GetCurrentHtml()
+    {
+        // Default to the base 'DefaultValue' if no templates match
+        var html = Metadata.Html?.ToString() ?? "";
+    
+
+        return html;
+    }
+}

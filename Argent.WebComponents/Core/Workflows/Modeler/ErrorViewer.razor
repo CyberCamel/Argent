@@ -1,0 +1,63 @@
+@using Argent.Runtime.Workflows.Modeling
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-light border-bottom">
+        <h3 class="h5 mb-0 d-flex align-items-center">
+            <i class="bi bi-heart-pulse text-primary me-2"></i> Workflow Health
+        </h3>
+    </div>
+    <div class="card-body">
+
+        <div class="mb-4">
+            <h4 class="h6 text-danger uppercase tracking-wider mb-2 d-flex align-items-center">
+                <i class="bi bi-x-circle-fill me-2"></i> Errors (@State.ValidationResult.Errors.Count())
+            </h4>
+            
+            @if (State.ValidationResult.Errors.Any())
+            {
+                <div class="alert alert-danger p-0 overflow-hidden" role="alert">
+                    <ul class="list-group list-group-flush">
+                        @foreach (var error in State.ValidationResult.Errors)
+                        {
+                            <li class="list-group-item bg-transparent text-danger-emphasis border-danger-subtle">
+                                @error.Message
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted small ms-4">No errors detected.</p>
+            }
+        </div>
+
+        <div>
+            <h4 class="h6 text-warning-emphasis uppercase tracking-wider mb-2 d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> Warnings (@State.ValidationResult.Warnings.Count())
+            </h4>
+
+            @if (State.ValidationResult.Warnings.Any())
+            {
+                <div class="alert alert-warning p-0 overflow-hidden" role="alert">
+                    <ul class="list-group list-group-flush">
+                        @foreach (var warning in State.ValidationResult.Warnings)
+                        {
+                            <li class="list-group-item bg-transparent text-warning-emphasis border-warning-subtle">
+                                @warning.Message
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted small ms-4">No warnings detected.</p>
+            }
+        </div>
+
+    </div>
+</div>
+
+@code {
+    [Parameter] public required  DesignerService State { get; set; }
+}

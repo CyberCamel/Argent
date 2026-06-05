@@ -1,0 +1,64 @@
+﻿@model IEnumerable<Argent.Web.ViewModels.UserViewModel>
+
+@{
+    ViewData["Title"] = "User Management";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<button class="btn btn-primary mb-3"
+        hx-get="/UserAdministration/Create"
+        hx-target="#modalBody"
+        hx-trigger="click"
+        hx-on="htmx:afterSwap: bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show()">
+    Add User
+</button>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Roles</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="userTable"
+           hx-get="/UserAdministration/List"
+           hx-trigger="load, userActionCompleted from:body, userDeleted from:body"
+           hx-swap="innerHTML">
+        <partial name="_UserTablePartial" model="Model" />
+    </tbody>
+</table>
+
+<div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5>Manage User</h5>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+</div>
+
+<partial name="_ValidationScriptsPartial" />
+
+<script>
+    document.body.addEventListener('htmx:afterSwap', function (e) {
+        if (e.target.id === "modalBody") {
+            const form = e.target.querySelector("form");
+            if (form) {
+                $.validator.unobtrusive.parse(form);
+            }
+
+            // show modal when content loads
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show();
+        }
+    });
+
+    // close modal after success
+    document.body.addEventListener('userActionCompleted', function () {
+        bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+    });
+</script>

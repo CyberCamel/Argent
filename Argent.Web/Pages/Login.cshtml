@@ -1,0 +1,18 @@
+﻿@page
+@model Argent.Web.Pages.LoginModel
+
+<div class="row justify-content-center pt-5">
+    <div class="col-md-4">
+        <form method="post">
+            <h2>Sign In</h2>
+            <div asp-validation-summary="All" class="text-danger"></div>
+            <input asp-for="Input.UserName" class="form-control mb-2" placeholder="Username" />
+            <input asp-for="Input.Password" class="form-control mb-2" placeholder="Password" />
+            <div class="mb-3 form-check">
+                <input asp-for="Input.RememberMe" class="form-check-input" id="rememberMeCheck" />
+                <label class="form-check-label" for="rememberMeCheck">Remember me</label>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Log In</button>
+        </form>
+    </div>
+</div>

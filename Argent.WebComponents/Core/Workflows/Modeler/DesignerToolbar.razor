@@ -1,0 +1,37 @@
+﻿@using Argent.Runtime.Workflows.Modeling
+@implements IDisposable
+
+@* Standard Bootstrap Button Utilities *@
+<button class="btn btn-primary" @onclick="HandleCompile">
+    <i class="bi bi-gear-fill"></i> Compile!
+</button>
+
+<button class="btn btn-success" 
+        @onclick="HandlePublish" 
+        disabled="@(!(State.CompiledDefinition is not null && State.ValidationResult.Errors.Count == 0))">
+    <i class="bi bi-cloud-arrow-up-fill"></i> Publish
+</button>
+
+@code {
+    [Parameter] public required DesignerService State { get; set; }
+
+    protected override void OnInitialized()
+    {
+        State.OnChange += StateHasChanged;
+    }
+
+    private void HandleCompile()
+    {
+        State.Compile();
+    }
+
+    private void HandlePublish()
+    {
+        State.PersistDefinition();
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= StateHasChanged;
+    }
+}

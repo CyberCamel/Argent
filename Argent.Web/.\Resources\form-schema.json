@@ -1,0 +1,106 @@
+{
+  "definitions": {
+    "FormComponent": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "Id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "VisibleIf": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Width": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "CssClass": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Style": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Template": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/FormComponent"
+          }
+        }
+      },
+      "required": [
+        "Id",
+        "Type",
+        "VisibleIf",
+        "Description",
+        "Width",
+        "CssClass",
+        "Style",
+        "Template"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "FormId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "Version": {
+      "type": "integer"
+    },
+    "Title": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "Components": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/definitions/FormComponent"
+      }
+    }
+  },
+  "required": [
+    "FormId",
+    "Version",
+    "Title",
+    "Components"
+  ]
+}

@@ -1,0 +1,17 @@
+﻿@page "/Modeler"
+@using Argent.WebComponents.Core.Workflows.Modeler
+
+@model Argent.Web.Pages.Workflows.ModelerModel
+@{
+    ViewData["Title"] = "Workflow Modeler";
+    ViewData["IsFullWidth"] = true;
+}
+
+@{
+    <component type="typeof(WorkflowModeler)" render-mode="ServerPrerendered" />
+    
+}
+
+@section Styles {
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+}

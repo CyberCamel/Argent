@@ -1,0 +1,14 @@
+﻿@using Argent.Runtime.Workflows.Modeling
+
+<div class="w-20">
+    @if(State.CompiledDefinition is not null)
+    {
+        <div style="max-width:20vw;white-space: pre-wrap; overflow: scroll; max-height: 80vh;">
+        <pre>@(State.CompiledJson)</pre>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public required  DesignerService State { get; set; }
+}

@@ -1,0 +1,55 @@
+@using Argent.Runtime.Workflows.Modeling
+<div class="sidebar-container w-25">
+    <div class="sidebar-tabs">
+        <button class="tab-btn @(ActiveTab == TabType.Workflow ? "active" : "")" 
+                @onclick="() => SetActiveTab(TabType.Workflow)">
+            <i class="bi bi-diagram-3"></i> Workflows
+        </button>
+        <button class="tab-btn @(ActiveTab == TabType.Json ? "active" : "")" 
+                @onclick="() => SetActiveTab(TabType.Json)">
+            <i class="bi bi-code-slash"></i> JSON Viewer
+        </button>
+        <button class="tab-btn @(ActiveTab == TabType.Errors ? "active" : "")" 
+                @onclick="() => SetActiveTab(TabType.Errors)">
+            <i class="bi bi-exclamation-triangle"></i> Errors
+        </button>
+    </div>
+
+    <div class="sidebar-content" >
+        @switch (ActiveTab)
+        {
+            case TabType.Workflow:
+                <WorkflowVersionList />
+                break;
+
+            case TabType.Json:
+                <JsonViewer State="@State"/>
+                break;
+
+            case TabType.Errors:
+                <ErrorViewer State="@State"/>
+                break;
+        }
+    </div>
+</div>
+
+@code {
+    
+    [Parameter] public required  DesignerService State { get; set; }
+    
+    // Define the available tabs
+    private enum TabType
+    {
+        Workflow,
+        Json,
+        Errors
+    }
+
+    // Set the default active tab
+    private TabType ActiveTab { get; set; } = TabType.Workflow;
+
+    private void SetActiveTab(TabType tab)
+    {
+        ActiveTab = tab;
+    }
+}

@@ -1,0 +1,10 @@
+﻿@page
+@model Argent.Web.Pages.ProfileModel
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<p>Name: @Model._user!.FirstName @Model._user.LastName</p>
+@foreach(var role in Model.UserRoles){
+    <p>Role: @role</p>
+}

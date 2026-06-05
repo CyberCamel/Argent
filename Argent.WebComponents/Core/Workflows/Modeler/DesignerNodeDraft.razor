@@ -1,0 +1,37 @@
+﻿@using Argent.Models.Attributes
+@using Argent.Runtime.Workflows.Modeling
+@using Argent.WebComponents.Core.Workflows.Enum
+@using System.Globalization
+<g transform="translate(@Node.X.ToString(CultureInfo.InvariantCulture), @Node.Y.ToString(CultureInfo.InvariantCulture))">
+    @* The dynamic shape *@
+    @switch (Node.Shape)
+    {
+        case NodeShape.Circle:
+            
+            <ellipse cx="@(Node.Width / 2)" cy="@(Node.Height / 2)"
+                     rx="@(Node.Width / 2)" ry="@(Node.Height / 2)"
+                     fill="#ffffff" stroke="@(Node.IsSelected ? "#0d6efd" : "#555")" stroke-width="2" stroke-dasharray="4" />
+            break;
+        case NodeShape.Diamond:
+            var points = $"{Node.Width / 2},0 {Node.Width},{Node.Height / 2} {Node.Width / 2},{Node.Height} 0,{Node.Height / 2}";
+            <polygon points="@points"
+                     fill="#ffffff" stroke="@(Node.IsSelected ? "#0d6efd" : "#555")" stroke-width="2" stroke-dasharray="4" />
+            break;
+        default:
+            <rect width="@(Node.Width)" height="@(Node.Height)" rx="6"
+                  fill="#ffffff" stroke="@(Node.IsSelected ? "#0d6efd" : "#555")" stroke-width="2" stroke-dasharray="4" />
+            break;
+    }
+    <text x="@(Node.Width / 2)" y="@(Node.Height / 2 + 5)"
+          fill="white" text-anchor="middle" style="pointer-events:none; font-weight:bold">
+        @Node.Title
+    </text>
+
+</g>
+
+@code {
+    [Parameter] public DesignerNode Node { get; set; } = default!;
+    [Parameter] public bool IsSelected { get; set; }
+    [Parameter] public DesignerState CurrentMode { get; set; }
+
+}

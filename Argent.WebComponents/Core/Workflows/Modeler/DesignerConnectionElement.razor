@@ -1,0 +1,38 @@
+@using Argent.Runtime.Workflows.Modeling
+@using Argent.Runtime.Workflows.Modeling.Routing
+
+<g @onclick="() => State.Select(Connection)" @onclick:stopPropagation>
+    @{
+        var pathData = RoutingService.GetOrthogonalPath(
+            Connection.Source, Connection.SourceDir,
+            Connection.Target, Connection.TargetDir);
+
+        var start = AnchorService.GetBaseAnchor(Connection.Source, Connection.SourceDir);
+        var end = AnchorService.GetBaseAnchor(Connection.Target, Connection.TargetDir);
+    }
+
+    <path d="@pathData" stroke="transparent" stroke-width="15" fill="none" />
+    <path d="@pathData" stroke="@(State.SelectedConnection == Connection ? "#0d6efd" : "#888")" stroke-width="2" fill="none" />
+
+    @if (State.SelectedConnection == Connection)
+    {
+        @* Source Handle *@
+        <circle cx="@start.X" cy="@start.Y" r="7" fill="white" stroke="#0d6efd" stroke-width="2"
+                @onpointerdown="e => OnStartReRoute.InvokeAsync((e, Connection, true))" @onpointerdown:stopPropagation />
+
+        @* Target Handle *@
+        <circle cx="@end.X" cy="@end.Y" r="7" fill="white" stroke="#0d6efd" stroke-width="2"
+                @onpointerdown="e => OnStartReRoute.InvokeAsync((e, Connection, false))" @onpointerdown:stopPropagation />
+    }
+</g>
+
+@code {
+    [Parameter]
+    public DesignerConnection Connection { get; set; } = default!;
+
+    [Parameter]
+    public DesignerService State { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<(PointerEventArgs, DesignerConnection, bool)> OnStartReRoute { get; set; }
+}
