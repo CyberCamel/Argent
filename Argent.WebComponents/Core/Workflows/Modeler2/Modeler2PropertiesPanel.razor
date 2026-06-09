@@ -1,0 +1,112 @@
+@using System.Reflection
+@using Argent.Contracts.Workflows
+@using Argent.Runtime.Workflows
+@using Argent.Runtime.Workflows.Modeling
+
+@if (Node != null)
+{
+    var descriptor = Registry.GetDescriptor(Node.NodeData.GetType());
+
+    <div class="modeler2-properties">
+        <div class="modeler2-properties-header">
+            <span class="modeler2-properties-title">
+                <i class="bi bi-gear"></i> Properties —
+                <span class="modeler2-properties-type">@(descriptor?.DisplayName ?? "Node")</span>
+                <span class="modeler2-properties-sep">—</span>
+                <span class="modeler2-properties-name">@Node.Title</span>
+            </span>
+            <button type="button" class="modeler2-properties-close" @onclick="HandleClose" title="Close">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="modeler2-properties-body">
+            <div class="modeler2-properties-section">
+                <div class="modeler2-properties-field">
+                    <label class="modeler2-properties-label">Name</label>
+                    <input class="modeler2-properties-input"
+                           value="@Node.Title"
+                           @oninput="@(e => { Node.Title = e.Value?.ToString() ?? ""; State.Notify(); })" />
+                </div>
+                <div class="modeler2-properties-field">
+                    <label class="modeler2-properties-label">Description</label>
+                    <textarea class="modeler2-properties-input modeler2-properties-textarea" rows="2"
+                              value="@Node.Description"
+                              @oninput="@(e => { Node.Description = e.Value?.ToString() ?? ""; State.Notify(); })"></textarea>
+                </div>
+            </div>
+
+            @if (descriptor != null)
+            {
+                <div class="modeler2-properties-section modeler2-properties-section-dyn">
+                    @foreach (var prop in descriptor.Properties.OrderBy(p => p.Order))
+                    {
+                        var propInfo = Node.NodeData.GetType().GetProperty(prop.PropertyName);
+                        if (propInfo == null) continue;
+
+                        <div class="modeler2-properties-field">
+                            <label class="modeler2-properties-label">
+                                @prop.DisplayName
+                                @if (!string.IsNullOrEmpty(prop.Description))
+                                {
+                                    <span class="modeler2-properties-tip" title="@prop.Description">
+                                        <i class="bi bi-info-circle"></i>
+                                    </span>
+                                }
+                            </label>
+
+                            @if (prop.DataType == PropertyDataType.Code)
+                            {
+                                <textarea class="modeler2-properties-input modeler2-properties-code"
+                                          spellcheck="false" rows="4"
+                                          value="@propInfo.GetValue(Node.NodeData)"
+                                          @oninput="@(e => UpdateValue(propInfo, e.Value))" />
+                            }
+                            else if (prop.DataType == PropertyDataType.KeyValuePairs)
+                            {
+                                <span class="modeler2-properties-placeholder">Dictionary editor coming soon</span>
+                            }
+                            else if (prop.DataType == PropertyDataType.Boolean)
+                            {
+                                <label class="modeler2-properties-switch">
+                                    <input type="checkbox"
+                                           checked="@((bool?)propInfo.GetValue(Node.NodeData) ?? false)"
+                                           @onchange="@(e => UpdateValue(propInfo, e.Value))" />
+                                    <span class="modeler2-properties-switch-slider"></span>
+                                </label>
+                            }
+                            else
+                            {
+                                <input class="modeler2-properties-input"
+                                       value="@propInfo.GetValue(Node.NodeData)"
+                                       @oninput="@(e => UpdateValue(propInfo, e.Value))" />
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public required DesignerService State { get; set; }
+    [Parameter] public required IWorkflowNodeRegistry Registry { get; set; }
+    [Parameter] public required DesignerNode Node { get; set; }
+    [Parameter] public required EventCallback OnClose { get; set; }
+
+    private void UpdateValue(PropertyInfo prop, object? val)
+    {
+        if (Node == null) return;
+        if (prop.PropertyType == typeof(int) && int.TryParse(val?.ToString(), out var i))
+            prop.SetValue(Node.NodeData, i);
+        else if (prop.PropertyType == typeof(double) && double.TryParse(val?.ToString(), out var d))
+            prop.SetValue(Node.NodeData, d);
+        else if (prop.PropertyType == typeof(TimeSpan) && int.TryParse(val?.ToString(), out var seconds))
+            prop.SetValue(Node.NodeData, TimeSpan.FromSeconds(seconds));
+        else
+            prop.SetValue(Node.NodeData, val);
+        State.Notify();
+    }
+
+    private void HandleClose() => OnClose.InvokeAsync();
+}

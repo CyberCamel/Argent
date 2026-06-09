@@ -1,0 +1,27 @@
+@page "/Workflows/View/{id:guid}"
+@using Argent.WebComponents.Core.Workflows.Modeler
+@model Argent.Web.Pages.Workflows.ViewModel
+@{
+    ViewData["Title"] = Model.WorkflowName;
+    ViewData["IsFullWidth"] = true;
+}
+
+<div class="d-flex flex-column h-100">
+    <div class="border-bottom bg-white px-3 py-2 d-flex align-items-center gap-3">
+        <h5 class="mb-0">@Model.WorkflowName</h5>
+        @if (!string.IsNullOrEmpty(Model.WorkflowDescription))
+        {
+            <span class="text-muted small">- @Model.WorkflowDescription</span>
+        }
+        <span class="badge bg-secondary ms-auto">Viewing</span>
+    </div>
+    <div class="flex-grow-1 d-flex" style="height: calc(100vh - 106px);">
+        <component type="typeof(WorkflowModeler)" render-mode="ServerPrerendered"
+                   param-WorkflowId="@Model.WorkflowId"
+                   param-IsReadOnly="true" />
+    </div>
+</div>
+
+@section Styles {
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+}

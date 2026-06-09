@@ -1,23 +1,21 @@
-﻿using Argent.Models.Forms.Components.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace Argent.Models.Forms.Components.Base;
 
-
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$kind")]
-[JsonDerivedType(typeof(FormInputComponent), "input")]
-[JsonDerivedType(typeof(FormLayoutComponent), "layout")]
+[JsonDerivedType(typeof(FormField), "field")]
+[JsonDerivedType(typeof(FormLayout), "container")]
 public abstract class FormComponent
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
-    public string Type { get; set; } = string.Empty;
-    public string? VisibleIf { get; set;  }
+
+    [JsonPropertyName("xtype")]
+    public string Xtype { get; set; } = string.Empty;
+
     public string? Description { get; set; }
-    public string? Width { get; set; }
     public string? CssClass { get; set; }
     public string? Style { get; set; }
-    public List<FormComponent> Template { get; set; } = []; // For Repeaters
+
+    [JsonPropertyName("columnIndex")]
+    public int ColumnIndex { get; set; }
 }

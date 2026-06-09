@@ -1,10 +1,12 @@
 using Argent.Models.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Argent.Web.Pages
 {
+    [Authorize]
     public class ProfileModel(UserManager<InternalUser> _userManager) : PageModel
     {
 
@@ -18,9 +20,9 @@ namespace Argent.Web.Pages
             return roles.ToList();
         }
 
-        public void OnGet()
+        public async Task OnGetAsync()
         {
-            _user = _userManager.GetUserAsync(User).Result;
+            _user = await _userManager.GetUserAsync(User);
             if (_user != null)
             {
                 UserRoles = GetUserRoles(_user);

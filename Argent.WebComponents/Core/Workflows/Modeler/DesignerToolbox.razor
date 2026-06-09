@@ -20,7 +20,7 @@
         @foreach (var group in groupedNodes)
         {
             var categoryId = $"cat-{group.Key.Replace(" ", "")}";
-            
+
             <div class="accordion-item border-0">
                 <h2 class="accordion-header">
                     <button class="accordion-button py-2 px-3 bg-light fw-semibold text-secondary"
@@ -31,28 +31,34 @@
                 </h2>
                 <div id="@categoryId" class="accordion-collapse collapse show">
                     <div class="accordion-body p-2">
-                        @foreach (var metadata in group)
+                        @foreach (var descriptor in group)
                         {
-                            <div class="node-item d-flex align-items-center p-2 mb-1 rounded draggable-node"
-                                 style="cursor: grab;"
-                                 @onpointerdown="@(() => HandleDragStart(metadata))">
-                                
+                            var indicatorClass = descriptor.CssClass switch
+                            {
+                                string c when c.Contains("node-start") => "indicator-start",
+                                string c when c.Contains("node-end") => "indicator-end",
+                                string c when c.Contains("node-script") => "indicator-script",
+                                string c when c.Contains("node-user") => "indicator-user",
+                                string c when c.Contains("gw-inclusive") => "indicator-gw-incl",
+                                string c when c.Contains("gw-exclusive") => "indicator-gw-excl",
+                                _ => ""
+                            };
+                            <div class="node-item d-flex align-items-center p-2 mb-1 rounded draggable-node @indicatorClass"
+                                 @onpointerdown="@(() => HandleDragStart(descriptor))">
+
                                 <div class="node-icon-wrapper d-flex align-items-center justify-content-center rounded bg-white border shadow-sm me-3"
                                      style="width: 36px; height: 36px; min-width: 36px;">
-                                    <span class="material-symbols-outlined text-primary fs-5">
-                                        @metadata.Icon
+                                    <span class="material-symbols-outlined fs-5">
+                                        @descriptor.Icon
                                     </span>
                                 </div>
-                                
+
                                 <div class="overflow-hidden">
                                     <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem;">
-                                        @metadata.DisplayName
+                                        @descriptor.DisplayName
                                     </div>
                                     <div class="text-muted text-truncate" style="font-size: 0.7rem;">
-                                        @metadata.Description
-                                    </div>
-                                    <div class="text-muted text-truncate" style="font-size: 0.7rem;">
-                                        @metadata.Shape
+                                        @descriptor.Description
                                     </div>
                                 </div>
                             </div>
@@ -68,25 +74,26 @@
     [Parameter] public required DesignerService State { get; set; }
     [Parameter] public string? CssClass { get; set; }
 
-    private void HandleDragStart(NodeMetadata metadata)
+    private void HandleDragStart(NodeTypeDescriptor descriptor)
     {
-        var instance = Activator.CreateInstance(metadata.Type);
+        var instance = Activator.CreateInstance(descriptor.NodeType);
 
         if (instance is NodeBase coreData)
         {
-            // Create the wrapper with all visual metadata restored
             State.PendingNewNode = new DesignerNode
             {
                 NodeData = coreData,
-                Title = metadata.DisplayName,
-                Description = metadata.Description,
-                Icon = metadata.Icon,
-                CssClass = metadata.CssClass,
-                Shape = metadata.Shape,
-                X = -500, // Hide it until the mouse enters the canvas
+                Title = descriptor.DisplayName,
+                Description = descriptor.Description,
+                Icon = descriptor.Icon,
+                CssClass = descriptor.CssClass,
+                Shape = descriptor.Shape,
+                Width = descriptor.DefaultWidth,
+                Height = descriptor.DefaultHeight,
+                X = -500,
                 Y = -500
             };
-            
+
             State.Notify();
         }
     }

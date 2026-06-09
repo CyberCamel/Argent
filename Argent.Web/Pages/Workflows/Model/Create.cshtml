@@ -1,4 +1,15 @@
-﻿@page
+﻿@page "/Workflows/Create"
+@using Argent.WebComponents.Core.Workflows.Modeler
 @model Argent.Web.Pages.Workflows.Model.CreateModel
 @{
+    ViewData["Title"] = "Create Workflow";
+    ViewData["IsFullWidth"] = true;
+}
+
+<div class="flex-grow-1 d-flex" style="height: calc(100vh - 56px);">
+    <component type="typeof(WorkflowModeler)" render-mode="ServerPrerendered" />
+</div>
+
+@section Styles {
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
 }

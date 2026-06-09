@@ -1,11 +1,44 @@
-﻿@inherits FormLayoutComponentBase
+﻿@using Argent.WebComponents
+@inherits FormLayoutComponentBase
 
-@if (IsVisible)
-{
-    <div class="@(string.IsNullOrEmpty(Metadata.Width) ? "col" : Metadata.Width) @Metadata.CssClass">
-        @foreach (var child in Metadata.Children)
+<div class="@(Metadata.Columns > 1 ? "row" : "col") @Metadata.CssClass" style="@FlexStyle">
+    @if (Metadata.Columns > 1)
+    {
+        @for (int col = 0; col < Metadata.Columns; col++)
+        {
+            var columnIndex = col;
+            var columnItems = Metadata.Items.Where(i => i.ColumnIndex == columnIndex).ToList();
+            <div class="col">
+                @foreach (var child in columnItems)
+                {
+                    <ArgentRenderer Metadata="child" />
+                }
+            </div>
+        }
+    }
+    else
+    {
+        @foreach (var child in Metadata.Items)
         {
             <ArgentRenderer Metadata="child" />
         }
-    </div>
+    }
+</div>
+
+@code {
+    private string FlexStyle
+    {
+        get
+        {
+            var styles = new List<string>();
+            if (Metadata.Gap > 0) styles.Add($"gap: {Metadata.Gap * 0.25}rem");
+            return string.Join("; ", styles);
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        Metadata.LayoutType = Models.Forms.Components.Base.LayoutType.Flex;
+        Metadata.Direction = "column";
+    }
 }

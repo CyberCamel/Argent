@@ -1,11 +1,117 @@
 ﻿@page
-@using Argent.Web.Pages
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="d-flex align-items-center gap-3 mb-4">
+    <div class="bg-primary bg-opacity-10 p-3 rounded-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+        <i class="bi bi-diamond-fill fs-5 text-primary"></i>
+    </div>
+    <div>
+        <h1 class="h4 mb-1 fw-bold">Argent</h1>
+        <p class="text-muted mb-0">Workflow &amp; form management</p>
+    </div>
 </div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="bg-primary bg-opacity-10 p-2 rounded-2">
+                        <i class="bi bi-diagram-3 fs-5 text-primary"></i>
+                    </div>
+                    <h2 class="h6 mb-0 fw-semibold">Workflows</h2>
+                    @if (Model.WorkflowCount > 0)
+                    {
+                        <span class="badge bg-primary bg-opacity-10 text-primary ms-auto">@Model.WorkflowCount</span>
+                    }
+                </div>
+
+                @if (Model.RecentWorkflows.Count == 0)
+                {
+                    <p class="text-muted small mb-0">No workflows yet.</p>
+                }
+                else
+                {
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var wf in Model.RecentWorkflows)
+                        {
+                            <li class="py-2 border-bottom border-light d-flex justify-content-between align-items-center">
+                                <a href="/Workflows/View/@wf.Id" class="text-decoration-none fw-medium small">@wf.Name</a>
+                                @if (!string.IsNullOrEmpty(wf.Description))
+                                {
+                                    <span class="text-muted" style="font-size: 0.7rem;">@wf.Description</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+
+                @if (User.Identity?.IsAuthenticated ?? false)
+                {
+                    <a href="/Workflows" class="btn btn-outline-secondary btn-sm mt-3">View all</a>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="bg-primary bg-opacity-10 p-2 rounded-2">
+                        <i class="bi bi-ui-checks fs-5 text-primary"></i>
+                    </div>
+                    <h2 class="h6 mb-0 fw-semibold">Forms</h2>
+                    @if (Model.FormCount > 0)
+                    {
+                        <span class="badge bg-primary bg-opacity-10 text-primary ms-auto">@Model.FormCount</span>
+                    }
+                </div>
+
+                @if (Model.RecentForms.Count == 0)
+                {
+                    <p class="text-muted small mb-0">No forms yet.</p>
+                }
+                else
+                {
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var form in Model.RecentForms)
+                        {
+                            <li class="py-2 border-bottom border-light d-flex justify-content-between align-items-center">
+                                <div>
+                                    <a href="/Forms/Live/@form.Id" class="text-decoration-none fw-medium small">@form.Name</a>
+                                    @if (!string.IsNullOrEmpty(form.Description))
+                                    {
+                                        <span class="text-muted" style="font-size: 0.7rem;">&mdash; @form.Description</span>
+                                    }
+                                </div>
+                                @if (User.Identity?.IsAuthenticated ?? false)
+                                {
+                                    <a href="/Forms/Edit/@form.Id" class="text-decoration-none small text-muted" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+
+                @if (User.Identity?.IsAuthenticated ?? false)
+                {
+                    <a href="/Forms" class="btn btn-outline-secondary btn-sm mt-3">View all</a>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!(User.Identity?.IsAuthenticated ?? false))
+{
+    <div class="text-center py-5">
+        <i class="bi bi-shield-lock fs-2 text-muted mb-3 d-block"></i>
+        <p class="text-muted mb-0">Sign in to design workflows and forms.</p>
+    </div>
+}

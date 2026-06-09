@@ -9,11 +9,17 @@
 @inject IJSRuntime JS
 
 <div class="d-flex flex-grow-1 h-100 w-80">
-    <DesignerToolbox CssClass="w-20" State="@State" />
+    @if (!IsReadOnly)
+    {
+        <DesignerToolbox CssClass="w-20" State="@State" />
+    }
     <div class="d-flex flex-column flex-grow-1">
-        <DesignerToolbar State="@State" />
-        <div class="vh-100 overflow-hidden bg-dark">
-            <div @ref="_canvasContainer" class="w-100 h-100 position-relative" tabindex="0"
+        @if (!IsReadOnly)
+        {
+            <DesignerToolbar State="@State" />
+        }
+        <div class="d-flex flex-column flex-grow-1 overflow-hidden bg-dark">
+            <div @ref="_canvasContainer" class="flex-grow-1 overflow-hidden position-relative" tabindex="0"
                  style="cursor: @(_currentMode == DesignerState.Panning ? "grabbing" : "default")"
                  @onpointermove="OnPointerMove"
                  @onpointerup="OnPointerUp"
@@ -36,9 +42,12 @@
 
                     @foreach (var connection in State.Connections)
                     {
-                        <DesignerConnectionElement Connection="@connection" 
+                        <DesignerConnectionElement Connection="@connection"
                                                    State="@State"
-                                                   OnStartReRoute="@((args) => HandleStartReRoute(args))" />
+                                                   OnStartReRoute="@((args) => HandleStartReRoute(args))"
+                                                   OnPointerDown="@((args) => HandleConnectionPointerDown(args))"
+                                                   OnStartWaypointDrag="@((args) => HandleStartWaypointDrag(args))"
+                                                   OnInsertWaypoint="@((args) => HandleInsertWaypoint(args))" />
                     }
 
                     @if (State.PendingNewNode != null)
@@ -174,7 +183,7 @@
                             }
                         }
                         </g>
-                        
+
                         @foreach (var node in State.Nodes)
                     {
                         <DesignerNodeElement Node="@node"
@@ -183,26 +192,33 @@
                                              OnNodePointerDown="@((args) => HandleNodePointerDown(args))"
                                              OnStartResize="@((args) => HandleStartResize(args))"
                                              OnStartConnection="@((args) => HandleStartConnection(args))"
-                                             OnNodeDoubleClick="@((node) => _editingNode = node)" />
+                                              OnNodeDoubleClick="@(HandleNodeDoubleClick)" />
                     }
                 </svg>
-                @if (_editingNode != null)
-                {
-                    <DesignerNodePropertyPanel Node="_editingNode" State="State" OnClose="() => _editingNode = null" />
-                }
             </div>
-
-            
+            @if (_editingNode != null)
+            {
+                <DesignerNodePropertyPanel Node="_editingNode" State="State" OnClose="@HandleClosePropertyPanel" />
+            }
         </div>
     </div>
-    <UtilitySidebar State="@State"></UtilitySidebar>
+    @if (!IsReadOnly)
+    {
+        <UtilitySidebar State="@State"></UtilitySidebar>
+    }
 </div>
 
 @code {
-    
+
     [Parameter]
     public ClaimsPrincipal? User { get; set; }
-    
+
+    [Parameter]
+    public Guid? WorkflowId { get; set; }
+
+    [Parameter]
+    public bool IsReadOnly { get; set; }
+
     private ElementReference _canvasContainer;
     private DesignerState _currentMode = DesignerState.None;
 
@@ -233,14 +249,40 @@
     }
 
     private ResizeDirection _currentResizeDir = ResizeDirection.None;
-    private DesignerConnection? _routingConnection;
-    private int _routingWaypointIndex = -1;
-    private const double ElasticTakeoverDistance = 180;
+
+    // Previous node position for computing connection deltas during drag
+    private double _prevNodeX, _prevNodeY;
+
+    // Waypoint / segment drag state
+    private DesignerConnection? _draggingConnection;
+    private int _draggedWaypointIndex = -1;
+    private int _draggedSegmentIndex = -1;
+    private double _dragStartMouseX;
+    private double _dragStartMouseY;
+
+    private const double DragThreshold = 5.0;
+    private DesignerConnection? _pendingDragConnection;
+    private int _pendingDragSegment = -1;
+    private double _pendingDragStartX, _pendingDragStartY;
 
     protected override void OnInitialized() => State.OnChange += StateHasChanged;
 
+    protected override async Task OnInitializedAsync()
+    {
+        if (WorkflowId.HasValue)
+        {
+            await State.LoadWorkflowAsync(WorkflowId.Value);
+        }
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= StateHasChanged;
+    }
+
     private async Task OnPointerMove(PointerEventArgs e)
     {
+        if (IsReadOnly) return;
         var dimensions = await JS.InvokeAsync<BoundingRect>("getDimensions", _canvasContainer);
         var (worldX, worldY) = State.Session.ScreenToWorld(e.ClientX, e.ClientY, dimensions.Left, dimensions.Top);
 
@@ -250,7 +292,24 @@
             return;
         }
 
-        if (_currentMode == DesignerState.None) return;
+        if (_currentMode == DesignerState.None)
+        {
+            if (_pendingDragConnection != null && _pendingDragSegment >= 0)
+            {
+                double dx = worldX - _pendingDragStartX;
+                double dy = worldY - _pendingDragStartY;
+                if (dx * dx + dy * dy > DragThreshold * DragThreshold)
+                {
+                    _currentMode = DesignerState.ConnectionDrag;
+                    _draggingConnection = _pendingDragConnection;
+                    _draggedSegmentIndex = _pendingDragSegment;
+                    _dragStartMouseX = worldX;
+                    _dragStartMouseY = worldY;
+                    _pendingDragConnection = null;
+                }
+            }
+            return;
+        }
 
         UpdateActiveInteraction(worldX, worldY);
         State.Notify();
@@ -258,51 +317,89 @@
 
     private async Task OnPointerUp(PointerEventArgs e)
     {
-        if (State.PendingNewNode != null && !_isColliding)
-        {
-            State.Nodes.Add(State.PendingNewNode);
-            State.PendingNewNode = null;
-        }
-        else if (_currentMode == DesignerState.Connecting && State.ActiveDraft != null)
-        {
-            TryFinalizeConnection();
-        }
-        else if (_currentMode == DesignerState.Dragging && _isColliding)
-        {
-            if (State.PendingNewNode != null)
+        if (IsReadOnly) return;
+            try
             {
-                // If it's a fresh drag from the palette, kill it
-                State.PendingNewNode = null;
-
+                if (State.PendingNewNode != null && !_isColliding)
+                {
+                    State.Nodes.Add(State.PendingNewNode);
+                    State.PendingNewNode = null;
+                }
+                else if (_currentMode == DesignerState.Connecting && State.ActiveDraft != null)
+                {
+                    TryFinalizeConnection();
+                }
+                else if (_currentMode == DesignerState.Dragging && _isColliding)
+                {
+                    if (State.PendingNewNode != null)
+                    {
+                        State.PendingNewNode = null;
+                    }
+                    else
+                    {
+                        _activeNode!.X = _lastSafeX;
+                        _activeNode!.Y = _lastSafeY;
+                    }
+                }
             }
-            else
+            finally
             {
-                // If it's an existing node, snap it back
-                _activeNode!.X = _lastSafeX;
-                _activeNode!.Y = _lastSafeY;
+                _snapResult = null;
+                _currentMode = DesignerState.None;
+                State.ActiveDraft = null;
+                _draggingConnection = null;
+                _draggedWaypointIndex = -1;
+                _draggedSegmentIndex = -1;
+                _pendingDragConnection = null;
+                _pendingDragSegment = -1;
+                State.Notify();
             }
-        }
-
-
-        _snapResult = null;
-        _currentMode = DesignerState.None;
-        State.ActiveDraft = null;
-        _routingConnection = null;
-        _routingWaypointIndex = -1;
-        State.Notify();
     }
 
     private void HandleBackgroundPointerDown(PointerEventArgs e)
     {
+        if (IsReadOnly) return;
         _editingNode = null;
         State.DeselectAll();
         _ = StartInteraction(e, null, DesignerState.Panning);
     }
 
+    private async Task HandleNodeDoubleClick(DesignerNode node)
+    {
+        _editingNode = node;
+        await RefreshCanvasDimensions();
+    }
+
+    private async Task HandleClosePropertyPanel()
+    {
+        _editingNode = null;
+        await RefreshCanvasDimensions();
+    }
+
+    private async Task RefreshCanvasDimensions()
+    {
+        try
+        {
+            var dims = await JS.InvokeAsync<BoundingRect>("getDimensions", _canvasContainer);
+            State.Session.ViewportWidth = dims.Width;
+            State.Session.ViewportHeight = dims.Height;
+            State.Notify();
+        }
+        catch
+        {
+            // swallow JS interop errors during initial render
+        }
+    }
+
     private async Task HandleNodePointerDown((PointerEventArgs, DesignerNode) args)
     {
+        if (IsReadOnly) return;
         var (e, node) = args;
-        if (_editingNode != null && _editingNode != node) _editingNode = null;
+        if (_editingNode != null && _editingNode != node)
+        {
+            _editingNode = null;
+            await RefreshCanvasDimensions();
+        }
         State.Select(node);
         _lastSafeX = node.X;
         _lastSafeY = node.Y;
@@ -331,28 +428,17 @@
             _startNodeWidth = node.Width;
             _startNodeHeight = node.Height;
 
+            if (mode == DesignerState.Dragging)
+            {
+                _prevNodeX = node.X;
+                _prevNodeY = node.Y;
+            }
+
             if (mode == DesignerState.Connecting)
             {
                 State.ActiveDraft = new ConnectionDraft { Source = node, SourceDir = direction, MouseX = worldX, MouseY = worldY };
             }
         }
-        State.Notify();
-    }
-
-    private async Task HandlePointerMove(PointerEventArgs e)
-    {
-        var dimensions = await JS.InvokeAsync<BoundingRect>("getDimensions", _canvasContainer);
-        var (worldX, worldY) = State.Session.ScreenToWorld(e.ClientX, e.ClientY, dimensions.Left, dimensions.Top);
-
-        if (State.PendingNewNode != null)
-        {
-            UpdatePendingNodePosition(worldX, worldY);
-            return;
-        }
-
-        if (_currentMode == DesignerState.None) return;
-
-        UpdateActiveInteraction(worldX, worldY);
         State.Notify();
     }
 
@@ -375,17 +461,25 @@
                 double rawY = _startNodeY + deltaY;
 
                 var snap = GetSnappedPosition(_activeNode!, State.Nodes, rawX, rawY);
-    
-                // Check for any overlap
+
+                double ddx = snap.SnappedX - _prevNodeX;
+                double ddy = snap.SnappedY - _prevNodeY;
+                _prevNodeX = snap.SnappedX;
+                _prevNodeY = snap.SnappedY;
+
                 _isColliding = State.Nodes.Any(other =>
                     other != _activeNode &&
                     IsOverlapping(snap.SnappedX, snap.SnappedY, _activeNode!.Width, _activeNode!.Height,
                                   other.X, other.Y, other.Width, other.Height));
 
-                // Move the node regardless (so they can see the collision)
                 _activeNode!.X = snap.SnappedX;
                 _activeNode!.Y = snap.SnappedY;
                 _snapResult = snap;
+
+                if (Math.Abs(ddx) > 0.001 || Math.Abs(ddy) > 0.001)
+                {
+                    UpdateNodeConnections(_activeNode, ddx, ddy);
+                }
                 break;
             case DesignerState.Resizing:
                 if (_currentResizeDir == ResizeDirection.Right || _currentResizeDir == ResizeDirection.TopRight || _currentResizeDir == ResizeDirection.BottomRight)
@@ -432,11 +526,19 @@
                 }
                 break;
             case DesignerState.Routing:
-                if (_routingConnection != null && _routingWaypointIndex >= 0 && _routingWaypointIndex < _routingConnection.Waypoints.Count)
+                if (_draggingConnection != null)
                 {
-                    _routingConnection.Waypoints[_routingWaypointIndex].X = worldX;
-                    _routingConnection.Waypoints[_routingWaypointIndex].Y = worldY;
-                    _routingConnection.IsUserRouted = true;
+                    RoutingService.DragWaypoint(
+                        _draggingConnection.Waypoints, _draggedWaypointIndex, worldX, worldY);
+                }
+                break;
+            case DesignerState.ConnectionDrag:
+                if (_draggingConnection != null && _draggedSegmentIndex >= 0)
+                {
+                    RoutingService.DragSegment(
+                        _draggingConnection.Waypoints, _draggedSegmentIndex,
+                        ref _dragStartMouseX, ref _dragStartMouseY,
+                        worldX, worldY);
                 }
                 break;
         }
@@ -448,21 +550,38 @@
 
         if (targetNode != null)
         {
-            var targetDir = AnchorService.GetClosestAnchor(targetNode, (State.ActiveDraft!.MouseX, State.ActiveDraft.MouseY)).dir;
-            State.Connections.Add(new DesignerConnection
+            var (_, _, targetDir) = AnchorService.GetBestTargetAnchor(
+                targetNode, (State.ActiveDraft!.MouseX, State.ActiveDraft.MouseY), _activeAnchorDirection);
+            var conn = new DesignerConnection
             {
                 Source = _activeNode!,
                 SourceDir = _activeAnchorDirection,
                 Target = targetNode,
                 TargetDir = targetDir,
                 EngineConnection = new Connection { From = _activeNode!.NodeData, To = targetNode.NodeData },
-            });
+            };
+            conn.Waypoints = RoutingService.AutoRoute(conn.Source, conn.SourceDir, conn.Target, conn.TargetDir);
+            State.Connections.Add(conn);
         }
     }
 
     private void HandleKeyDown(KeyboardEventArgs e)
     {
+        if (IsReadOnly) return;
         if (e.Key == "Delete") State.DeleteSelected();
+        if (e.Key == "Escape") CancelCurrentMode();
+    }
+
+    private void CancelCurrentMode()
+    {
+        _snapResult = null;
+        _currentMode = DesignerState.None;
+        State.ActiveDraft = null;
+        _draggingConnection = null;
+        _draggedWaypointIndex = -1;
+        _draggedSegmentIndex = -1;
+        _pendingDragConnection = null;
+        _pendingDragSegment = -1;
     }
 
     private async Task HandleMouseWheel(WheelEventArgs e)
@@ -488,8 +607,101 @@
 
     private bool IsPointInsideNode(double x, double y, DesignerNode n) => x >= n.X && x <= n.X + n.Width && y >= n.Y && y <= n.Y + n.Height;
 
+    private async Task HandleConnectionPointerDown((PointerEventArgs, DesignerConnection) args)
+    {
+        if (IsReadOnly) return;
+        var (e, connection) = args;
+
+        var dimensions = await JS.InvokeAsync<BoundingRect>("getDimensions", _canvasContainer);
+        var (worldX, worldY) = State.Session.ScreenToWorld(e.ClientX, e.ClientY, dimensions.Left, dimensions.Top);
+
+        int segIdx = RoutingService.FindNearestSegment(connection.Waypoints, worldX, worldY);
+
+        _pendingDragConnection = connection;
+        _pendingDragSegment = segIdx;
+        _pendingDragStartX = worldX;
+        _pendingDragStartY = worldY;
+    }
+
+    private async Task HandleStartWaypointDrag((PointerEventArgs, DesignerConnection, int) args)
+    {
+        if (IsReadOnly) return;
+        var (e, connection, wpIdx) = args;
+
+        var dimensions = await JS.InvokeAsync<BoundingRect>("getDimensions", _canvasContainer);
+        var (worldX, worldY) = State.Session.ScreenToWorld(e.ClientX, e.ClientY, dimensions.Left, dimensions.Top);
+
+        _currentMode = DesignerState.Routing;
+        _draggingConnection = connection;
+        _draggedWaypointIndex = wpIdx;
+        _dragStartMouseX = worldX;
+        _dragStartMouseY = worldY;
+
+        State.Notify();
+    }
+
+    private async Task HandleInsertWaypoint((PointerEventArgs, DesignerConnection, int) args)
+    {
+        if (IsReadOnly) return;
+        var (e, connection, segIdx) = args;
+
+        RoutingService.InsertWaypointAtMidpoint(connection.Waypoints, segIdx);
+
+        State.Select(connection);
+
+        var dimensions = await JS.InvokeAsync<BoundingRect>("getDimensions", _canvasContainer);
+        var (worldX, worldY) = State.Session.ScreenToWorld(e.ClientX, e.ClientY, dimensions.Left, dimensions.Top);
+
+        _currentMode = DesignerState.Routing;
+        _draggingConnection = connection;
+        _draggedWaypointIndex = segIdx + 1;
+        _dragStartMouseX = worldX;
+        _dragStartMouseY = worldY;
+
+        State.Notify();
+    }
+
+    private void UpdateNodeConnections(DesignerNode node, double dx, double dy)
+    {
+        foreach (var conn in State.Connections)
+        {
+            var wps = conn.Waypoints;
+            if (wps.Count < 2) continue;
+
+            if (conn.Source == node)
+            {
+                double oldX = wps[0].X;
+                double oldY = wps[0].Y;
+                wps[0].X += dx;
+                wps[0].Y += dy;
+
+                if (wps.Count > 1)
+                {
+                    if (Math.Abs(wps[1].X - oldX) < 0.001) wps[1].X += dx;
+                    if (Math.Abs(wps[1].Y - oldY) < 0.001) wps[1].Y += dy;
+                }
+            }
+
+            if (conn.Target == node)
+            {
+                int n = wps.Count;
+                double oldX = wps[n - 1].X;
+                double oldY = wps[n - 1].Y;
+                wps[n - 1].X += dx;
+                wps[n - 1].Y += dy;
+
+                if (n > 1)
+                {
+                    if (Math.Abs(wps[n - 2].X - oldX) < 0.001) wps[n - 2].X += dx;
+                    if (Math.Abs(wps[n - 2].Y - oldY) < 0.001) wps[n - 2].Y += dy;
+                }
+            }
+        }
+    }
+
     private async Task HandleStartReRoute((PointerEventArgs, DesignerConnection, bool) args)
     {
+        if (IsReadOnly) return;
         var (e, connection, isSource) = args;
         if (isSource)
         {
@@ -518,6 +730,7 @@
 
     private async Task HandleStartResize((PointerEventArgs, DesignerNode, DesignerNodeElement.NodeResizeDirection) args)
     {
+        if (IsReadOnly) return;
         var (e, node, direction) = args;
         _currentResizeDir = (ResizeDirection)(int)direction;
         await StartInteraction(e, node, DesignerState.Resizing);
@@ -525,6 +738,7 @@
 
     private async Task HandleStartConnection((PointerEventArgs, DesignerNode, AnchorDirection) args)
     {
+        if (IsReadOnly) return;
         var (e, node, direction) = args;
         await StartInteraction(e, node, DesignerState.Connecting, direction);
     }
@@ -596,11 +810,12 @@
                y1 + h1 > y2;
     }
 
-    public class BoundingRect 
-    { 
+    public class BoundingRect
+    {
         public double Left { get; set; }
         public double Top { get; set; }
         public double Width { get; set; }
         public double Height { get; set; }
     }
+
 }

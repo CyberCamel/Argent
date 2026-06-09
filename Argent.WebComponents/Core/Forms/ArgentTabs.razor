@@ -1,0 +1,57 @@
+@using Argent.WebComponents
+@inherits FormLayoutComponentBase
+
+<div class="tab-container @Metadata.CssClass">
+    <ul class="nav nav-tabs" role="tablist">
+        @for (int i = 0; i < Metadata.Items.Count; i++)
+        {
+            var child = Metadata.Items[i];
+            var isActive = i == ActiveIndex;
+            <li class="nav-item" role="presentation">
+                <button class="nav-link @(isActive ? "active" : "")"
+                        @onclick="() => SelectTab(i)"
+                        type="button"
+                        role="tab">
+                    @(GetTabTitle(child))
+                </button>
+            </li>
+        }
+    </ul>
+    <div class="tab-content p-3 border border-top-0">
+        @for (int i = 0; i < Metadata.Items.Count; i++)
+        {
+            var child = Metadata.Items[i];
+            var isActive = i == ActiveIndex;
+            <div class="tab-pane @(isActive ? "active" : "")" role="tabpanel">
+                @if (isActive)
+                {
+                    <ArgentRenderer Metadata="child" />
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private int ActiveIndex
+    {
+        get => Math.Max(0, Math.Min(Metadata.ActiveItem, Metadata.Items.Count - 1));
+        set => Metadata.ActiveItem = value;
+    }
+
+    private void SelectTab(int index)
+    {
+        ActiveIndex = index;
+        if (OnMetadataChanged.HasDelegate)
+            OnMetadataChanged.InvokeAsync(Metadata);
+    }
+
+    private string GetTabTitle(Models.Forms.Components.Base.FormComponent child)
+    {
+        if (child is Models.Forms.Components.Base.FormLayout layout && !string.IsNullOrEmpty(layout.Title))
+            return layout.Title;
+        if (child is Models.Forms.Components.Base.FormField field && !string.IsNullOrEmpty(field.FieldLabel))
+            return field.FieldLabel;
+        return $"Tab {Metadata.Items.IndexOf(child) + 1}";
+    }
+}

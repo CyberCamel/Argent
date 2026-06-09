@@ -1,0 +1,9 @@
+@page "/Forms/Create"
+@using Argent.WebComponents.Core.Forms.Designer
+@model Argent.Web.Pages.Forms.CreateModel
+@{
+    ViewData["Title"] = "Create Form";
+    ViewData["IsFullWidth"] = true;
+}
+
+<component type="typeof(FormDesigner)" render-mode="ServerPrerendered" />

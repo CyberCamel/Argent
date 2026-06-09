@@ -1,9 +1,6 @@
 ﻿using Argent.Contracts.Forms;
 using Argent.Models.Forms.Components.Base;
 using Microsoft.AspNetCore.Components;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Argent.WebComponents.Core.Forms;
 
@@ -12,33 +9,24 @@ public abstract class FormInputComponentBase : ComponentBase, IDisposable
     [CascadingParameter]
     public IFormContext Context { get; set; } = default!;
 
-    [Parameter, EditorRequired]
-    public FormInputComponent Metadata { get; set; } = default!;
+    [Parameter]
+    public FormField Metadata { get; set; } = default!;
 
-    protected string DisplayLabel => Context.IsRequired(Metadata) ? $"{Metadata.Label} *" : Metadata.Label ?? string.Empty;
+    [Parameter]
+    public string? DisplayLabel { get; set; }
 
-    protected bool IsVisible => Context.IsVisible(Metadata);
+    [Parameter]
+    public EventCallback<FormField> OnMetadataChanged { get; set; }
+
+    protected string Label => DisplayLabel ?? Metadata.FieldLabel ?? "";
 
     protected override void OnInitialized()
     {
-        if (Context != null)
-        {
-            Context.OnStateChanged += OnNotifyStateChanged;
-        }
+        Context.OnStateChanged += StateHasChanged;
     }
 
-    // We use StateHasChanged so Blazor re-evaluates the 'IsVisible' 
-    // property whenever the global form state updates.
-    protected virtual void OnNotifyStateChanged()
+    public void Dispose()
     {
-        InvokeAsync(StateHasChanged);
-    }
-
-    public virtual void Dispose()
-    {
-        if (Context != null)
-        {
-            Context.OnStateChanged -= OnNotifyStateChanged;
-        }
+        Context.OnStateChanged -= StateHasChanged;
     }
 }

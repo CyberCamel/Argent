@@ -1,12 +1,26 @@
+@using Argent.Contracts.Workflows
 @using Argent.Models.Workflows
 @using Argent.Runtime.Workflows.Modeling
 @using System.Globalization
 
 <g transform="translate(@Node.X.ToString(CultureInfo.InvariantCulture), @Node.Y.ToString(CultureInfo.InvariantCulture))"
-   style="opacity: 0.6; pointer-events: none;">
-    <rect width="@Node.Width" height="@Node.Height"
-          rx="6" fill="#0d6efd" stroke="#0d6efd" stroke-width="2" stroke-dasharray="4" />
-    <text x="12" y="30" fill="white" style="font-weight:bold">@Node.Title</text>
+   class="node @Node.CssClass node-pending">
+    @switch (Node.Shape)
+    {
+        case NodeShape.Circle:
+            <ellipse cx="@(Node.Width / 2)" cy="@(Node.Height / 2)"
+                     rx="@(Node.Width / 2)" ry="@(Node.Height / 2)" />
+            break;
+        case NodeShape.Diamond:
+            var p = $"{Node.Width / 2},0 {Node.Width},{Node.Height / 2} {Node.Width / 2},{Node.Height} 0,{Node.Height / 2}";
+            <polygon points="@p" />
+            break;
+        default:
+            <rect width="@Node.Width" height="@Node.Height" rx="6" />
+            break;
+    }
+    <text x="@(Node.Width / 2)" y="@(Node.Height / 2 + 1)"
+          class="node-text" text-anchor="middle">@Node.Title</text>
 </g>
 
 @code {

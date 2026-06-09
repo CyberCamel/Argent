@@ -1,5 +1,144 @@
-<h3>WorkflowVersionList</h3>
+@using Argent.Runtime.Workflows.Modeling
+@using Argent.Models.Enums
+@using Microsoft.EntityFrameworkCore
+@implements IDisposable
+@inject IDbContextFactory<Argent.Infrastructure.Data.ApplicationDbContext> DbFactory
+
+<div class="modeler2-version-list">
+    <h3 class="modeler2-version-title">
+        <i class="bi bi-diagram-3"></i> @State.CurrentWorkflowName
+    </h3>
+
+    @if (State.IsReadOnlyVersion)
+    {
+        <div class="modeler2-version-readonly-banner">
+            <i class="bi bi-eye-fill"></i> Viewing old version
+        </div>
+    }
+
+    <div class="modeler2-version-field">
+        <span class="modeler2-version-label">ID</span>
+        <span class="modeler2-version-value modeler2-version-mono">@(State.CurrentWorkflowId?.ToString() ?? "—")</span>
+    </div>
+
+    @if (!string.IsNullOrEmpty(State.CurrentWorkflowDescription))
+    {
+        <div class="modeler2-version-field">
+            <span class="modeler2-version-label">Description</span>
+            <span class="modeler2-version-value">@State.CurrentWorkflowDescription</span>
+        </div>
+    }
+
+    <div class="modeler2-version-field">
+        <span class="modeler2-version-label">Loaded Version</span>
+        <span class="modeler2-version-value">@(State.LoadedVersionId.HasValue ? _loadedVersionLabel : "—")</span>
+    </div>
+
+    <div class="modeler2-version-sep"></div>
+
+    <div class="modeler2-version-subtitle">Version History</div>
+
+    @if (_versions == null)
+    {
+        <p class="modeler2-version-empty">Loading...</p>
+    }
+    else if (_versions.Count == 0)
+    {
+        <p class="modeler2-version-empty">No versions saved yet.</p>
+    }
+    else
+    {
+        <div class="modeler2-version-history">
+            @foreach (var v in _versions)
+            {
+                var isLoaded = v.Id == State.LoadedVersionId;
+                <div class="modeler2-version-entry @(isLoaded ? "modeler2-version-entry-active" : "")"
+                     @onclick="() => LoadVersion(v.Id)">
+                    <div class="modeler2-version-entry-top">
+                        <span class="modeler2-version-entry-number">v@(v.VersionNumber)</span>
+                        @if (v.State == WorkflowDefinitionState.Published)
+                        {
+                            <span class="modeler2-version-badge modeler2-version-badge-published">Published</span>
+                        }
+                        else
+                        {
+                            <span class="modeler2-version-badge modeler2-version-badge-draft">Draft</span>
+                        }
+                    </div>
+                    <div class="modeler2-version-entry-meta">
+                        @v.CreatedBy · @v.CreatedAt.ToString("g")
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="modeler2-version-sep"></div>
+
+    @if (!State.IsReadOnlyVersion)
+    {
+        <button class="modeler2-btn-icon" @onclick="PublishVersion" disabled="@(!CanPublish)">
+            <i class="bi bi-cloud-arrow-up-fill"></i> Save as new version
+        </button>
+    }
+</div>
 
 @code {
-    
+    [Parameter] public required DesignerService State { get; set; }
+    [Parameter] public EventCallback OnVersionLoaded { get; set; }
+
+    private List<Argent.Models.Workflows.WorkflowVersion>? _versions;
+    private string _loadedVersionLabel = "—";
+
+    private bool CanPublish =>
+        State.CompiledDefinition is not null &&
+        State.ValidationResult?.Errors.Count == 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshVersions();
+        State.OnChange += OnStateChanged;
+    }
+
+    private async void OnStateChanged()
+    {
+        await RefreshVersions();
+        StateHasChanged();
+    }
+
+    private async Task RefreshVersions()
+    {
+        if (State.CurrentWorkflowId == null)
+        {
+            _versions = [];
+            return;
+        }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _versions = await db.WorkflowVersions
+            .Where(v => v.WorkflowId == State.CurrentWorkflowId.Value)
+            .OrderByDescending(v => v.VersionNumber)
+            .ToListAsync();
+        var latest = _versions.FirstOrDefault();
+        _loadedVersionLabel = latest != null
+            ? $"v{latest.VersionNumber}" + (State.LoadedVersionId.HasValue ? "" : " (latest)")
+            : "—";
+    }
+
+    private async Task LoadVersion(Guid versionId)
+    {
+        await State.LoadVersionAsync(versionId);
+        await OnVersionLoaded.InvokeAsync();
+    }
+
+    private async Task PublishVersion()
+    {
+        State.Compile();
+        State.PersistDefinition();
+        await RefreshVersions();
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= OnStateChanged;
+    }
 }

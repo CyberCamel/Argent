@@ -5,7 +5,6 @@ using System.Text;
 namespace Argent.Runtime.Workflows.Modeling;
 
 using Argent.Contracts.Workflows;
-using Argent.Models.Attributes;
 using Argent.Models.Workflows;
 
 public class DesignerNode : IDesignerItem

@@ -1,18 +1,32 @@
 ﻿@page
 @model Argent.Web.Pages.LoginModel
 
-<div class="row justify-content-center pt-5">
-    <div class="col-md-4">
-        <form method="post">
-            <h2>Sign In</h2>
-            <div asp-validation-summary="All" class="text-danger"></div>
-            <input asp-for="Input.UserName" class="form-control mb-2" placeholder="Username" />
-            <input asp-for="Input.Password" class="form-control mb-2" placeholder="Password" />
-            <div class="mb-3 form-check">
-                <input asp-for="Input.RememberMe" class="form-check-input" id="rememberMeCheck" />
-                <label class="form-check-label" for="rememberMeCheck">Remember me</label>
+<div class="row justify-content-center py-5">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <i class="bi bi-diamond-fill fs-3 text-primary"></i>
+                    <h5 class="fw-bold mt-2 mb-1">Sign in</h5>
+                    <p class="text-muted small mb-0">Welcome back to Argent</p>
+                </div>
+                <form method="post">
+                    <div asp-validation-summary="All" class="text-danger small mb-3"></div>
+                    <div class="mb-3">
+                        <label asp-for="Input.UserName" class="form-label small fw-medium">Username</label>
+                        <input asp-for="Input.UserName" class="form-control" placeholder="Enter your username" autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Input.Password" class="form-label small fw-medium">Password</label>
+                        <input asp-for="Input.Password" class="form-control" placeholder="Enter your password" autocomplete="current-password">
+                    </div>
+                    <div class="mb-4 form-check">
+                        <input asp-for="Input.RememberMe" class="form-check-input" id="rememberMeCheck" />
+                        <label class="form-check-label small" for="rememberMeCheck">Remember me</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Log In</button>
+                </form>
             </div>
-            <button type="submit" class="btn btn-primary w-100">Log In</button>
-        </form>
+        </div>
     </div>
 </div>

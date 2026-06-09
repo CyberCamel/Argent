@@ -8,18 +8,18 @@
 
 @if (_rootMetadata is not null)
 {
-    <CascadingValue Value="Context">
+    var effective = DesignContext ?? Context;
+    <CascadingValue Value="effective">
         @{
-            var componentType = Registry.Resolve(_rootMetadata.Type);
+            var componentType = Registry.Resolve(_rootMetadata.Xtype);
             <div>
                 <DynamicComponent Type="componentType" Parameters="_parameters" />
-                @if (_rootMetadata is FormInputComponent input && Context.GetErrors(input).Count() > 0)
+                @if (_rootMetadata is FormField field && effective.GetErrors(field).Count() > 0)
                 {
-                    @foreach (var error in Context.GetErrors(input))
+                    @foreach (var error in effective.GetErrors(field))
                     {
                         <span class="text-danger">@error</span>
                     }
-
                 }
             </div>
         }
@@ -33,6 +33,9 @@ else if (!string.IsNullOrEmpty(JsonConfig))
 @code {
     [Parameter] public string? JsonConfig { get; set; }
     [Parameter] public FormComponent? Metadata { get; set; }
+
+    [CascadingParameter]
+    private IFormContext? DesignContext { get; set; }
 
     private FormComponent? _rootMetadata;
     private Dictionary<string, object> _parameters = new();

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Argent.Contracts.Forms
 {
-    public interface IValidationService
+    public interface IFormValidationService
     {
         public bool Validate(string value);
     }

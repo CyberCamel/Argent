@@ -1,0 +1,84 @@
+@using Argent.WebComponents
+@inherits FormLayoutComponentBase
+
+<div class="accordion @Metadata.CssClass" id="@($"accordion-{Metadata.Id}")">
+    @for (int i = 0; i < Metadata.Items.Count; i++)
+    {
+        var child = Metadata.Items[i];
+        var isOpen = Metadata.MultiExpand
+            ? OpenItems.Contains(i)
+            : i == ActiveIndex;
+        var itemId = $"accordion-item-{Metadata.Id}-{i}";
+
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button @(isOpen ? "" : "collapsed")"
+                        type="button"
+                        @onclick="() => ToggleItem(i)">
+                    @GetItemTitle(child)
+                </button>
+            </h2>
+            <div class="accordion-collapse collapse @(isOpen ? "show" : "")"
+                 id="@itemId">
+                <div class="accordion-body">
+                    @if (isOpen)
+                    {
+                        <ArgentRenderer Metadata="child" />
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private int _activeIndex;
+    private HashSet<int> _openItems = [];
+
+    private int ActiveIndex
+    {
+        get => Math.Max(0, Math.Min(_activeIndex, Metadata.Items.Count - 1));
+        set => _activeIndex = value;
+    }
+
+    private HashSet<int> OpenItems
+    {
+        get => _openItems;
+        set => _openItems = value;
+    }
+
+    protected override void OnInitialized()
+    {
+        _activeIndex = Metadata.ActiveItem;
+        if (Metadata.MultiExpand && Metadata.DefaultOpen)
+        {
+            _openItems = [0];
+        }
+    }
+
+    private void ToggleItem(int index)
+    {
+        if (Metadata.MultiExpand)
+        {
+            if (_openItems.Contains(index))
+                _openItems.Remove(index);
+            else
+                _openItems.Add(index);
+        }
+        else
+        {
+            _activeIndex = _activeIndex == index ? -1 : index;
+        }
+        if (OnMetadataChanged.HasDelegate)
+            OnMetadataChanged.InvokeAsync(Metadata);
+    }
+
+    private string GetItemTitle(Models.Forms.Components.Base.FormComponent child)
+    {
+        if (child is Models.Forms.Components.Base.FormLayout layout && !string.IsNullOrEmpty(layout.Title))
+            return layout.Title;
+        if (child is Models.Forms.Components.Base.FormField field && !string.IsNullOrEmpty(field.FieldLabel))
+            return field.FieldLabel;
+        return $"Section {Metadata.Items.IndexOf(child) + 1}";
+    }
+}

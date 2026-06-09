@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.Json.Serialization;
 using Argent.Models.Workflows.Activities;
-using Argent.Models.Workflows.Modeler;
 
 namespace Argent.Models.Workflows;
 
@@ -12,6 +11,7 @@ namespace Argent.Models.Workflows;
 [JsonDerivedType(typeof(UserActivity), typeDiscriminator: "user")]
 [JsonDerivedType(typeof(SQLActivity), typeDiscriminator:"sql")]
 [JsonDerivedType(typeof(InclusiveGateway), typeDiscriminator:"incl-gw")]
+[JsonDerivedType(typeof(ExclusiveGateway), typeDiscriminator:"excl-gw")]
 [JsonDerivedType(typeof(StartEvent), typeDiscriminator:"start")]
 [JsonDerivedType(typeof(EndEvent), typeDiscriminator:"end")]
 public abstract class NodeBase : WorkflowElement

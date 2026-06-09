@@ -11,17 +11,13 @@ public class DesignerConnection
     public required DesignerNode Source { get; set; }
     public required DesignerNode Target { get; set; }
 
-    // These now define exactly where the wire sits
     public AnchorDirection SourceDir { get; set; }
     public AnchorDirection TargetDir { get; set; }
 
-    public bool IsUserRouted { get; set; }
+    // The path is defined by an ordered list of waypoints.
+    // Each consecutive pair (wp[i], wp[i+1]) MUST share either X or Y,
+    // guaranteeing all bends are exactly 90 degrees.
     public List<DesignerWaypoint> Waypoints { get; set; } = [];
-    public double BaselineSourceX { get; set; }
-    public double BaselineSourceY { get; set; }
-    public double BaselineTargetX { get; set; }
-    public double BaselineTargetY { get; set; }
-    public string PathString { get; set; }
 }
 
 public class DesignerWaypoint

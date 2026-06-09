@@ -1,14 +1,8 @@
 ﻿using Argent.Models.Attributes;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Text.Json.Serialization;
 
-namespace Argent.Models.Workflows
+namespace Argent.Models.Workflows;
+
+[WorkflowCanvasElement("Inclusive Gateway", "diamond", "Control", NodeShape.Diamond, "An inclusive gateway", "gw gw-inclusive", 100, 80)]
+public class InclusiveGateway : Gateway
 {
-    [WorkflowCanvasElement("Inclusive gateway", "diamond", "Control", NodeShape.Diamond, "An inclusive gateway, does stuff", "gw gw-inclusive")]
-    [JsonDerivedType(typeof(InclusiveGateway), typeDiscriminator: "inclusiveGateway")]
-    public class InclusiveGateway: Gateway
-    {
-    }
 }

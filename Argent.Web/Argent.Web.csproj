@@ -30,4 +30,12 @@
     <Folder Include="Security\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="Pages\DomainObjects\Create.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\DomainObjects\Edit.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\DomainObjects\Index.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\DomainObjects\_DataSourcesContainer.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\DomainObjects\_PropertiesTable.cshtml" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,10 @@
+@page "/Forms/Edit/{id:guid}"
+@using Argent.WebComponents.Core.Forms.Designer
+@model Argent.Web.Pages.Forms.EditModel
+@{
+    ViewData["Title"] = "Edit Form";
+    ViewData["IsFullWidth"] = true;
+}
+
+<component type="typeof(FormDesigner)" render-mode="ServerPrerendered"
+           param-FormId="@Model.FormId" />

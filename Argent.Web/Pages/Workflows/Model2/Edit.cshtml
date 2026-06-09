@@ -1,0 +1,16 @@
+@page "/Workflows/Model2/Edit/{id:guid}"
+@using Argent.WebComponents.Core.Workflows.Modeler2
+@model Argent.Web.Pages.Workflows.Model.EditModel
+@{
+    ViewData["Title"] = "Edit (Modeler2) - " + Model.WorkflowName;
+    ViewData["IsFullWidth"] = true;
+}
+
+<div class="flex-grow-1 d-flex" style="height: calc(100vh - 56px);">
+    <component type="typeof(WorkflowModeler2)" render-mode="ServerPrerendered"
+               param-WorkflowId="@Model.WorkflowId" />
+</div>
+
+@section Styles {
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+}

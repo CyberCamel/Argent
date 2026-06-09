@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Argent.Models.Workflows.Modeler;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -10,5 +11,6 @@ public class WorkflowDefinition
     public WorkflowMetadata Metadata { get; set; }
     public List<Connection> Connections { get; set; } = [];
     public List<NodeBase> Nodes { get; set; } = [];
+    public Dictionary<Guid, NodeLayout> Layouts { get; set; } = [];
 
 }

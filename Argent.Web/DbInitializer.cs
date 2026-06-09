@@ -59,7 +59,7 @@ public static class DbInitializer
             }
         }
         var userName = "alexb";
-        if (await userManager.FindByNameAsync(superUserName) == null)
+        if (await userManager.FindByNameAsync(userName) == null)
         {
             var usr = new InternalUser
             {

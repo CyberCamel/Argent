@@ -1,0 +1,37 @@
+@using Argent.WebComponents
+@inherits FormLayoutComponentBase
+
+<fieldset class="@Metadata.CssClass">
+    @if (!string.IsNullOrEmpty(Metadata.Title))
+    {
+        <legend>@Metadata.Title</legend>
+    }
+    <div class="@InnerClass">
+        @foreach (var child in Metadata.Items)
+        {
+            <div class="@ItemClass(child)">
+                <ArgentRenderer Metadata="child" />
+            </div>
+        }
+    </div>
+</fieldset>
+
+@code {
+    private string InnerClass
+    {
+        get
+        {
+            var dir = Metadata.Direction == "row" ? "" : "flex-column";
+            return $"d-flex {dir} gap-{Metadata.Gap}".Trim();
+        }
+    }
+
+    private string ItemClass(Models.Forms.Components.Base.FormComponent child)
+    {
+        if (child is Models.Forms.Components.Base.FormField field)
+        {
+            return $"col-{field.Span}";
+        }
+        return "";
+    }
+}

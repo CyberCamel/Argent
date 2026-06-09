@@ -1,0 +1,45 @@
+@using Argent.Runtime.Workflows.Modeling
+@using Argent.Models.Workflows
+@using Argent.WebComponents.Core.Workflows.Modeler
+
+<div class="modeler2-sidebar">
+    <div class="modeler2-sidebar-tabs">
+        <button class="@(_activeTab == TabType.Versions ? "modeler2-sidebar-tab-active" : "")"
+                @onclick="() => SetTab(TabType.Versions)">
+            <i class="bi bi-diagram-3"></i> Versions
+        </button>
+        <button class="@(_activeTab == TabType.Json ? "modeler2-sidebar-tab-active" : "")"
+                @onclick="() => SetTab(TabType.Json)">
+            <i class="bi bi-code-slash"></i> JSON
+        </button>
+        <button class="@(_activeTab == TabType.Errors ? "modeler2-sidebar-tab-active" : "")"
+                @onclick="() => SetTab(TabType.Errors)">
+            <i class="bi bi-exclamation-triangle"></i> Errors
+        </button>
+    </div>
+    <div class="modeler2-sidebar-content" @onmouseleave="() => OnHoverNode.InvokeAsync(null)">
+        @switch (_activeTab)
+        {
+            case TabType.Versions:
+                <!--<WorkflowVersionList State="@State" OnVersionLoaded="OnVersionLoaded" />-->
+                break;
+            case TabType.Json:
+                <JsonViewer State="@State" />
+                break;
+            case TabType.Errors:
+                <ErrorViewer State="@State" OnHoverNode="OnHoverNode" />
+                break;
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public required DesignerService State { get; set; }
+    [Parameter] public EventCallback<NodeBase?> OnHoverNode { get; set; }
+    [Parameter] public EventCallback OnVersionLoaded { get; set; }
+
+    private enum TabType { Versions, Json, Errors }
+    private TabType _activeTab = TabType.Versions;
+
+    private void SetTab(TabType tab) => _activeTab = tab;
+}

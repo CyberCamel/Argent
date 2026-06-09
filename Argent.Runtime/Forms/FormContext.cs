@@ -1,15 +1,17 @@
-﻿using NCalc;
-using System.Text.RegularExpressions;
-using Argent.Contracts.Forms;
+﻿using Argent.Contracts.Forms;
 using Argent.Models.Forms.Components.Base;
 using Argent.Models.Forms.Components.Configuration;
+using System.Text.RegularExpressions;
 
 namespace Argent.Runtime.Forms;
 
-public class ArgentFormContext(IValidationRegistry validationRegistry) : IFormContext
+public class ArgentFormContext(
+    IFormValidatorRegistry formValidatorRegistry,
+    IConditionEvaluator conditionEvaluator) : IFormContext
 {
     private readonly Dictionary<string, object?> _data = new();
     public Dictionary<string, object?> Environment { get; } = new();
+    public List<string> UserRoles { get; set; } = [];
 
     public event Action? OnStateChanged;
 
@@ -20,12 +22,16 @@ public class ArgentFormContext(IValidationRegistry validationRegistry) : IFormCo
         return default;
     }
 
+    public object? GetValue(string key)
+    {
+        _data.TryGetValue(key, out var value);
+        return value;
+    }
+
     public void SetValue(string key, object? value)
     {
-        // Avoid infinite loops/unnecessary renders
         if (_data.TryGetValue(key, out var existing) && Equals(existing, value))
             return;
-
         _data[key] = value;
         NotifyStateChanged();
     }
@@ -34,113 +40,102 @@ public class ArgentFormContext(IValidationRegistry validationRegistry) : IFormCo
 
     public bool IsVisible(FormComponent component)
     {
-        if (string.IsNullOrWhiteSpace(component.VisibleIf))
-            return true;
-
-        return EvaluateExpression<bool>(component.VisibleIf);
+        if (component is FormField field)
+            return conditionEvaluator.EvaluateFieldVisible(field, this);
+        return true;
     }
 
-    public bool IsRequired(FormInputComponent component)
+    public bool IsRequired(FormField component)
     {
-        if (string.IsNullOrWhiteSpace(component.RequiredIf))
-            return false;
-
-        return EvaluateExpression<bool>(component.RequiredIf);
+        return conditionEvaluator.EvaluateFieldRequired(component, this);
     }
 
-    public bool IsValid(FormInputComponent component)
+    public bool IsValid(FormField component)
     {
-
         var errors = new List<string>();
         bool validationState = true;
-        if (component.DataKey is null)
-        {
-            return true;
-        }
 
-        var value = GetValue<string>(component.DataKey) ?? "";
+        if (component.Name is null)
+            return true;
+
+        var value = GetValue<string>(component.Name) ?? "";
+
         foreach (var validator in component.Validators)
         {
-            switch (validator.Type)
+            var conditionMet = validator.Condition == null
+                || conditionEvaluator.Evaluate(validator.Condition, this);
+
+            bool fails = false;
+
+            if (conditionMet && !string.IsNullOrEmpty(validator.ErrorMessage))
             {
-                case ValidationType.Required:
-                    if (value.Trim() != string.Empty) 
-                    { 
-                        errors.Add(validator.ErrorMessage ?? ""); 
-                        validationState = false; 
-                    }; 
-                    break;
-                case ValidationType.Regex:
-                    if(!Regex.IsMatch(value, validator.Pattern ?? "")) 
-                    { 
-                        errors.Add(validator.ErrorMessage ?? ""); 
-                        validationState = false; }; 
-                    break;
-                case ValidationType.Expression:
-                    if(!(validator.Expression is null || EvaluateExpression<bool>(validator.Expression))){
-                        errors.Add(validator.ErrorMessage ?? ""); 
-                        validationState = false; 
-                    }; 
-                    break;
-                case ValidationType.Specific:
-                    if (!(validator.Handler is not null && validationRegistry.GetService(validator.Handler).Validate(value)))
+                var expr = validator.ErrorKey;
+                if (!string.IsNullOrEmpty(expr))
+                {
+                    try
                     {
-                        errors.Add(validator.ErrorMessage ?? "");
-                        validationState = false;
+                        var e = new NCalc.Expression(expr);
+                        foreach (var kvp in GetCombinedContext())
+                            e.Parameters[kvp.Key] = kvp.Value;
+                        var result = e.Evaluate();
+                        if (result is bool b) fails = !b;
+                        else fails = !Convert.ToBoolean(result);
                     }
-                    break;
+                    catch
+                    {
+                        fails = true;
+                    }
+                }
+                else
+                {
+                    fails = true;
+                }
+            }
+
+            if (fails)
+            {
+                errors.Add(validator.ErrorMessage ?? "");
+                validationState = false;
             }
         }
+
         if (IsRequired(component))
         {
-            errors.Add("This field is required.");
-            validationState = false;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                errors.Add("This field is required.");
+                validationState = false;
+            }
         }
+
         Errors.Clear();
-        Errors[component.DataKey] = errors;
+        Errors[component.Name] = errors;
         return validationState;
-
-
-
     }
 
-    private T EvaluateExpression<T>(string expression)
+    public IEnumerable<string> GetErrors(FormField component)
     {
-        try
-        {
-            var exp = new Expression(expression)
-            {
-                Parameters = GetCombinedContext()
-            };
-            var result = exp.Evaluate();
-            return (T)Convert.ChangeType(result, typeof(T));
-        }
-        catch
-        {
-            return default!;
-        }
+        IsValid(component);
+        if (component.Name is not null && Errors.TryGetValue(component.Name, out var e))
+            return e;
+        return [];
+    }
+
+    public Dictionary<string, object?> GetAllData() => _data;
+
+    public Dictionary<string, object?> GetAllValues()
+    {
+        var combined = new Dictionary<string, object?>(Environment);
+        foreach (var kvp in _data) combined[kvp.Key] = kvp.Value;
+        return combined;
     }
 
     private Dictionary<string, object?> GetCombinedContext()
     {
-        // Merge form data and environment (User/Task) for the evaluator
         var combined = new Dictionary<string, object?>(Environment);
         foreach (var kvp in _data) combined[kvp.Key] = kvp.Value;
         return combined;
     }
 
     private readonly Dictionary<string, List<string>> Errors = [];
-
-    public IEnumerable<string> GetErrors(FormInputComponent comp) {
-        IsValid(comp);
-        if(comp.DataKey is not null && Errors.TryGetValue(comp.DataKey, out var e))
-        {
-            return e;
-        }
-        else
-        {
-            return [];
-        }
-    }
-    public Dictionary<string, object?> GetAllData() => _data;
 }

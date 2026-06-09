@@ -1,5 +1,30 @@
+:root {
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-light: #eef2ff;
+  --primary-subtle: #e0e7ff;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-hover: #f1f5f9;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border: #e2e8f0;
+  --radius: 0.5rem;
+  --radius-lg: 0.75rem;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08), 0 4px 6px rgba(0, 0, 0, 0.04);
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 html {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 @media (min-width: 768px) {
@@ -8,34 +33,567 @@ html {
   }
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
-}
-
 body {
-  margin-bottom: 60px;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.bpmn-shape {
-    filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.1));
-    cursor: move;
+.tracking-tight {
+  letter-spacing: -0.025em;
 }
 
-.bpmn-text {
-    font-family: 'Segoe UI', sans-serif;
-    font-size: 12px;
+/* ---- Navbar ---- */
+
+.navbar {
+  background: var(--text);
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+  min-height: 56px;
+}
+
+.navbar-brand {
+  font-size: 1.15rem;
+  color: #fff;
+}
+
+.navbar-brand i {
+  color: var(--primary);
+  font-size: 0.9em;
+  vertical-align: middle;
+}
+
+.navbar .nav-link {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  transition: color 0.15s, background 0.15s;
+}
+
+.navbar .nav-link:hover,
+.navbar .nav-link:focus {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.navbar .nav-link.active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.navbar .dropdown-menu {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 0.375rem;
+}
+
+.navbar .dropdown-item {
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  transition: background 0.1s;
+}
+
+.navbar .dropdown-item i {
+  width: 1.25rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.navbar .dropdown-item:hover,
+.navbar .dropdown-item:focus {
+  background: var(--primary-light);
+}
+
+.navbar .dropdown-item.text-danger:hover {
+  background: #fef2f2;
+}
+
+.navbar .dropdown-item:active {
+  background: var(--primary-light);
+  color: inherit;
+}
+
+.navbar .navbar-toggler:focus {
+  box-shadow: none;
+}
+
+/* ---- Avatar ---- */
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--primary);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.avatar-sm {
+  width: 30px;
+  height: 30px;
+  font-size: 0.8rem;
+}
+
+.avatar-lg {
+  width: 72px;
+  height: 72px;
+  font-size: 1.5rem;
+}
+
+/* ---- Footer ---- */
+
+.footer {
+  border-top-color: var(--border) !important;
+}
+
+.footer,
+footer {
+  font-size: 0.813rem;
+}
+
+/* ---- Cards ---- */
+
+.card {
+  border: none;
+  box-shadow: var(--shadow);
+  border-radius: var(--radius-lg);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.card-header {
+  background: transparent;
+  border-bottom-color: var(--border);
+  padding: 1rem 1.25rem;
+  font-weight: 600;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+.card-footer {
+  background: transparent;
+  border-top-color: var(--border);
+  padding: 1rem 1.25rem;
+}
+
+/* ---- Buttons ---- */
+
+.btn {
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  transition: all 0.15s;
+}
+
+.btn:focus, .btn:active:focus {
+  box-shadow: 0 0 0 0.15rem rgba(79, 70, 229, 0.25);
+}
+
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  color: #fff;
+}
+
+.btn-primary:active {
+  background: var(--primary-hover) !important;
+  border-color: var(--primary-hover) !important;
+}
+
+.btn-outline-secondary {
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.btn-outline-secondary:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-sm {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.813rem;
+}
+
+.btn-outline-danger:hover {
+  background: #fef2f2;
+}
+
+/* ---- Tables ---- */
+
+.table {
+  font-size: 0.875rem;
+  margin-bottom: 0;
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom-width: 1px;
+  padding: 0.75rem 1rem;
+}
+
+.table td {
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+  background: var(--surface-hover);
+}
+
+.table-light {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.table > :not(caption) > * > * {
+  border-bottom-color: var(--border);
+}
+
+/* ---- Forms ---- */
+
+.form-control {
+  border-color: var(--border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 0.15rem rgba(79, 70, 229, 0.15);
+}
+
+.form-label {
+  font-size: 0.813rem;
+  margin-bottom: 0.375rem;
+  color: var(--text-secondary);
+}
+
+.form-check-input:checked {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.form-check-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 0.15rem rgba(79, 70, 229, 0.15);
+}
+
+/* ---- Alerts ---- */
+
+.alert {
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+}
+
+.alert-info {
+  background: var(--primary-light);
+  color: var(--primary-hover);
+}
+
+/* ---- Badges ---- */
+
+.badge {
+  font-weight: 500;
+  padding: 0.25em 0.65em;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
+
+/* ---- Page heading ---- */
+
+.page-heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.page-heading i {
+  color: var(--primary);
+  margin-right: 0.5rem;
+}
+
+/* ---- Steps / Stepper indicator ---- */
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.step {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+}
+
+.step.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.step.completed {
+  background: var(--primary-subtle);
+  color: var(--primary);
+}
+
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  min-width: 1rem;
+}
+
+.step-line.completed {
+  background: var(--primary);
+}
+
+/* ---- SVG Canvas ---- */
+
+svg {
+    background: #1e1e2e;
+}
+
+svg > rect[fill="url(#gridPattern)"] {
+    opacity: 0.12;
+}
+
+.canvas-container svg {
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+.node rect[style*="cursor"] {
+    user-select: none;
+    pointer-events: all;
+}
+
+/* ---- Workflow Modeler Nodes ---- */
+
+.node ellipse,
+.node rect,
+.node polygon {
+    transition: fill 0.2s ease, stroke 0.2s ease, stroke-width 0.15s ease;
+}
+
+.node ellipse,
+.node rect,
+.node polygon {
+    stroke-width: 2;
+    fill: #6b7280;
+    stroke: #4b5563;
+}
+
+.node:hover ellipse,
+.node:hover rect,
+.node:hover polygon {
+    stroke-width: 2.5;
+}
+
+/* Start event - green circle */
+.node-start ellipse {
+    fill: #10b981;
+    stroke: #059669;
+}
+
+/* End event - red circle */
+.node-end ellipse {
+    fill: #ef4444;
+    stroke: #dc2626;
+}
+
+/* Server/script nodes - indigo rectangles */
+.node-script rect {
+    fill: #6366f1;
+    stroke: #4f46e5;
+}
+
+/* User task - blue rectangles */
+.node-user rect {
+    fill: #3b82f6;
+    stroke: #2563eb;
+}
+
+/* Inclusive gateway - amber diamond */
+.gw-inclusive polygon {
+    fill: #f59e0b;
+    stroke: #d97706;
+}
+
+/* Exclusive gateway - orange diamond */
+.gw-exclusive polygon {
+    fill: #f97316;
+    stroke: #ea580c;
+}
+
+/* ---- Selected Node ---- */
+
+.node-start.node-selected ellipse {
+    stroke: #6ee7b7;
+    stroke-width: 2.5;
+}
+
+.node-end.node-selected ellipse {
+    stroke: #fca5a5;
+    stroke-width: 2.5;
+}
+
+.node-script.node-selected rect {
+    stroke: #a5b4fc;
+    stroke-width: 2.5;
+}
+
+.node-user.node-selected rect {
+    stroke: #93c5fd;
+    stroke-width: 2.5;
+}
+
+.gw-inclusive.node-selected polygon {
+    stroke: #fcd34d;
+    stroke-width: 2.5;
+}
+
+.gw-exclusive.node-selected polygon {
+    stroke: #fdba74;
+    stroke-width: 2.5;
+}
+
+/* ---- Node Text ---- */
+
+.node-text {
+    fill: #ffffff;
+    font-weight: 600;
+    font-size: 11px;
+    font-family: var(--font-sans);
+    pointer-events: none;
+    dominant-baseline: central;
+    letter-spacing: -0.01em;
+}
+
+/* ---- Anchor Circles ---- */
+
+.node-anchor {
+    fill: #94a3b8;
+    opacity: 0;
+    cursor: crosshair;
+    transition: opacity 0.15s, r 0.15s, fill 0.15s;
+    r: 5;
+}
+
+.node:hover .node-anchor,
+.node-selected .node-anchor {
+    opacity: 0.7;
+}
+
+.node-anchor:hover {
+    opacity: 1;
+    r: 8;
+    fill: var(--primary);
+}
+
+/* ---- Connection Paths ---- */
+
+.connection-path {
+    stroke: #52525b;
+    stroke-width: 2;
+    fill: none;
+    transition: stroke 0.15s ease, stroke-width 0.15s ease;
+}
+
+.connection-path.connection-hover {
+    stroke: #a1a1aa;
+    stroke-width: 2.5;
+}
+
+.connection-path.connection-selected {
+    stroke: var(--primary);
+    stroke-width: 2.5;
+}
+
+/* ---- Connection Handles ---- */
+
+.conn-waypoint {
+    fill: white;
+    stroke: var(--primary);
+    stroke-width: 2;
+    cursor: grab;
+}
+
+.conn-waypoint:active {
+    cursor: grabbing;
+}
+
+.conn-midpoint {
+    fill: var(--primary);
+    opacity: 0.3;
+    cursor: crosshair;
+}
+
+.conn-reroute {
+    fill: white;
+    stroke: var(--primary);
+    stroke-width: 2;
+    cursor: pointer;
+}
+
+/* ---- Draft/Pending ---- */
+
+.connection-draft {
+    stroke: var(--primary);
+    stroke-width: 2;
+    fill: none;
+    stroke-dasharray: 6 4;
+}
+
+.node-pending {
+    opacity: 0.65;
     pointer-events: none;
 }
 
-.bpmn-node:hover {
-    stroke-width: 3px;
+.node-pending ellipse,
+.node-pending rect,
+.node-pending polygon {
+    stroke-dasharray: 6 4;
+    stroke-width: 2;
 }
 
+/* ---- Toolbox ---- */
 
 .node-item {
     cursor: grab;
@@ -43,28 +601,26 @@ body {
     border: 1px solid transparent;
 }
 
-    .node-item:hover {
-        background-color: #fff;
-        border-color: #dee2e6;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        transform: translateY(-1px);
-    }
+.node-item:hover {
+    background-color: #fff;
+    border-color: #dee2e6;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    transform: translateY(-1px);
+}
 
-    .node-item:active {
-        cursor: grabbing;
-    }
+.node-item:active {
+    cursor: grabbing;
+}
 
-/* Make the icon wrapper look like the actual node shape */
 .node-icon-wrapper {
     transition: transform 0.2s ease;
 }
 
 .node-item:hover .node-icon-wrapper {
     transform: scale(1.1);
-    color: #0d6efd;
+    color: var(--primary);
 }
 
-/* Custom Scrollbar for the toolbox */
 .accordion::-webkit-scrollbar {
     width: 5px;
 }
@@ -74,51 +630,1174 @@ body {
     border-radius: 10px;
 }
 
-.node circle {
+.designer-toolbox .accordion-button:not(.collapsed) {
+    background: var(--primary-light);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.designer-toolbox .accordion-button:focus {
+    box-shadow: none;
+    border-color: transparent;
+}
+
+/* Toolbox item type indicators */
+.node-item.indicator-start {
+    border-left: 3px solid #10b981;
+}
+
+.node-item.indicator-end {
+    border-left: 3px solid #ef4444;
+}
+
+.node-item.indicator-script {
+    border-left: 3px solid #6366f1;
+}
+
+.node-item.indicator-user {
+    border-left: 3px solid #3b82f6;
+}
+
+.node-item.indicator-gw-incl {
+    border-left: 3px solid #f59e0b;
+}
+
+.node-item.indicator-gw-excl {
+    border-left: 3px solid #f97316;
+}
+
+.node-item.indicator-start .node-icon-wrapper span {
+    color: #10b981;
+}
+
+.node-item.indicator-end .node-icon-wrapper span {
+    color: #ef4444;
+}
+
+.node-item.indicator-script .node-icon-wrapper span {
+    color: #6366f1;
+}
+
+.node-item.indicator-user .node-icon-wrapper span {
+    color: #3b82f6;
+}
+
+.node-item.indicator-gw-incl .node-icon-wrapper span {
+    color: #f59e0b;
+}
+
+.node-item.indicator-gw-excl .node-icon-wrapper span {
+    color: #f97316;
+}
+
+/* ---- Properties Panel (Bottom IDE-Style) ---- */
+
+.properties-panel {
+    background: #181825;
+    border-top: 1px solid #313244;
+    display: flex;
+    flex-direction: column;
+    min-height: 220px;
+    max-height: 320px;
+    overflow: hidden;
+}
+
+.properties-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 14px;
+    background: #1e1e2e;
+    border-bottom: 1px solid #313244;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.properties-panel-title {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #cdd6f4;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.properties-panel-title .bi-gear {
+    font-size: 0.6875rem;
+    color: #6c7086;
+}
+
+.properties-panel-type {
+    color: #89b4fa;
+    font-weight: 600;
+}
+
+.properties-panel-separator {
+    color: #585b70;
+    font-weight: 300;
+}
+
+.properties-panel-name {
+    color: #a6adc8;
+    font-weight: 400;
+}
+
+.properties-panel-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.properties-panel-close {
+    background: none;
+    border: none;
+    color: #6c7086;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.6875rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s, background 0.15s;
+}
+
+.properties-panel-close:hover {
+    color: #cdd6f4;
+    background: #313244;
+}
+
+.properties-panel-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+}
+
+.properties-panel-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 14px;
+    min-width: 0;
+    border-right: 1px solid #313244;
+    border-bottom: none;
+}
+
+.properties-panel-section:last-child {
+    border-right: none;
+}
+
+.properties-panel-section-dynamic {
+    /* fills remaining columns in the grid */
+}
+
+.properties-panel-field {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+}
+
+.properties-panel-field:has(.properties-panel-code) {
+    grid-template-columns: 140px 1fr;
+    align-items: start;
+}
+
+.properties-panel-field:has(.properties-panel-switch) {
+    grid-template-columns: 140px auto;
+}
+
+.properties-panel-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #a6adc8;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.properties-panel-tip {
+    color: #585b70;
+    cursor: help;
+    font-size: 0.625rem;
+    flex-shrink: 0;
+}
+
+.properties-panel-tip:hover {
+    color: #6c7086;
+}
+
+.properties-panel-input {
+    background: #11111b;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    color: #cdd6f4;
+    font-size: 0.8125rem;
+    padding: 4px 8px;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.properties-panel-input:focus {
+    border-color: #89b4fa;
+}
+
+.properties-panel-input::placeholder {
+    color: #585b70;
+}
+
+.properties-panel-textarea {
+    resize: vertical;
+    min-height: 32px;
+    font-family: inherit;
+}
+
+.properties-panel-code {
+    font-family: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    tab-size: 4;
+    max-height: 100px;
+}
+
+.properties-panel-placeholder {
+    font-size: 0.75rem;
+    color: #585b70;
+    font-style: italic;
+    padding: 4px 0;
+}
+
+.properties-panel-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+    justify-self: start;
+}
+
+.properties-panel-switch input {
     opacity: 0;
-    transform: scale(0);
-    transform-origin: center;
-    transform-box: fill-box;
-    /* Ensure transition is here so it animates when .node-selected is REMOVED */
-    transition: all 0.2s ease-in;
-    fill: #0d6efd;
-    stroke: white;
-    stroke-width: 1.5px;
-    pointer-events: none; /* Can't click them while they are hidden */
+    width: 0;
+    height: 0;
 }
 
-/* Selected State (The "Entry" animation happens here) */
-.node-selected circle {
-    opacity: 1;
-    transform: scale(1);
-    pointer-events: all; /* Enable clicking */
-    /* Use the bouncier transition for the "Pop" in */
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+.properties-panel-switch-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #313244;
+    border-radius: 20px;
+    transition: background 0.2s;
 }
 
-/* Hover State */
-.node-selected circle:hover {
-    fill: #00d2ff;
-    transform: scale(1.4);
-    transition: all 0.1s ease-out; /* Fast response for hover */
+.properties-panel-switch-slider::before {
+    content: "";
+    position: absolute;
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background: #585b70;
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
 }
 
-.is-interacting circle{
-    transition:0s!important;
+.properties-panel-switch input:checked + .properties-panel-switch-slider {
+    background: #89b4fa;
 }
 
-.canvas-container svg {
+.properties-panel-switch input:checked + .properties-panel-switch-slider::before {
+    transform: translateX(16px);
+    background: #1e1e2e;
+}
+
+/* ---- Modeler2 ---- */
+
+.modeler2-layout {
+    display: flex;
+    flex-grow: 1;
+    height: 100%;
+    overflow: hidden;
+}
+
+.modeler2-toolbox {
+    width: 200px;
+    flex-shrink: 0;
+    background: #181825;
+    border-right: 1px solid #313244;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modeler2-toolbox-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid #313244;
+    flex-shrink: 0;
+}
+
+.modeler2-toolbox-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #a6adc8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.modeler2-toolbox-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.modeler2-toolbox-readonly {
+    opacity: 0.7;
+}
+
+.modeler2-toolbox-readonly-msg {
+    font-size: 0.78rem;
+    color: #6c7086;
+    padding: 12px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+}
+
+.modeler2-toolbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: grab;
+    transition: background 0.15s;
+    user-select: none;
+}
+
+.modeler2-toolbox-item:hover {
+    background: #313244;
+}
+
+.modeler2-toolbox-icon {
+    font-size: 1.1rem;
+    color: #6c7086;
+    flex-shrink: 0;
+}
+
+.modeler2-toolbox-label {
+    font-size: 0.8125rem;
+    color: #cdd6f4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.modeler2-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.modeler2-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    background: #1e1e2e;
+    border-bottom: 1px solid #313244;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.modeler2-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.modeler2-toolbar-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #cdd6f4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.modeler2-toolbar-sep {
+    color: #585b70;
+    flex-shrink: 0;
+}
+
+.modeler2-toolbar-subtitle {
+    font-size: 0.75rem;
+    color: #6c7086;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.modeler2-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.modeler2-btn-icon {
+    background: none;
+    border: none;
+    color: #6c7086;
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s, background 0.15s;
+}
+
+.modeler2-btn-icon:hover {
+    color: #cdd6f4;
+    background: #313244;
+}
+
+.modeler2-btn-icon:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.modeler2-tool-group {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background: #11111b;
+    border-radius: 6px;
+}
+
+.modeler2-tool-btn {
+    background: none;
+    border: none;
+    color: #6c7086;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    transition: color 0.15s, background 0.15s;
+}
+
+.modeler2-tool-btn:hover {
+    color: #cdd6f4;
+    background: #313244;
+}
+
+.modeler2-tool-btn-active {
+    color: #cdd6f4;
+    background: #45475a;
+}
+
+.modeler2-tool-btn-active:hover {
+    background: #585b70;
+}
+
+.modeler2-zoom-label {
+    font-size: 0.75rem;
+    color: #6c7086;
+    font-variant-numeric: tabular-nums;
+    min-width: 36px;
+    text-align: right;
+}
+
+.modeler2-body {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.modeler2-sidebar {
+    width: 340px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: #181825;
+    border-left: 1px solid #313244;
+    overflow: hidden;
+}
+
+.modeler2-sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid #313244;
+    flex-shrink: 0;
+}
+
+.modeler2-sidebar-tabs button {
+    flex: 1;
+    padding: 8px 6px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #a6adc8;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.modeler2-sidebar-tabs button:hover {
+    background: #313244;
+    color: #cdd6f4;
+}
+
+.modeler2-sidebar-tab-active {
+    color: #cdd6f4 !important;
+    border-bottom: 2px solid #89b4fa !important;
+}
+
+.modeler2-sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.modeler2-sidebar-content .card {
+    background: #1e1e2e !important;
+    border-color: #313244 !important;
+    color: #cdd6f4 !important;
+}
+
+.modeler2-sidebar-content .card-header {
+    background: #181825 !important;
+    border-color: #313244 !important;
+    color: #cdd6f4 !important;
+}
+
+.modeler2-sidebar-content .alert-danger {
+    background: rgba(243, 139, 168, 0.1) !important;
+    border-color: #f38ba8 !important;
+}
+
+.modeler2-sidebar-content .alert-warning {
+    background: rgba(250, 179, 135, 0.1) !important;
+    border-color: #fab387 !important;
+}
+
+.modeler2-sidebar-content .list-group-item {
+    background: transparent !important;
+    border-color: #313244 !important;
+    color: #cdd6f4 !important;
+}
+
+.modeler2-sidebar-content .text-danger-emphasis {
+    color: #f38ba8 !important;
+}
+
+.modeler2-sidebar-content .text-warning-emphasis {
+    color: #fab387 !important;
+}
+
+.modeler2-sidebar-content .text-muted {
+    color: #6c7086 !important;
+}
+
+.modeler2-sidebar-content .bi-heart-pulse {
+    color: #89b4fa !important;
+}
+
+.modeler2-sidebar-content pre {
+    color: #cdd6f4;
+    font-size: 0.78rem;
+}
+
+.modeler2-canvas {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+    background: #1e1e2e;
+    outline: none;
+}
+
+.modeler2-canvas svg {
+    display: block;
     user-select: none;
     -webkit-user-select: none;
-    touch-action: none; /* CRITICAL: Stops browser from hijacking touch for scrolling/zooming */
+    touch-action: none;
 }
 
-/* Ensure handles don't show a 'text' cursor */
-.node rect[style*="cursor"] {
+.modeler2-cursor-space {
+    cursor: crosshair;
+}
+
+.modeler2-cursor-space:active {
+    cursor: move;
+}
+
+.modeler2-space-guide {
+    stroke: #f38ba8;
+    stroke-width: 2;
+    stroke-dasharray: 6 4;
+    pointer-events: none;
+}
+
+.modeler2-space-crosshair {
+    stroke: #585b70;
+    stroke-width: 1;
+    pointer-events: none;
+}
+
+.modeler2-rubber-band {
+    fill: rgba(137, 180, 250, 0.12);
+    stroke: #89b4fa;
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    pointer-events: none;
+}
+
+/* Nodes */
+
+.modeler2-node {
+    transition: opacity 0.1s;
+}
+
+.modeler2-node-highlighted .modeler2-node-shape {
+    stroke: #f9e2af !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 8px rgba(249, 226, 175, 0.5));
+}
+
+.modeler2-node-highlighted.modeler2-node-selected .modeler2-node-shape {
+    stroke: #89b4fa !important;
+    filter: drop-shadow(0 0 8px rgba(137, 180, 250, 0.5));
+}
+
+.modeler2-error-item {
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: background 0.1s;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.78rem;
+    border-bottom: 1px solid #313244;
+}
+
+.modeler2-error-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.modeler2-error-item-danger {
+    color: #f38ba8;
+}
+
+.modeler2-error-item-warning {
+    color: #fab387;
+}
+
+.modeler2-error-node {
+    font-weight: 600;
+    color: #cdd6f4;
+    font-size: 0.72rem;
+}
+
+.modeler2-version-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modeler2-version-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #cdd6f4;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.modeler2-version-field {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.modeler2-version-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #6c7086;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.modeler2-version-value {
+    font-size: 0.82rem;
+    color: #cdd6f4;
+}
+
+.modeler2-version-mono {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.72rem;
+}
+
+.modeler2-version-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.modeler2-version-badge-draft {
+    background: rgba(114, 135, 253, 0.15);
+    color: #89b4fa;
+}
+
+.modeler2-version-badge-published {
+    background: rgba(166, 227, 161, 0.15);
+    color: #a6e3a1;
+}
+
+.modeler2-version-sep {
+    border-top: 1px solid #313244;
+    margin: 4px 0;
+}
+
+.modeler2-version-readonly-banner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #fab387;
+    background: rgba(250, 179, 135, 0.1);
+    border: 1px solid rgba(250, 179, 135, 0.25);
+}
+
+.modeler2-version-subtitle {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #a6adc8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.modeler2-version-empty {
+    font-size: 0.78rem;
+    color: #6c7086;
+    margin: 8px 0;
+}
+
+.modeler2-version-history {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.modeler2-version-entry {
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+}
+
+.modeler2-version-entry:hover {
+    background: #313244;
+}
+
+.modeler2-version-entry-active {
+    background: rgba(137, 180, 250, 0.1);
+    border-color: rgba(137, 180, 250, 0.3);
+}
+
+.modeler2-version-entry-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.modeler2-version-entry-number {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #cdd6f4;
+}
+
+.modeler2-version-entry-meta {
+    font-size: 0.7rem;
+    color: #6c7086;
+}
+
+.modeler2-node:hover .modeler2-node-shape {
+    filter: brightness(1.15);
+}
+
+.modeler2-node-selected .modeler2-node-shape {
+    stroke: #89b4fa;
+    stroke-width: 2.5;
+}
+
+.modeler2-node-shape {
+    stroke: #45475a;
+    stroke-width: 1.5;
+    transition: stroke 0.15s, filter 0.15s;
+}
+
+.modeler2-node-label {
+    font-size: 11px;
+    fill: #cdd6f4;
+    pointer-events: none;
     user-select: none;
-    pointer-events: all;
+    font-family: inherit;
 }
 
-rect{
-    opacity:0.2;
+/* Connections */
+
+.modeler2-conn {
+    transition: color 0.15s;
+}
+
+.modeler2-conn-path {
+    color: #585b70;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    cursor: pointer;
+    transition: color 0.15s, stroke-width 0.15s;
+}
+
+.modeler2-conn:hover .modeler2-conn-path {
+    color: #89b4fa;
+    stroke-width: 2.5;
+}
+
+.modeler2-conn-selected .modeler2-conn-path {
+    color: #89b4fa;
+    stroke-width: 2.5;
+}
+
+.modeler2-draft-path {
+    fill: none;
+    color: #89b4fa;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    stroke-dasharray: 6 3;
+    pointer-events: none;
+}
+
+.modeler2-waypoint {
+    fill: #89b4fa;
+    stroke: #1e1e2e;
+    stroke-width: 2;
+    cursor: move;
+    transition: r 0.12s;
+}
+
+.modeler2-waypoint:hover {
+    r: 7;
+}
+
+.modeler2-anchor {
+    fill: #89b4fa;
+    stroke: #1e1e2e;
+    stroke-width: 2;
+    cursor: crosshair;
+    opacity: 0.9;
+    transition: r 0.12s, opacity 0.12s;
+}
+
+.modeler2-anchor:hover {
+    r: 8;
+    opacity: 1;
+}
+
+.modeler2-pending-node {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.modeler2-pending-node .modeler2-node-shape {
+    stroke: #89b4fa;
+    stroke-width: 2;
+    stroke-dasharray: 5 3;
+}
+
+/* Properties Panel */
+
+.modeler2-properties {
+    background: #181825;
+    border-top: 1px solid #313244;
+    display: flex;
+    flex-direction: column;
+    height: 260px;
+    overflow: hidden;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+}
+
+.modeler2-properties-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 18px;
+    background: #1e1e2e;
+    border-bottom: 1px solid #313244;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.modeler2-properties-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #cdd6f4;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modeler2-properties-title .bi-gear {
+    font-size: 0.75rem;
+    color: #6c7086;
+}
+
+.modeler2-properties-type {
+    color: #89b4fa;
+    font-weight: 600;
+}
+
+.modeler2-properties-sep {
+    color: #585b70;
+}
+
+.modeler2-properties-name {
+    color: #a6adc8;
+}
+
+.modeler2-properties-close {
+    background: none;
+    border: none;
+    color: #6c7086;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s, background 0.15s;
+}
+
+.modeler2-properties-close:hover {
+    color: #cdd6f4;
+    background: #313244;
+}
+
+.modeler2-properties-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 0;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding: 4px 0;
+}
+
+.modeler2-properties-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 18px;
+    min-width: 0;
+    border-right: 1px solid #313244;
+}
+
+.modeler2-properties-section:last-child {
+    border-right: none;
+}
+
+.modeler2-properties-section-dyn {
+    /* fills remaining columns */
+}
+
+.modeler2-properties-field {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    align-items: center;
+    gap: 10px;
+    min-height: 34px;
+}
+
+.modeler2-properties-field:has(.modeler2-properties-code) {
+    align-items: start;
+}
+
+.modeler2-properties-field:has(.modeler2-properties-switch) {
+    grid-template-columns: 140px auto;
+}
+
+.modeler2-properties-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #a6adc8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.modeler2-properties-tip {
+    color: #585b70;
+    cursor: help;
+    font-size: 0.65rem;
+    flex-shrink: 0;
+}
+
+.modeler2-properties-tip:hover {
+    color: #6c7086;
+}
+
+.modeler2-properties-input {
+    background: #11111b;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    color: #cdd6f4;
+    font-size: 0.8125rem;
+    padding: 6px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.modeler2-properties-input:focus {
+    border-color: #89b4fa;
+}
+
+.modeler2-properties-textarea {
+    resize: vertical;
+    min-height: 38px;
+}
+
+.modeler2-properties-code {
+    font-family: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    tab-size: 4;
+    max-height: 120px;
+}
+
+.modeler2-properties-placeholder {
+    font-size: 0.75rem;
+    color: #585b70;
+    font-style: italic;
+    padding: 4px 0;
+}
+
+.modeler2-properties-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+    justify-self: start;
+}
+
+.modeler2-properties-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.modeler2-properties-switch-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #313244;
+    border-radius: 20px;
+    transition: background 0.2s;
+}
+
+.modeler2-properties-switch-slider::before {
+    content: "";
+    position: absolute;
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background: #585b70;
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.modeler2-properties-switch input:checked + .modeler2-properties-switch-slider {
+    background: #89b4fa;
+}
+
+.modeler2-properties-switch input:checked + .modeler2-properties-switch-slider::before {
+    transform: translateX(16px);
+    background: #1e1e2e;
+}
+
+/* Snap guides */
+
+.modeler2-snap-guides {
+    pointer-events: none;
+}
+
+.modeler2-snap-highlight {
+    fill: none;
+    stroke: #89b4fa;
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+}
+
+.modeler2-snap-line {
+    stroke: #89b4fa;
+    stroke-width: 1;
+    opacity: 0.7;
 }

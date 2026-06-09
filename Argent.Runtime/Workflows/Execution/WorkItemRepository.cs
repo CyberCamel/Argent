@@ -47,4 +47,10 @@ public class WorkItemRepository(ApplicationDbContext context) : IWorkItemReposit
             await context.SaveChangesAsync();
         }
     }
+
+    public async Task CreateWorkItemAsync(WorkItem workItem)
+    {
+        context.WorkItems.Add(workItem);
+        await context.SaveChangesAsync();
+    }
 }

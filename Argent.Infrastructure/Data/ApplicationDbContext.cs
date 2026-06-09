@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Argent.Models.Identity;
 using Argent.Models.Workflows.Execution;
+using Argent.Models.Forms.Components;
 using Argent.Models.Workflows;
 
 namespace Argent.Infrastructure.Data;
@@ -12,8 +13,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
 
     public DbSet<Position> Positions { get; set; }
-    // Add your other tables here as you create them, e.g.:
-    // public DbSet<FormDefinition> FormDefinitions { get; set; }
+
+    public DbSet<FormDocument> FormDocuments { get; set; }
 
     public DbSet<WorkItem> WorkItems { get; set; }
 
@@ -21,7 +22,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<Workflow> WorkflowDefinitions { get; set; }
 
-
+    public DbSet<WorkflowVersion> WorkflowVersions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -54,6 +55,29 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasColumnType("nvarchar(max)");
         });
 
+        builder.Entity<WorkflowVersion>(entity =>
+        {
+            entity.Property(e => e.Definition)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v),
+                    v => JsonSerializer.Deserialize<WorkflowDefinition>(v) ?? new WorkflowDefinition())
+                .HasColumnType("nvarchar(max)");
 
+            entity.HasOne(e => e.Workflow)
+                .WithMany()
+                .HasForeignKey(e => e.WorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.WorkflowId, e.VersionNumber }).IsUnique();
+        });
+
+        builder.Entity<FormDocument>(entity =>
+        {
+            entity.Property(e => e.Definition)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v),
+                    v => JsonSerializer.Deserialize<FormDefinition>(v) ?? new FormDefinition())
+                .HasColumnType("nvarchar(max)");
+        });
     }
 }

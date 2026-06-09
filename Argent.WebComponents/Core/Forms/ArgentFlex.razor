@@ -1,0 +1,79 @@
+@using Argent.WebComponents
+@inherits FormLayoutComponentBase
+
+@if (Metadata.Columns > 1)
+{
+    <div class="row @Metadata.CssClass" style="@RowStyle">
+        @for (int col = 0; col < Metadata.Columns; col++)
+        {
+            var columnIndex = col;
+            var columnItems = Metadata.Items.Where(i => i.ColumnIndex == columnIndex).ToList();
+            <div class="col" style="min-width: 0;">
+                @foreach (var child in columnItems)
+                {
+                    <ArgentRenderer Metadata="child" />
+                }
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="@Metadata.CssClass"
+         style="@FlexStyle">
+        @foreach (var child in Metadata.Items)
+        {
+            <div class="@ItemClass(child)" style="@ItemStyle(child)">
+                <ArgentRenderer Metadata="child" />
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private string RowStyle
+    {
+        get
+        {
+            var styles = new List<string>();
+            if (Metadata.Gap > 0) styles.Add($"gap: {Metadata.Gap * 0.25}rem;");
+            return string.Join("; ", styles);
+        }
+    }
+
+    private string FlexStyle
+    {
+        get
+        {
+            var styles = new List<string>();
+            styles.Add("display: flex");
+            styles.Add($"flex-direction: {Metadata.Direction}");
+            if (!Metadata.Wrap) styles.Add("flex-wrap: nowrap");
+            if (!string.IsNullOrEmpty(Metadata.Align)) styles.Add($"align-items: {Metadata.Align}");
+            if (!string.IsNullOrEmpty(Metadata.Justify)) styles.Add($"justify-content: {Metadata.Justify}");
+            if (Metadata.Gap > 0) styles.Add($"gap: {Metadata.Gap * 0.25}rem");
+            if (!string.IsNullOrEmpty(Metadata.Style)) styles.Add(Metadata.Style);
+            return string.Join("; ", styles);
+        }
+    }
+
+    private string ItemClass(Models.Forms.Components.Base.FormComponent child)
+    {
+        var classes = new List<string>();
+        if (child is Models.Forms.Components.Base.FormField field)
+        {
+            classes.Add($"col-{field.Span}");
+        }
+        return string.Join(" ", classes);
+    }
+
+    private string ItemStyle(Models.Forms.Components.Base.FormComponent child)
+    {
+        var styles = new List<string>();
+        if (child is Models.Forms.Components.Base.FormField field)
+        {
+            if (field.Order > 0) styles.Add($"order: {field.Order}");
+        }
+        return string.Join("; ", styles);
+    }
+}

@@ -1,33 +1,143 @@
 ﻿@using Argent.Runtime.Workflows.Modeling
+@using Argent.Runtime.Workflows.Execution
+@using Argent.Models.Workflows
 @implements IDisposable
 
-@* Standard Bootstrap Button Utilities *@
-<button class="btn btn-primary" @onclick="HandleCompile">
-    <i class="bi bi-gear-fill"></i> Compile!
-</button>
+<div class="d-flex align-items-center gap-2 p-2 border-bottom bg-white" style="min-height: 42px;">
+    <input type="text" class="form-control form-control-sm" style="max-width: 200px;"
+           value="@State.CurrentWorkflowName"
+           @onchange="HandleNameChanged"
+           placeholder="Workflow name" />
 
-<button class="btn btn-success" 
-        @onclick="HandlePublish" 
-        disabled="@(!(State.CompiledDefinition is not null && State.ValidationResult.Errors.Count == 0))">
-    <i class="bi bi-cloud-arrow-up-fill"></i> Publish
-</button>
+    <input type="text" class="form-control form-control-sm" style="max-width: 300px;"
+           value="@State.CurrentWorkflowDescription"
+           @onchange="HandleDescriptionChanged"
+           placeholder="Description (optional)" />
+
+    <button class="btn btn-outline-primary btn-sm" @onclick="HandleSave">
+        <i class="bi bi-save-fill"></i> Save
+    </button>
+
+    <button class="btn btn-primary btn-sm" @onclick="HandleCompile">
+        <i class="bi bi-gear-fill"></i> Compile
+    </button>
+
+    <button class="btn btn-success btn-sm"
+            @onclick="HandlePublish"
+            disabled="@(!(State.CompiledDefinition is not null && State.ValidationResult?.Errors.Count == 0))">
+        <i class="bi bi-cloud-arrow-up-fill"></i> Publish
+    </button>
+
+    @if (State.CompiledDefinition != null)
+    {
+        var startEvents = State.CompiledDefinition.Nodes.OfType<StartEvent>().ToList();
+        if (startEvents.Count > 0)
+        {
+            <div class="d-flex align-items-center gap-1">
+                @if (startEvents.Count > 1)
+                {
+                    <select class="form-select form-select-sm" style="max-width: 140px;"
+                            @onchange="HandleStartEventChange">
+                        @foreach (var se in startEvents)
+                        {
+                            <option value="@se.Id" selected="@(se.Id == _selectedStartNodeId)">@(string.IsNullOrEmpty(se.Name) ? "Start" : se.Name)</option>
+                        }
+                    </select>
+                }
+                <button class="btn btn-info btn-sm" @onclick="() => RunTest(startEvents.Count > 1 ? _selectedStartNodeId : null)">
+                    <i class="bi bi-play-fill"></i> Test Run
+                </button>
+            </div>
+        }
+    }
+</div>
 
 @code {
     [Parameter] public required DesignerService State { get; set; }
+
+    private Guid _selectedStartNodeId = Guid.Empty;
+    private Guid _liveStartNodeId = Guid.Empty;
 
     protected override void OnInitialized()
     {
         State.OnChange += StateHasChanged;
     }
 
+    private void HandleNameChanged(ChangeEventArgs e)
+    {
+        State.SetWorkflowMetadata(e.Value?.ToString() ?? "", State.CurrentWorkflowDescription);
+    }
+
+    private void HandleDescriptionChanged(ChangeEventArgs e)
+    {
+        State.SetWorkflowMetadata(State.CurrentWorkflowName, e.Value?.ToString() ?? "");
+    }
+
     private void HandleCompile()
     {
         State.Compile();
+        PreselectStartNode();
+    }
+
+    private async Task HandleSave()
+    {
+        State.Compile();
+        State.PersistDefinition();
     }
 
     private void HandlePublish()
     {
         State.PersistDefinition();
+    }
+
+    private void HandleStartEventChange(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value?.ToString(), out var id))
+            _selectedStartNodeId = id;
+    }
+
+    private void HandleLiveStartEventChange(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value?.ToString(), out var id))
+            _liveStartNodeId = id;
+    }
+
+    private void RunTest(Guid? startNodeId)
+    {
+        State.Compile();
+        var def = State.CompiledDefinition;
+        if (def == null) return;
+
+        State.Notify();
+    }
+
+    private async Task RunLive(Guid? startNodeId)
+    {
+        State.Compile();
+        var def = State.CompiledDefinition;
+        if (def == null) return;
+        
+        State.Notify();
+    }
+    
+
+    private void PreselectStartNode()
+    {
+        var startEvents = State.CompiledDefinition?.Nodes.OfType<StartEvent>().ToList();
+        if (startEvents?.Count > 0 && _selectedStartNodeId == Guid.Empty)
+            _selectedStartNodeId = startEvents[0].Id;
+        if (startEvents?.Count > 0 && _liveStartNodeId == Guid.Empty)
+            _liveStartNodeId = startEvents[0].Id;
+    }
+
+    private void CloseSimulation()
+    {
+        State.Notify();
+    }
+
+    private void CloseExecution()
+    {
+        State.Notify();
     }
 
     public void Dispose()

@@ -1,13 +1,36 @@
 ﻿@using Argent.WebComponents
 @inherits FormLayoutComponentBase
 
-@if (IsVisible)
-{
-    <div class="row @Metadata.CssClass mb-3">
-        @foreach (var child in Metadata.Children)
+<div class="row @Metadata.CssClass mb-3" style="@(Metadata.Gap > 0 ? $"gap: {Metadata.Gap * 0.25}rem;" : "")">
+    @if (Metadata.Columns > 1)
+    {
+        @for (int col = 0; col < Metadata.Columns; col++)
         {
-            @* We wrap each child in a renderer to keep the tree growing *@
-            <ArgentRenderer Metadata="child" />
+            var columnIndex = col;
+            var columnItems = Metadata.Items.Where(i => i.ColumnIndex == columnIndex).ToList();
+            <div class="col">
+                @foreach (var child in columnItems)
+                {
+                    <ArgentRenderer Metadata="child" />
+                }
+            </div>
         }
-    </div>
+    }
+    else
+    {
+        @foreach (var child in Metadata.Items)
+        {
+            <div class="col">
+                <ArgentRenderer Metadata="child" />
+            </div>
+        }
+    }
+</div>
+
+@code {
+    protected override void OnParametersSet()
+    {
+        Metadata.LayoutType = Models.Forms.Components.Base.LayoutType.Flex;
+        Metadata.Direction = "row";
+    }
 }

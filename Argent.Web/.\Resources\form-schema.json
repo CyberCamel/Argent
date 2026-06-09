@@ -12,25 +12,13 @@
             "null"
           ]
         },
-        "Type": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "VisibleIf": {
+        "Xtype": {
           "type": [
             "string",
             "null"
           ]
         },
         "Description": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "Width": {
           "type": [
             "string",
             "null"
@@ -48,25 +36,17 @@
             "null"
           ]
         },
-        "Template": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/definitions/FormComponent"
-          }
+        "ColumnIndex": {
+          "type": "integer"
         }
       },
       "required": [
         "Id",
-        "Type",
-        "VisibleIf",
+        "Xtype",
         "Description",
-        "Width",
         "CssClass",
         "Style",
-        "Template"
+        "ColumnIndex"
       ]
     }
   },

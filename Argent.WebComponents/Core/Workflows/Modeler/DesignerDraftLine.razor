@@ -4,10 +4,9 @@
 
 @if (Draft is not null)
 {
-    var mousePoint = (Draft.MouseX, Draft.MouseY);
-    var pathData = RoutingService.GetOrthogonalPath(Draft.Source, Draft.SourceDir, mousePoint);
+    var pathData = RoutingService.DraftPath(Draft.Source, Draft.SourceDir, Draft.MouseX, Draft.MouseY);
     <path d="@pathData"
-          stroke="#0d6efd" stroke-width="2" fill="none" stroke-dasharray="4" />
+          class="connection-draft" />
 }
 
 @code {

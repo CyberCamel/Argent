@@ -1,5 +1,4 @@
-﻿@using Argent.Models.Forms.Components.Base
-@using Argent.WebComponents
+﻿@using Argent.WebComponents
 @inherits FormInputComponentBase
 
 @if (IsVisible)
@@ -9,21 +8,32 @@
                type="checkbox"
                id="@Metadata.Id"
                checked="@CurrentValue"
-               @onchange="(e) => OnValueChanged(e.Value)" />
-        @if (Metadata is FormInputComponent)
+               @onchange="(e) => OnValueChanged(e.Value)"
+               disabled="@Metadata.Disabled"
+               readOnly="@Metadata.ReadOnly" />
+        <label class="form-check-label" for="@Metadata.Id">
+            @Metadata.BoxLabel ?? @Metadata.FieldLabel
+        </label>
+        @if (Metadata.Description != null)
         {
-            <label class="form-check-label" for="@Metadata.Id">
-                @Metadata.Label
-            </label>
+            <div class="form-text">@Metadata.Description</div>
+        }
+        @if (Errors.Any())
+        {
+            <div class="invalid-feedback d-block">
+                @foreach (var err in Errors) { <div>@err</div> }
+            </div>
         }
     </div>
 }
 
 @code {
-    private bool CurrentValue => Context.GetValue<bool>(Metadata.DataKey ?? Metadata.Id);
+    private bool IsVisible => Context.IsVisible(Metadata);
+    private bool CurrentValue => Context.GetValue<bool>(Metadata.Name ?? Metadata.Id);
+    private IEnumerable<string> Errors => Context.GetErrors(Metadata);
 
     private void OnValueChanged(object? val)
     {
-        Context.SetValue(Metadata.DataKey ?? Metadata.Id, val is bool b && b);
+        Context.SetValue(Metadata.Name ?? Metadata.Id, val is bool b && b);
     }
 }

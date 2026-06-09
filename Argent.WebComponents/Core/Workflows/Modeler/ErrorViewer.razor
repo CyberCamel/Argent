@@ -1,4 +1,5 @@
 @using Argent.Runtime.Workflows.Modeling
+@using Argent.Models.Workflows
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-header bg-light border-bottom">
         <h3 class="h5 mb-0 d-flex align-items-center">
@@ -9,17 +10,25 @@
 
         <div class="mb-4">
             <h4 class="h6 text-danger uppercase tracking-wider mb-2 d-flex align-items-center">
-                <i class="bi bi-x-circle-fill me-2"></i> Errors (@State.ValidationResult.Errors.Count())
+                <i class="bi bi-x-circle-fill me-2"></i> Errors: @(State.ValidationResult?.Errors.Count() ?? 0)
             </h4>
             
-            @if (State.ValidationResult.Errors.Any())
+            @if (State.ValidationResult?.Errors.Any() ?? false)
             {
                 <div class="alert alert-danger p-0 overflow-hidden" role="alert">
                     <ul class="list-group list-group-flush">
                         @foreach (var error in State.ValidationResult.Errors)
                         {
-                            <li class="list-group-item bg-transparent text-danger-emphasis border-danger-subtle">
-                                @error.Message
+                            var node = error.Node;
+                            <li class="modeler2-error-item modeler2-error-item-danger"
+                                @onpointerenter="() => OnItemHover(node)"
+                                @onpointerleave="() => OnItemHover(null)"
+                                @onclick="() => OnItemClick(node)">
+                                @if (node != null)
+                                {
+                                    <span class="modeler2-error-node">@node.Name</span>
+                                }
+                                <span>@error.Message</span>
                             </li>
                         }
                     </ul>
@@ -33,17 +42,25 @@
 
         <div>
             <h4 class="h6 text-warning-emphasis uppercase tracking-wider mb-2 d-flex align-items-center">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i> Warnings (@State.ValidationResult.Warnings.Count())
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> Warnings: @(State.ValidationResult?.Warnings.Count() ?? 0)
             </h4>
 
-            @if (State.ValidationResult.Warnings.Any())
+            @if (State.ValidationResult?.Warnings.Any() ?? false)
             {
                 <div class="alert alert-warning p-0 overflow-hidden" role="alert">
                     <ul class="list-group list-group-flush">
                         @foreach (var warning in State.ValidationResult.Warnings)
                         {
-                            <li class="list-group-item bg-transparent text-warning-emphasis border-warning-subtle">
-                                @warning.Message
+                            var node = warning.Node;
+                            <li class="modeler2-error-item modeler2-error-item-warning"
+                                @onpointerenter="() => OnItemHover(node)"
+                                @onpointerleave="() => OnItemHover(null)"
+                                @onclick="() => OnItemClick(node)">
+                                @if (node != null)
+                                {
+                                    <span class="modeler2-error-node">@node.Name</span>
+                                }
+                                <span>@warning.Message</span>
                             </li>
                         }
                     </ul>
@@ -59,5 +76,18 @@
 </div>
 
 @code {
-    [Parameter] public required  DesignerService State { get; set; }
+    [Parameter] public required DesignerService State { get; set; }
+    [Parameter] public EventCallback<NodeBase?> OnHoverNode { get; set; }
+
+    private async Task OnItemHover(NodeBase? node) => await OnHoverNode.InvokeAsync(node);
+
+    private async Task OnItemClick(NodeBase? node)
+    {
+        if (node == null) return;
+        var designerNode = State.Nodes.FirstOrDefault(n => n.NodeData == node);
+        if (designerNode != null)
+        {
+            State.Select(designerNode);
+        }
+    }
 }

@@ -4,20 +4,55 @@
 @if (IsVisible)
 {
     <div class="mb-3 @Metadata.CssClass">
-        <label class="form-label">@Metadata.Label</label>
-        <input type="text"
-               class="form-control"
-               value="@CurrentValue"
-               @oninput="(e) => OnValueChanged(e.Value)"
-               placeholder="@Metadata.Description" />
+        <label class="form-label">
+            @Metadata.FieldLabel
+            @if (!Metadata.AllowBlank)
+            {
+                <span class="text-danger">*</span>
+            }
+        </label>
+        @if (Metadata.Grow && Metadata.Rows > 1)
+        {
+            <textarea class="form-control"
+                      rows="@Metadata.Rows"
+                      value="@CurrentValue"
+                      @oninput="(e) => OnValueChanged(e.Value)"
+                      placeholder="@Metadata.Placeholder"
+                      disabled="@Metadata.Disabled"
+                      readOnly="@Metadata.ReadOnly"
+                      maxlength="@Metadata.MaxLength"></textarea>
+        }
+        else
+        {
+            <input type="text"
+                   class="form-control"
+                   value="@CurrentValue"
+                   @oninput="(e) => OnValueChanged(e.Value)"
+                   placeholder="@Metadata.Placeholder"
+                   disabled="@Metadata.Disabled"
+                   readOnly="@Metadata.ReadOnly"
+                   maxlength="@Metadata.MaxLength" />
+        }
+        @if (Metadata.Description != null)
+        {
+            <div class="form-text">@Metadata.Description</div>
+        }
+        @if (Errors.Any())
+        {
+            <div class="invalid-feedback d-block">
+                @foreach (var err in Errors) { <div>@err</div> }
+            </div>
+        }
     </div>
 }
 
 @code {
-    private string? CurrentValue => Context.GetValue<string>(Metadata.DataKey ?? Metadata.Id);
+    private bool IsVisible => Context.IsVisible(Metadata);
+    private string? CurrentValue => Context.GetValue<string>(Metadata.Name ?? Metadata.Id);
+    private IEnumerable<string> Errors => Context.GetErrors(Metadata);
 
     private void OnValueChanged(object? val)
     {
-        Context.SetValue(Metadata.DataKey ?? Metadata.Id, val?.ToString());
+        Context.SetValue(Metadata.Name ?? Metadata.Id, val?.ToString());
     }
 }

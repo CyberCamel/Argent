@@ -1,0 +1,867 @@
+@using Argent.Models.Forms.Components
+@using Argent.Models.Forms.Components.Base
+@using Argent.Models.Forms.Components.Configuration
+@using Argent.Runtime.Forms.Modeling
+@using Argent.WebComponents.Core.Forms
+@using Microsoft.AspNetCore.Components.Forms
+@inject FormDesignerService State
+@inject NavigationManager Navigation
+
+<style>
+    .drop-zone { height: 0; transition: height 0.1s, background 0.1s; border-radius: 3px; }
+    .drop-zone.visible { height: 8px; margin: 2px 0; background: #e9ecef; }
+    .drop-zone.visible.active { height: 8px; margin: 2px 0; background: #0d6efd; }
+    .drop-inside-zone { height: 0; overflow: hidden; transition: height 0.15s, background 0.15s; border-radius: 4px; text-align: center; font-size: 0.75rem; color: #6c757d; }
+    .drop-inside-zone.visible { height: 28px; margin-top: 4px; border: 2px dashed #adb5bd; background: #f8f9fa; line-height: 24px; }
+    .drop-inside-zone.active { height: 28px; margin-top: 4px; border: 2px dashed #0d6efd; background: #e7f1ff; color: #0d6efd; }
+    .toolbox-item:active { cursor: grabbing !important; }
+    .designer-item[draggable="true"]:active { opacity: 0.6; }
+    .drag-handle:hover { color: #0d6efd; background: #f0f7ff; border-radius: 2px; }
+    .drag-handle:active { cursor: grabbing; color: #0d6efd; }
+    .property-section { border-bottom: 1px solid #dee2e6; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+    .property-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #6c757d; margin-bottom: 0.5rem; }
+    .condition-badge { font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 3px; cursor: pointer; }
+</style>
+
+<div class="d-flex flex-column h-100" tabindex="-1" @onkeydown="HandleKeyDown">
+    <div class="d-flex align-items-center gap-2 p-2 border-bottom bg-white" style="min-height: 42px;">
+        <a href="/Forms" class="btn btn-outline-secondary btn-sm me-1">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <input type="text" class="form-control form-control-sm" style="max-width: 200px;"
+               value="@State.Name"
+               @onchange="HandleFormNameChanged"
+               placeholder="Form name" />
+        <input type="text" class="form-control form-control-sm" style="max-width: 300px;"
+               value="@State.Description"
+               @onchange="HandleFormDescriptionChanged"
+               placeholder="Description (optional)" />
+        <button class="btn btn-outline-primary btn-sm" @onclick="HandleSave" disabled="@_isSaving">
+            @if (_isSaving)
+            {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            <i class="bi bi-save-fill"></i> Save
+        </button>
+        <button class="btn btn-outline-success btn-sm" @onclick="HandlePreview">
+            <i class="bi bi-eye-fill"></i> Preview
+        </button>
+        @if (!string.IsNullOrEmpty(_saveError))
+        {
+            <span class="text-danger small ms-2"><i class="bi bi-exclamation-triangle-fill"></i> @_saveError</span>
+        }
+    </div>
+
+    <div class="d-flex flex-grow-1 overflow-hidden">
+        <div class="border-end bg-light p-2 d-flex flex-column" style="width: 220px; min-width: 220px; overflow-y: auto;">
+            <h6 class="text-muted mb-2">
+                <i class="bi bi-tools"></i> Components
+            </h6>
+            @foreach (var item in FormDesignerService.ToolboxItems)
+            {
+                var addPayload = "add:" + item.TypeName;
+                <div draggable="true"
+                     @ondragstart="() => State.BeginDrag(addPayload)"
+                     @ondragend="() => State.EndDrag()"
+                     @onclick="() => State.AddComponent(item.Factory())"
+                     class="toolbox-item btn btn-outline-secondary btn-sm w-100 text-start mb-1"
+                     style="font-size: 0.85rem; cursor: grab;">
+                    <i class="bi @item.Icon me-2"></i> @item.DisplayName
+                </div>
+            }
+        </div>
+
+        <div class="flex-grow-1 overflow-auto p-3">
+            <CascadingValue Value="_designContext">
+                @if (State.Definition.Components.Count == 0)
+                {
+                    <div class="d-flex align-items-center justify-content-center text-muted border rounded"
+                         style="min-height: 300px; border-style: dashed !important;"
+                         @ondragenter="() => State.SetHover(0)"
+                         @ondragleave="() => State.ClearHover()"
+                         @ondrop="() => State.DropAt(0)"
+                         @ondragover:preventDefault>
+                        <div class="text-center">
+                            <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
+                            <p class="mt-2">Drag a component from the toolbox</p>
+                        </div>
+                    </div>
+                }
+
+                @* Drop zone before first *@
+                <div class="drop-zone @GetDropZoneClass(0)"
+                     @ondragenter="() => State.SetHover(0)"
+                     @ondragleave="() => State.ClearHover()"
+                     @ondrop="() => State.DropAt(0)"
+                     @ondragover:preventDefault></div>
+
+                @for (int i = 0; i < State.Definition.Components.Count; i++)
+                {
+                    var component = State.Definition.Components[i];
+                    var idx = i;
+                    var isSelected = State.SelectedComponent == component;
+                    var isFirst = i == 0;
+                    var isLast = i == State.Definition.Components.Count - 1;
+                    var isContainer = component is FormLayout;
+                    var layoutComp = component as FormLayout;
+                    var componentId = component.Id;
+                    var movePayload = "move:" + componentId;
+                    var styles = State.IsDragging ? "cursor: grab;" : "";
+                    if (isSelected) styles += "border-color: #0d6efd; background: #f0f7ff;";
+
+                    <div class="designer-item mb-2 @(isSelected ? "selected" : "")"
+                         @onclick="() => State.SelectComponent(component)"
+                         style="position: relative; border: 2px solid @(isSelected ? "#0d6efd" : "transparent"); border-radius: 6px; padding: 4px; @styles">
+
+                        @* Drag handle (left side) *@
+                        <div class="drag-handle d-flex align-items-center justify-content-center"
+                             draggable="true"
+                             @ondragstart="() => State.BeginDrag(movePayload)"
+                             @ondragend="() => State.EndDrag()"
+                             style="width: 28px; height: 100%; min-height: 36px; cursor: grab; color: #6c757d; border-right: 1px solid #dee2e6; margin-right: 8px; flex-shrink: 0;"
+                             title="Drag to reorder">
+                            <i class="bi bi-grip-vertical" style="font-size: 1rem;"></i>
+                        </div>
+
+                        @* Floating toolbar (top-right) *@
+                        <div class="designer-toolbar d-flex gap-1"
+                             style="position: absolute; top: -14px; right: 8px; z-index: 10; display: @(isSelected ? "flex" : "none"); background: #fff; border: 1px solid #dee2e6; border-radius: 4px; padding: 1px 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);"
+                             @onclick:stopPropagation>
+                            <button class="btn btn-sm py-0 px-1" title="Move up"
+                                    disabled="@isFirst"
+                                    @onclick="() => State.MoveComponent(idx, idx - 1)"
+                                    style="font-size: 0.65rem; line-height: 1; border: none; background: none;">
+                                <i class="bi bi-chevron-up"></i>
+                            </button>
+                            <button class="btn btn-sm py-0 px-1" title="Move down"
+                                    disabled="@isLast"
+                                    @onclick="() => State.MoveComponent(idx, idx + 1)"
+                                    style="font-size: 0.65rem; line-height: 1; border: none; background: none;">
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+                            <button class="btn btn-sm py-0 px-1" title="Remove"
+                                    @onclick="() => State.RemoveComponent(component)"
+                                    style="font-size: 0.65rem; line-height: 1; border: none; background: none;">
+                                <i class="bi bi-x text-danger"></i>
+                            </button>
+                        </div>
+
+                        @* Render the actual component *@
+                        @if (component is FormField || component is FormLayout)
+                        {
+                            <ArgentRenderer Metadata="component" />
+                        }
+                        else
+                        {
+                            <span class="text-muted small">Unknown: @component.Xtype</span>
+                        }
+
+                        @* Drop-inside targets for containers *@
+                        @if (isContainer && layoutComp != null)
+                        {
+                            var containerId = componentId;
+                            if (layoutComp.Columns > 1)
+                            {
+                                @* Multi-column: show N column drop zones *@
+                                <div class="row g-1 mt-1" style="min-height: 40px;">
+                                    @for (int col = 0; col < layoutComp.Columns; col++)
+                                    {
+                                        var columnIndex = col;
+                                        var isHovered = State.HoverInsideContainer && State.HoverComponentId == containerId && State.HoverColumnIndex == columnIndex;
+                                        <div class="col drop-inside-zone @(State.IsDragging ? "visible" : "") @(isHovered ? "active" : "")"
+                                             @ondragenter="() => State.SetHoverInside(containerId, columnIndex)"
+                                             @ondragleave="() => State.ClearHover()"
+                                             @ondrop="() => State.DropIntoContainer(containerId, columnIndex)"
+                                             @ondragover:preventDefault
+                                             style="min-height: 36px; display: flex; align-items: center; justify-content: center;">
+                                            <span>Column @(columnIndex + 1)</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="drop-inside-zone @(State.HoverInsideContainer && State.HoverComponentId == containerId ? "active" : State.IsDragging ? "visible" : "")"
+                                     @ondragenter="() => State.SetHoverInside(containerId)"
+                                     @ondragleave="() => State.ClearHover()"
+                                     @ondrop="() => State.DropIntoContainer(containerId)"
+                                     @ondragover:preventDefault>
+                                    <i class="bi bi-plus-circle"></i> Drop inside @component.Xtype
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    @* Drop zone after each component *@
+                    <div class="drop-zone @GetDropZoneClass(i + 1)"
+                         @ondragenter="() => State.SetHover(i + 1)"
+                         @ondragleave="() => State.ClearHover()"
+                         @ondrop="() => State.DropAt(i + 1)"
+                         @ondragover:preventDefault></div>
+                }
+            </CascadingValue>
+        </div>
+
+        <div class="border-start bg-light p-3" style="width: 360px; min-width: 360px; overflow-y: auto;">
+            <h6 class="text-muted mb-3"><i class="bi bi-sliders"></i> Properties</h6>
+
+            @if (State.SelectedComponent == null)
+            {
+                <p class="text-muted small">Select a field to edit its properties</p>
+            }
+            else
+            {
+                var comp = State.SelectedComponent;
+
+                if (comp is FormField field)
+                {
+                    var localField = field;
+                    @* ── Field Properties ───────────────────────────────── *@
+                    <div class="property-section">
+                        <div class="property-label">Field</div>
+                        <div class="mb-2">
+                            <label class="small text-muted mb-1">Name</label>
+                            <input type="text" class="form-control form-control-sm"
+                                   value="@localField.Name"
+                                    @oninput="(e) => localField.Name = e.Value?.ToString() ?? string.Empty"
+                                   @onchange="() => State.Notify()" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="small text-muted mb-1">Field Label</label>
+                            <input type="text" class="form-control form-control-sm"
+                                   value="@localField.FieldLabel"
+                                   @oninput="(e) => localField.FieldLabel = e.Value?.ToString()"
+                                   @onchange="() => State.Notify()" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="small text-muted mb-1">Placeholder</label>
+                            <input type="text" class="form-control form-control-sm"
+                                   value="@localField.Placeholder"
+                                   @oninput="(e) => localField.Placeholder = e.Value?.ToString()"
+                                   @onchange="() => State.Notify()" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="small text-muted mb-1">Description</label>
+                            <input type="text" class="form-control form-control-sm"
+                                   value="@localField.Description"
+                                   @oninput="(e) => localField.Description = e.Value?.ToString()"
+                                   @onchange="() => State.Notify()" />
+                        </div>
+                    </div>
+
+                    @* ── Layout ─────────────────────────────────────────── *@
+                    <div class="property-section">
+                        <div class="property-label">Layout</div>
+                        <div class="row g-1">
+                            <div class="col-6 mb-2">
+                                <label class="small text-muted mb-1">Span (1-12)</label>
+                                <input type="number" class="form-control form-control-sm"
+                                       value="@localField.Span"
+                                       @onchange="@((e) => HandleSpanChange(e, localField))"
+                                       min="1" max="12" />
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="small text-muted mb-1">Order</label>
+                                <input type="number" class="form-control form-control-sm"
+                                       value="@localField.Order"
+                                       @onchange="@((e) => HandleOrderChange(e, localField))"
+                                       min="0" />
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="small text-muted mb-1">CSS Class</label>
+                            <input type="text" class="form-control form-control-sm"
+                                   value="@localField.CssClass"
+                                   @oninput="(e) => localField.CssClass = e.Value?.ToString()"
+                                   @onchange="() => State.Notify()" />
+                        </div>
+                    </div>
+
+                    @* ── States ─────────────────────────────────────────── *@
+                    <div class="property-section">
+                        <div class="property-label">States</div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input"
+                                           checked="@(!localField.AllowBlank)"
+                                           @onchange="@(() => ToggleAllowBlank(localField))" />
+                                    <label class="form-check-label small">Required</label>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input"
+                                           checked="@localField.Disabled"
+                                           @onchange="@(() => ToggleDisabled(localField))" />
+                                    <label class="form-check-label small">Disabled</label>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input"
+                                           checked="@localField.ReadOnly"
+                                           @onchange="@(() => ToggleReadOnly(localField))" />
+                                    <label class="form-check-label small">Read Only</label>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input"
+                                           checked="@localField.Hidden"
+                                           @onchange="@(() => ToggleHidden(localField))" />
+                                    <label class="form-check-label small">Hidden</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* ── Default Value ──────────────────────────────────── *@
+                    <div class="property-section">
+                        <div class="property-label">Default Value</div>
+                        @switch (localField.Xtype)
+                        {
+                            case "CheckboxField":
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input"
+                                           checked="@(localField.Value is true)"
+                                           @onchange="@(() => ToggleCheckboxDefault(localField))" />
+                                    <label class="form-check-label small">Checked by default</label>
+                                </div>
+                                break;
+                            case "DropdownField":
+                                <div class="small text-muted mb-1">Static options</div>
+                                <div class="mb-1">
+                                    @for (int oi = 0; oi < localField.Items.Count; oi++)
+                                    {
+                                        var opt = localField.Items[oi];
+                                        var oIdx = oi;
+                                        <div class="d-flex gap-1 mb-1 align-items-center">
+                                            <input type="text" class="form-control form-control-sm" style="width: 100px;"
+                                                   value="@opt.Label"
+                                                    @oninput="(e) => opt.Label = e.Value?.ToString() ?? string.Empty"
+                                                   @onchange="() => State.Notify()"
+                                                   placeholder="Label" />
+                                            <input type="text" class="form-control form-control-sm" style="width: 100px;"
+                                                   value="@opt.Value?.ToString()"
+                                                   @oninput="(e) => opt.Value = e.Value?.ToString()"
+                                                   @onchange="() => State.Notify()"
+                                                   placeholder="Value" />
+                                            <button class="btn btn-sm py-0 px-1" style="font-size: 0.65rem;"
+                                                    @onclick="@(() => RemoveOption(localField, oIdx))">
+                                                <i class="bi bi-x text-danger"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                    <button class="btn btn-sm btn-outline-secondary py-0 px-1"
+                                            @onclick="@(() => AddOption(localField))"
+                                            style="font-size: 0.7rem;">
+                                        <i class="bi bi-plus"></i> Add Option
+                                    </button>
+                                </div>
+                                break;
+                            default:
+                                <input type="text" class="form-control form-control-sm"
+                                       value="@(localField.Value?.ToString())"
+                                       @oninput="(e) => localField.Value = e.Value?.ToString()"
+                                       @onchange="() => State.Notify()" />
+                                break;
+                        }
+                    </div>
+
+                    @* ── Conditions ─────────────────────────────────────── *@
+                    <div class="property-section">
+                        <div class="property-label">Conditions</div>
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="small text-muted mb-0">Visible When</label>
+                                @if (localField.VisibleWhen != null)
+                                {
+                                    <button class="btn btn-sm py-0 px-1 text-danger"
+                                            @onclick="@(() => { localField.VisibleWhen = null; State.Notify(); })"
+                                            style="font-size: 0.65rem;">
+                                        <i class="bi bi-x"></i> Clear
+                                    </button>
+                                }
+                            </div>
+                            <ConditionBuilder Condition="@(localField.VisibleWhen)"
+                                              OnChanged="@(() => State.Notify())"
+                                              Fields="@GetFieldNames()" />
+                        </div>
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="small text-muted mb-0">Required When</label>
+                                @if (localField.RequiredWhen != null)
+                                {
+                                    <button class="btn btn-sm py-0 px-1 text-danger"
+                                            @onclick="@(() => { localField.RequiredWhen = null; State.Notify(); })"
+                                            style="font-size: 0.65rem;">
+                                        <i class="bi bi-x"></i> Clear
+                                    </button>
+                                }
+                            </div>
+                            <ConditionBuilder Condition="@(localField.RequiredWhen)"
+                                              OnChanged="@(() => State.Notify())"
+                                              Fields="@GetFieldNames()" />
+                        </div>
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="small text-muted mb-0">Disabled When</label>
+                                @if (localField.DisabledWhen != null)
+                                {
+                                    <button class="btn btn-sm py-0 px-1 text-danger"
+                                            @onclick="@(() => { localField.DisabledWhen = null; State.Notify(); })"
+                                            style="font-size: 0.65rem;">
+                                        <i class="bi bi-x"></i> Clear
+                                    </button>
+                                }
+                            </div>
+                            <ConditionBuilder Condition="@(localField.DisabledWhen)"
+                                              OnChanged="@(() => State.Notify())"
+                                              Fields="@GetFieldNames()" />
+                        </div>
+                    </div>
+                }
+
+                if (comp is FormLayout layoutComp)
+                {
+                    @* ── Layout Properties ──────────────────────────────── *@
+                    <div class="property-section">
+                        <div class="property-label">Layout</div>
+                        <div class="mb-2">
+                            <label class="small text-muted mb-1">Title</label>
+                            <input type="text" class="form-control form-control-sm"
+                                   value="@layoutComp.Title"
+                                   @oninput="(e) => layoutComp.Title = e.Value?.ToString()"
+                                   @onchange="() => State.Notify()" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="small text-muted mb-1">CSS Class</label>
+                            <input type="text" class="form-control form-control-sm"
+                                   value="@layoutComp.CssClass"
+                                   @oninput="(e) => layoutComp.CssClass = e.Value?.ToString()"
+                                   @onchange="() => State.Notify()" />
+                        </div>
+                    </div>
+
+                    if (layoutComp.Xtype == "HtmlBox")
+                    {
+                        <div class="property-section">
+                            <div class="property-label">HTML Content</div>
+                            <MonacoEditor Value="@(layoutComp.Title ?? "")"
+                                          Language="html"
+                                          Height="300px"
+                                          ValueChanged="@((v) => HandleHtmlChanged(v))" />
+                        </div>
+                    }
+                    else
+                    {
+                        @* ── Flex / Layout Settings ────────────────────── *@
+                        <div class="property-section">
+                            <div class="property-label">Flex Settings</div>
+                            <div class="mb-2">
+                                <label class="small text-muted mb-1">Direction</label>
+                                <select class="form-select form-select-sm" value="@layoutComp.Direction"
+                                        @onchange="@((e) => HandleDirectionChanged(e, layoutComp))">
+                                    <option value="row">Row</option>
+                                    <option value="column">Column</option>
+                                    <option value="row-reverse">Row Reverse</option>
+                                    <option value="column-reverse">Column Reverse</option>
+                                </select>
+                            </div>
+                            <div class="row g-1">
+                                <div class="col-6 mb-2">
+                                    <label class="small text-muted mb-1">Gap</label>
+                                    <input type="number" class="form-control form-control-sm"
+                                           value="@layoutComp.Gap"
+                                           @onchange="@((e) => HandleGapChanged(e, layoutComp))"
+                                           min="0" max="10" />
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <div class="form-check mt-3">
+                                        <input type="checkbox" class="form-check-input"
+                                               checked="@layoutComp.Wrap"
+                                               @onchange="@(() => HandleWrapChanged(layoutComp))" />
+                                        <label class="form-check-label small">Wrap</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="small text-muted mb-1">Align Items</label>
+                                <select class="form-select form-select-sm" value="@layoutComp.Align"
+                                        @onchange="@((e) => HandleAlignChanged(e, layoutComp))">
+                                    <option value="">Default</option>
+                                    <option value="flex-start">Start</option>
+                                    <option value="center">Center</option>
+                                    <option value="flex-end">End</option>
+                                    <option value="stretch">Stretch</option>
+                                    <option value="baseline">Baseline</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="small text-muted mb-1">Justify Content</label>
+                                <select class="form-select form-select-sm" value="@layoutComp.Justify"
+                                        @onchange="@((e) => HandleJustifyChanged(e, layoutComp))">
+                                    <option value="">Default</option>
+                                    <option value="flex-start">Start</option>
+                                    <option value="center">Center</option>
+                                    <option value="flex-end">End</option>
+                                    <option value="space-between">Space Between</option>
+                                    <option value="space-around">Space Around</option>
+                                    <option value="space-evenly">Space Evenly</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        if (layoutComp.Xtype == "Fieldset")
+                        {
+                            <div class="property-section">
+                                <div class="property-label">Fieldset</div>
+                                <div class="mb-2">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input"
+                                               checked="@layoutComp.Collapsible"
+                                               @onchange="@(() => HandleCollapsibleChanged(layoutComp))" />
+                                        <label class="form-check-label small">Collapsible</label>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        if (layoutComp.Xtype == "Tabs")
+                        {
+                            <div class="property-section">
+                                <div class="property-label">Tabs</div>
+                                <div class="mb-2">
+                                    <label class="small text-muted mb-1">Active Tab Index</label>
+                                    <input type="number" class="form-control form-control-sm"
+                                           value="@layoutComp.ActiveItem"
+                                           @onchange="@((e) => HandleActiveTabChanged(e, layoutComp))"
+                                           min="0" />
+                                </div>
+                            </div>
+                        }
+
+                        if (layoutComp.Xtype == "Accordion")
+                        {
+                            <div class="property-section">
+                                <div class="property-label">Accordion</div>
+                                <div class="mb-2">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input"
+                                               checked="@layoutComp.MultiExpand"
+                                               @onchange="@(() => HandleMultiExpandChanged(layoutComp))" />
+                                        <label class="form-check-label small">Multi Expand</label>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input"
+                                               checked="@layoutComp.DefaultOpen"
+                                               @onchange="@(() => HandleDefaultOpenChanged(layoutComp))" />
+                                        <label class="form-check-label small">Default Open</label>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        @* ── Columns ──────────────────────────────────────── *@
+                        @if (layoutComp.Xtype is "Flex" or "Column")
+                        {
+                            <div class="property-section">
+                                <div class="property-label">Columns</div>
+                                <div class="mb-2">
+                                    <label class="small text-muted mb-1">Number of columns</label>
+                                    <input type="number" class="form-control form-control-sm"
+                                           value="@layoutComp.Columns"
+                                           @onchange="@((e) => HandleColumnsChanged(e, layoutComp))"
+                                           min="1" max="12" />
+                                </div>
+                                <div class="small text-muted">
+                                    @layoutComp.Items.Count item@(layoutComp.Items.Count == 1 ? "" : "s") across @layoutComp.Columns column@(layoutComp.Columns == 1 ? "" : "s")
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="property-section">
+                                <div class="small text-muted">@layoutComp.Items.Count item@(layoutComp.Items.Count == 1 ? "" : "s")</div>
+                            </div>
+                        }
+                    }
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@if (_showPreview)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         @onclick="ClosePreview">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable" @onclick:stopPropagation>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Preview: @State.Name</h5>
+                    <button type="button" class="btn-close" @onclick="ClosePreview"></button>
+                </div>
+                <div class="modal-body">
+                    <ArgentRenderer JsonConfig="@GetPreviewJson()" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="ClosePreview">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@using Argent.Runtime.Forms
+
+@code {
+    [Parameter] public Guid? FormId { get; set; }
+
+    private bool _showPreview;
+    private bool _isSaving;
+    private string? _saveError;
+    private readonly DesignerFormContext _designContext = new(new ConditionEvaluator());
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.OnChange += StateHasChanged;
+        if (FormId.HasValue)
+            await State.LoadAsync(FormId.Value);
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= StateHasChanged;
+    }
+
+    private void HandleFormNameChanged(ChangeEventArgs e)
+    {
+        State.Name = e.Value?.ToString() ?? "";
+        State.Notify();
+    }
+
+    private void HandleFormDescriptionChanged(ChangeEventArgs e)
+    {
+        State.Description = e.Value?.ToString() ?? "";
+        State.Notify();
+    }
+
+    private async Task HandleSave()
+    {
+        _isSaving = true;
+        _saveError = null;
+        try
+        {
+            await State.SaveAsync();
+            Navigation.NavigateTo("/Forms");
+        }
+        catch (Exception ex)
+        {
+            _saveError = ex.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void HandlePreview()
+    {
+        _showPreview = true;
+    }
+
+    private void ClosePreview()
+    {
+        _showPreview = false;
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Delete" || e.Key == "Backspace")
+        {
+            State.RemoveSelectedComponent();
+        }
+    }
+
+    private List<string> GetFieldNames()
+    {
+        var names = new List<string>();
+        void Walk(List<FormComponent> list)
+        {
+            foreach (var c in list)
+            {
+                if (c is FormField f && !string.IsNullOrEmpty(f.Name))
+                    names.Add(f.Name);
+                if (c is FormLayout l)
+                    Walk(l.Items);
+            }
+        }
+        Walk(State.Definition.Components);
+        return names;
+    }
+
+    // ── Field Property Handlers ─────────────────────────────────
+
+    private void HandleSpanChange(ChangeEventArgs e, FormField field)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var s))
+        {
+            field.Span = Math.Clamp(s, 1, 12);
+            State.Notify();
+        }
+    }
+
+    private void HandleOrderChange(ChangeEventArgs e, FormField field)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var o))
+        {
+            field.Order = Math.Max(0, o);
+            State.Notify();
+        }
+    }
+
+    private void ToggleAllowBlank(FormField field)
+    {
+        field.AllowBlank = !field.AllowBlank;
+        State.Notify();
+    }
+
+    private void ToggleDisabled(FormField field)
+    {
+        field.Disabled = !field.Disabled;
+        State.Notify();
+    }
+
+    private void ToggleReadOnly(FormField field)
+    {
+        field.ReadOnly = !field.ReadOnly;
+        State.Notify();
+    }
+
+    private void ToggleHidden(FormField field)
+    {
+        field.Hidden = !field.Hidden;
+        State.Notify();
+    }
+
+    private void ToggleCheckboxDefault(FormField field)
+    {
+        field.Value = !(field.Value is true);
+        State.Notify();
+    }
+
+    private void RemoveOption(FormField field, int index)
+    {
+        field.Items.RemoveAt(index);
+        State.Notify();
+    }
+
+    private void AddOption(FormField field)
+    {
+        field.Items.Add(new SelectOption());
+        State.Notify();
+    }
+
+    private void HandleDirectionChanged(ChangeEventArgs e, FormLayout layoutComp)
+    {
+        layoutComp.Direction = e.Value?.ToString() ?? "row";
+        State.Notify();
+    }
+
+    private void HandleGapChanged(ChangeEventArgs e, FormLayout layoutComp)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var g))
+        {
+            layoutComp.Gap = Math.Max(0, g);
+            State.Notify();
+        }
+    }
+
+    private void HandleWrapChanged(FormLayout layoutComp)
+    {
+        layoutComp.Wrap = !layoutComp.Wrap;
+        State.Notify();
+    }
+
+    private void HandleAlignChanged(ChangeEventArgs e, FormLayout layoutComp)
+    {
+        layoutComp.Align = e.Value?.ToString();
+        State.Notify();
+    }
+
+    private void HandleJustifyChanged(ChangeEventArgs e, FormLayout layoutComp)
+    {
+        layoutComp.Justify = e.Value?.ToString();
+        State.Notify();
+    }
+
+    private void HandleCollapsibleChanged(FormLayout layoutComp)
+    {
+        layoutComp.Collapsible = !layoutComp.Collapsible;
+        State.Notify();
+    }
+
+    private void HandleActiveTabChanged(ChangeEventArgs e, FormLayout layoutComp)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var a))
+        {
+            layoutComp.ActiveItem = Math.Max(0, a);
+            State.Notify();
+        }
+    }
+
+    private void HandleMultiExpandChanged(FormLayout layoutComp)
+    {
+        layoutComp.MultiExpand = !layoutComp.MultiExpand;
+        State.Notify();
+    }
+
+    private void HandleDefaultOpenChanged(FormLayout layoutComp)
+    {
+        layoutComp.DefaultOpen = !layoutComp.DefaultOpen;
+        State.Notify();
+    }
+
+    private void HandleHtmlChanged(string value)
+    {
+        if (State.SelectedComponent is FormLayout layoutComp)
+        {
+            layoutComp.Title = value;
+            State.Notify();
+        }
+    }
+
+    private void HandleColumnsChanged(ChangeEventArgs e, FormLayout layoutComp)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var c))
+        {
+            layoutComp.Columns = Math.Max(1, Math.Min(12, c));
+            State.Notify();
+        }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────
+
+    private string GetPreviewJson()
+    {
+        return System.Text.Json.JsonSerializer.Serialize(State.Definition, new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+        });
+    }
+
+    private string GetDropZoneClass(int index)
+    {
+        if (State.HoverDropIndex == index)
+            return "visible active";
+        if (State.IsDragging)
+            return "visible";
+        return "";
+    }
+
+}

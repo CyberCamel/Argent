@@ -11,4 +11,5 @@ public interface IWorkItemRepository
     Task<bool> TryLockWorkItemAsync(Guid workItemId);
     Task CompleteWorkItemAsync(Guid workItemId);
     Task FreeWorkItemAsync(Guid workItemId);
+    Task CreateWorkItemAsync(WorkItem workItem);
 }

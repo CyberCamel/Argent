@@ -1,80 +1,91 @@
 ﻿@using System.Reflection
-@using Argent.Models.Attributes
-@using Argent.Models.Workflows.Modeler.Enums
+@using Argent.Contracts.Workflows
 @using Argent.Runtime.Workflows.Modeling
-@using System.Globalization
-
+@inject IWorkflowNodeRegistry Registry
 
 @if (Node != null)
 {
-    <div class="property-floating-card shadow-lg border rounded bg-white"
-         style="@CalculatePositionStyle()"
-         @onwheel:stopPropagation
-         @onpointerdown:stopPropagation>
-        <div class="card-header bg-light d-flex justify-content-between align-items-center py-1 px-2 border-bottom">
-            <span class="small fw-bold text-uppercase text-muted">@Node.Title</span>
-            <button type="button" class="btn-close" style="scale: 0.6;" @onclick="HandleClose"></button>
-        </div>
-        <div class="card-body p-0" style="width: 320px; max-height: 450px; overflow-y: auto;">
+    var descriptor = Registry.GetDescriptor(Node.NodeData.GetType());
 
-            <div class="p-3 border-bottom">
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Name</label>
-                    <input class="form-control form-control-sm"
+    <div class="properties-panel" @onwheel:stopPropagation @onpointerdown:stopPropagation>
+        <div class="properties-panel-header">
+            <span class="properties-panel-title">
+                <i class="bi bi-gear"></i> Properties —
+                <span class="properties-panel-type">@(descriptor?.DisplayName ?? "Node")</span>
+                <span class="properties-panel-separator">—</span>
+                <span class="properties-panel-name">@Node.Title</span>
+            </span>
+            <div class="properties-panel-actions">
+                <button type="button" class="properties-panel-close" @onclick="HandleClose" title="Close properties panel">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+        <div class="properties-panel-body">
+            <div class="properties-panel-section">
+                <div class="properties-panel-field">
+                    <label class="properties-panel-label">Name</label>
+                    <input class="properties-panel-input"
                            value="@Node.Title"
                            @oninput="@(e => { Node.Title = e.Value?.ToString() ?? ""; State.Notify(); })" />
                 </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted small">Description</label>
-                    <textarea class="form-control form-control-sm" rows="2"
+                <div class="properties-panel-field">
+                    <label class="properties-panel-label">Description</label>
+                    <textarea class="properties-panel-input properties-panel-textarea" rows="2"
                               value="@Node.Description"
                               @oninput="@(e => { Node.Description = e.Value?.ToString() ?? ""; State.Notify(); })"></textarea>
                 </div>
             </div>
 
-            <div class="p-3">
-                @foreach (var prop in GetProperties())
-                {
-                    var metadata = prop.GetCustomAttribute<NodePropertyAttribute>();
-                    if (metadata == null) continue;
+            @if (descriptor != null)
+            {
+                <div class="properties-panel-section properties-panel-section-dynamic">
+                    @foreach (var prop in descriptor.Properties.OrderBy(p => p.Order))
+                    {
+                        var propInfo = Node.NodeData.GetType().GetProperty(prop.PropertyName);
+                        if (propInfo == null) continue;
 
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold mb-0">@metadata.Name</label>
-                        @if (!string.IsNullOrEmpty(metadata.Description))
-                        {
-                            <div class="form-text mt-0 mb-1" style="font-size: 0.75rem;">@metadata.Description</div>
-                        }
+                        <div class="properties-panel-field">
+                            <label class="properties-panel-label">
+                                @prop.DisplayName
+                                @if (!string.IsNullOrEmpty(prop.Description))
+                                {
+                                    <span class="properties-panel-tip" title="@prop.Description">
+                                        <i class="bi bi-info-circle"></i>
+                                    </span>
+                                }
+                            </label>
 
-                        @* Simple Type Switch *@
-                        @if (metadata.DataType == PropertyDataType.Code)
-                        {
-                            <textarea class="form-control form-control-sm font-monospace" rows="6"
-                                      spellcheck="false"
-                                      value="@prop.GetValue(Node.NodeData)"
-                                      @oninput="@(e => UpdateValue(prop, e.Value))" />
-                        }
-                        else if (metadata.DataType == PropertyDataType.KeyValuePairs)
-                        {
-                            @* You can drop a small Dictionary Editor component here later *@
-                            <div class="alert alert-secondary py-1 px-2 small">Dictionary Editor (TBD)</div>
-                        }
-                        else if (metadata.DataType == PropertyDataType.Boolean)
-                        {
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox"
-                                       checked="@((bool)prop.GetValue(Node.NodeData)!)"
-                                       @onchange="@(e => UpdateValue(prop, e.Value))" />
-                            </div>
-                        }
-                        else
-                        {
-                            <input class="form-control form-control-sm"
-                                   value="@prop.GetValue(Node.NodeData)"
-                                   @oninput="@(e => UpdateValue(prop, e.Value))" />
-                        }
-                    </div>
-                }
-            </div>
+                            @if (prop.DataType == PropertyDataType.Code)
+                            {
+                                <textarea class="properties-panel-input properties-panel-code"
+                                          spellcheck="false" rows="4"
+                                          value="@propInfo.GetValue(Node.NodeData)"
+                                          @oninput="@(e => UpdateValue(propInfo, e.Value))" />
+                            }
+                            else if (prop.DataType == PropertyDataType.KeyValuePairs)
+                            {
+                                <span class="properties-panel-placeholder">Dictionary editor (coming soon)</span>
+                            }
+                            else if (prop.DataType == PropertyDataType.Boolean)
+                            {
+                                <label class="properties-panel-switch">
+                                    <input type="checkbox"
+                                           checked="@((bool?)propInfo.GetValue(Node.NodeData) ?? false)"
+                                           @onchange="@(e => UpdateValue(propInfo, e.Value))" />
+                                    <span class="properties-panel-switch-slider"></span>
+                                </label>
+                            }
+                            else
+                            {
+                                <input class="properties-panel-input"
+                                       value="@propInfo.GetValue(Node.NodeData)"
+                                       @oninput="@(e => UpdateValue(propInfo, e.Value))" />
+                            }
+                        </div>
+                    }
+                </div>
+            }
         </div>
     </div>
 }
@@ -84,47 +95,20 @@
     [Parameter] public required DesignerNode Node { get; set; }
     [Parameter] public required EventCallback OnClose { get; set; }
 
-    private IEnumerable<PropertyInfo> GetProperties()
-        => Node.NodeData.GetType().GetProperties()
-            .Where(p => p.GetCustomAttribute<NodePropertyAttribute>() != null)
-            .OrderBy(p => p.GetCustomAttribute<NodePropertyAttribute>()?.Order ?? 100)
-            ?? Enumerable.Empty<PropertyInfo>();
-
     private void UpdateValue(PropertyInfo prop, object? val)
     {
         if (Node == null) return;
 
-        // Basic conversion for numbers
         if (prop.PropertyType == typeof(int) && int.TryParse(val?.ToString(), out var i))
             prop.SetValue(Node.NodeData, i);
         else if (prop.PropertyType == typeof(double) && double.TryParse(val?.ToString(), out var d))
             prop.SetValue(Node.NodeData, d);
+        else if (prop.PropertyType == typeof(TimeSpan) && int.TryParse(val?.ToString(), out var seconds))
+            prop.SetValue(Node.NodeData, TimeSpan.FromSeconds(seconds));
         else
             prop.SetValue(Node.NodeData, val);
 
-        State.Notify(); // Refresh the canvas in case labels changed
-    }
-
-    private string CalculatePositionStyle()
-    {
-        if (Node == null) return "display: none;";
-
-        // We calculate the screen pixels relative to the canvas origin
-        double x = (Node.X + Node.Width - State.Session.PanX) * State.Session.Zoom;
-        double y = (Node.Y - State.Session.PanY) * State.Session.Zoom;
-
-        // Add a 15px gap
-        x += 15;
-
-        return $@"
-        position: absolute;
-        top: 0;
-        width: 350px;
-        z-index: 1000;
-        /* translate3d uses the GPU and handles the actual positioning */
-        transform: translate3d({x.ToString(CultureInfo.InvariantCulture)}px, {y.ToString(CultureInfo.InvariantCulture)}px, 0);
-        pointer-events: all;
-    ";
+        State.Notify();
     }
 
     private void HandleClose()
@@ -137,7 +121,6 @@
         State.OnChange += StateHasChanged;
     }
 
-    // Don't forget to implement IDisposable to unhook the event!
     public void Dispose()
     {
         State.OnChange -= StateHasChanged;

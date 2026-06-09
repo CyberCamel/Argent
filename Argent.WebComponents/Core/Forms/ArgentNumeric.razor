@@ -4,22 +4,46 @@
 @if (IsVisible)
 {
     <div class="mb-3 @Metadata.CssClass">
-        <label class="form-label">@Metadata.Label</label>
+        <label class="form-label">
+            @Metadata.FieldLabel
+            @if (!Metadata.AllowBlank)
+            {
+                <span class="text-danger">*</span>
+            }
+        </label>
         <input type="number"
                class="form-control"
                value="@CurrentValue"
-               @onchange="(e) => OnValueChanged(e.Value)" />
+               @oninput="(e) => OnValueChanged(e.Value)"
+               placeholder="@Metadata.Placeholder"
+               disabled="@Metadata.Disabled"
+               readOnly="@Metadata.ReadOnly"
+               min="@Metadata.Min"
+               max="@Metadata.Max"
+               step="@Metadata.Step" />
+        @if (Metadata.Description != null)
+        {
+            <div class="form-text">@Metadata.Description</div>
+        }
+        @if (Errors.Any())
+        {
+            <div class="invalid-feedback d-block">
+                @foreach (var err in Errors) { <div>@err</div> }
+            </div>
+        }
     </div>
 }
 
 @code {
-    private double? CurrentValue => Context.GetValue<double?>(Metadata.DataKey ?? Metadata.Id);
+    private bool IsVisible => Context.IsVisible(Metadata);
+    private string? CurrentValue => Context.GetValue<string>(Metadata.Name ?? Metadata.Id);
+    private IEnumerable<string> Errors => Context.GetErrors(Metadata);
 
     private void OnValueChanged(object? val)
     {
         if (double.TryParse(val?.ToString(), out var result))
-            Context.SetValue(Metadata.DataKey ?? Metadata.Id, result);
+            Context.SetValue(Metadata.Name ?? Metadata.Id, result);
         else
-            Context.SetValue(Metadata.DataKey ?? Metadata.Id, null);
+            Context.SetValue(Metadata.Name ?? Metadata.Id, null);
     }
 }

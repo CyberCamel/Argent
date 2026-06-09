@@ -1,28 +1,70 @@
-﻿@using Argent.WebComponents
+﻿@using Argent.Contracts.DomainObjects
+@using Argent.Models.Forms.Components.Base
 @inherits FormInputComponentBase
 
 @if (IsVisible)
 {
     <div class="mb-3 @Metadata.CssClass">
-        <label class="form-label">@Metadata.Label</label>
-        <select class="form-select" value="@CurrentValue" @onchange="(e) => OnValueChanged(e.Value)">
-            <option value="">-- Select --</option>
-            @* Simplified for now: Assuming we have a list of strings *@
-            @if (Metadata.DataProvider?.DataSource == "Static")
+        <label class="form-label">
+            @Metadata.FieldLabel
+            @if (!Metadata.AllowBlank)
             {
-                @* In a real app, you'd fetch this from a service *@
-                <option value="Opt1">Option 1</option>
-                <option value="Opt2">Option 2</option>
+                <span class="text-danger">*</span>
             }
-        </select>
+        </label>
+        @if (Metadata.MultiSelect)
+        {
+            <select class="form-select"
+                    multiple
+                    @onchange="(e) => OnValueChanged(e.Value)"
+                    disabled="@Metadata.Disabled">
+                @if (_resolvedItems.Count > 0)
+                {
+                    @foreach (var opt in _resolvedItems)
+                    {
+                        <option value="@opt.Value" disabled="@opt.Disabled">@opt.Label</option>
+                    }
+                }
+            </select>
+        }
+        else
+        {
+            <select class="form-select"
+                    value="@CurrentValue"
+                    @onchange="(e) => OnValueChanged(e.Value)"
+                    disabled="@Metadata.Disabled">
+                <option value="">-- Select --</option>
+                @if (_resolvedItems.Count > 0)
+                {
+                    @foreach (var opt in _resolvedItems)
+                    {
+                        <option value="@opt.Value" disabled="@opt.Disabled">@opt.Label</option>
+                    }
+                }
+            </select>
+        }
+        @if (Metadata.Description != null)
+        {
+            <div class="form-text">@Metadata.Description</div>
+        }
+        @if (Errors.Any())
+        {
+            <div class="invalid-feedback d-block">
+                @foreach (var err in Errors) { <div>@err</div> }
+            </div>
+        }
     </div>
 }
 
 @code {
-    private string? CurrentValue => Context.GetValue<string>(Metadata.DataKey ?? Metadata.Id);
+    private List<SelectOption> _resolvedItems = [];
+    private bool IsVisible => Context.IsVisible(Metadata);
+    private string? CurrentValue => Context.GetValue<string>(Metadata.Name ?? Metadata.Id);
+    private IEnumerable<string> Errors => Context.GetErrors(Metadata);
+    
 
     private void OnValueChanged(object? val)
     {
-        Context.SetValue(Metadata.DataKey ?? Metadata.Id, val?.ToString());
+        Context.SetValue(Metadata.Name ?? Metadata.Id, val?.ToString());
     }
 }

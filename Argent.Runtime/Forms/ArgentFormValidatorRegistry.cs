@@ -5,14 +5,14 @@ using System.Text;
 
 namespace Argent.Runtime.Forms
 {
-    public class ArgentValidationRegistry : IValidationRegistry
+    public class ArgentFormValidatorRegistry : IFormValidatorRegistry
     {
-        public IValidationService GetService(string name)
+        public IFormValidationService GetService(string name)
         {
             throw new NotImplementedException();
         }
 
-        public void Register(string name, IValidationService service)
+        public void Register(string name, IFormValidationService service)
         {
             throw new NotImplementedException();
         }

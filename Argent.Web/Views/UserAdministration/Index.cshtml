@@ -4,38 +4,46 @@
     ViewData["Title"] = "User Management";
 }
 
-<h1>@ViewData["Title"]</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">User Management</h4>
+        <p class="text-muted small mb-0">Manage users and their roles</p>
+    </div>
+    <button class="btn btn-primary"
+            hx-get="/UserAdministration/Create"
+            hx-target="#modalBody"
+            hx-trigger="click"
+            hx-on="htmx:afterSwap: bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show()">
+        <i class="bi bi-plus-lg"></i> Add User
+    </button>
+</div>
 
-<button class="btn btn-primary mb-3"
-        hx-get="/UserAdministration/Create"
-        hx-target="#modalBody"
-        hx-trigger="click"
-        hx-on="htmx:afterSwap: bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show()">
-    Add User
-</button>
-
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Roles</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody id="userTable"
-           hx-get="/UserAdministration/List"
-           hx-trigger="load, userActionCompleted from:body, userDeleted from:body"
-           hx-swap="innerHTML">
-        <partial name="_UserTablePartial" model="Model" />
-    </tbody>
-</table>
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Roles</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="userTable"
+                   hx-get="/UserAdministration/List"
+                   hx-trigger="load, userActionCompleted from:body, userDeleted from:body"
+                   hx-swap="innerHTML">
+                <partial name="_UserTablePartial" model="Model" />
+            </tbody>
+        </table>
+    </div>
+</div>
 
 <div class="modal fade" id="userModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5>Manage User</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-person me-2 text-primary"></i>Manage User</h5>
             </div>
             <div class="modal-body" id="modalBody"></div>
         </div>
@@ -51,13 +59,10 @@
             if (form) {
                 $.validator.unobtrusive.parse(form);
             }
-
-            // show modal when content loads
             bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show();
         }
     });
 
-    // close modal after success
     document.body.addEventListener('userActionCompleted', function () {
         bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
     });

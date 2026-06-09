@@ -36,6 +36,43 @@ public static class AnchorService
         return anchors.OrderBy(a => Math.Sqrt(Math.Pow(a.X - point.X, 2) + Math.Pow(a.Y - point.Y, 2))).First();
     }
 
+    public static (double X, double Y, AnchorDirection dir) GetBestTargetAnchor(
+        IDesignerItem target, (double X, double Y) mouse, AnchorDirection sourceDir)
+    {
+        var anchors = GetAnchors(target);
+        (double X, double Y, AnchorDirection dir)? best = null;
+        double bestScore = double.MaxValue;
+
+        foreach (var a in anchors)
+        {
+            double dist = Math.Sqrt(Math.Pow(a.X - mouse.X, 2) + Math.Pow(a.Y - mouse.Y, 2));
+            double dirPenalty = AnchorDirectionPenalty(sourceDir, a.dir);
+            double score = dist + dirPenalty;
+
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = a;
+            }
+        }
+
+        return best ?? anchors.First();
+    }
+
+    private static double AnchorDirectionPenalty(AnchorDirection sourceDir, AnchorDirection targetDir)
+    {
+        bool sH = sourceDir is AnchorDirection.Left or AnchorDirection.Right;
+        bool tH = targetDir is AnchorDirection.Left or AnchorDirection.Right;
+
+        if (sH && tH)
+            return sourceDir != targetDir ? 0 : 30;
+
+        if (!sH && !tH)
+            return sourceDir != targetDir ? 0 : 30;
+
+        return 15;
+    }
+
     public static (double X, double Y, AnchorDirection dir) GetClosestAnchor(
     IDesignerItem item,
     IDesignerItem target)

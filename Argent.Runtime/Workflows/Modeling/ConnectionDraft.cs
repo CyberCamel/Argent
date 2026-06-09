@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Argent.Contracts.Workflows;
 
 namespace Argent.Runtime.Workflows.Modeling;
 
@@ -10,4 +8,5 @@ public class ConnectionDraft
     public AnchorDirection SourceDir { get; set; }
     public double MouseX { get; set; }
     public double MouseY { get; set; }
+    public IDesignerItem? TargetHint { get; set; }
 }

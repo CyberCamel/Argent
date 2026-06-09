@@ -10,5 +10,5 @@ public class Connection
     public string? Expression { get; set; }
     public required NodeBase From { get; set; }
     public required NodeBase To { get; set; }
-
+    public string? Label { get; set; }
 }
