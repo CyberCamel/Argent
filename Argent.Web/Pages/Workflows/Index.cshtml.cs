@@ -13,7 +13,7 @@ public class IndexModel(ApplicationDbContext _ctx) : PageModel
     public async Task<IActionResult> OnGet()
     {
         Defs = await _ctx.WorkflowDefinitions.Select(workflow => new WorkflowListItemDto()
-            { Name = workflow.Name, Description = workflow.Description }).ToListAsync();
+            { Id=workflow.Id, Name = workflow.Name, Description = workflow.Description }).ToListAsync();
         return Page();
     }
 }

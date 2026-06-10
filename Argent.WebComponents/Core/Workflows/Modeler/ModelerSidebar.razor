@@ -21,7 +21,7 @@
         @switch (_activeTab)
         {
             case TabType.Versions:
-                <WorkflowVersionList State="@State" OnVersionLoaded="OnVersionLoaded" />
+                <WorkflowVersioningPanel State="@State" OnVersionLoaded="OnVersionLoaded" />
                 break;
             case TabType.Json:
                 <JsonViewer State="@State" />
