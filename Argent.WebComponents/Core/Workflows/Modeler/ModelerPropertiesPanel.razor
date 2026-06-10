@@ -25,13 +25,13 @@
                     <label class="modeler2-properties-label">Name</label>
                     <input class="modeler2-properties-input"
                            value="@Node.Title"
-                           @oninput="@(e => { Node.Title = e.Value?.ToString() ?? ""; State.Notify(); })" />
+                           @oninput="@(e => { Node.Title = e.Value?.ToString() ?? ""; State.MarkDirty(); })" />
                 </div>
                 <div class="modeler2-properties-field">
                     <label class="modeler2-properties-label">Description</label>
                     <textarea class="modeler2-properties-input modeler2-properties-textarea" rows="2"
                               value="@Node.Description"
-                              @oninput="@(e => { Node.Description = e.Value?.ToString() ?? ""; State.Notify(); })"></textarea>
+                              @oninput="@(e => { Node.Description = e.Value?.ToString() ?? ""; State.MarkDirty(); })"></textarea>
                 </div>
             </div>
 
@@ -105,7 +105,7 @@
             prop.SetValue(Node.NodeData, TimeSpan.FromSeconds(seconds));
         else
             prop.SetValue(Node.NodeData, val);
-        State.Notify();
+        State.MarkDirty();
     }
 
     private void HandleClose() => OnClose.InvokeAsync();

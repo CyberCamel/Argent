@@ -10,7 +10,6 @@ namespace Argent.Models.Workflows
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = "New Workflow";
         public string Description { get; set; } = string.Empty;
-        public WorkflowDefinition Definition { get; set; } = new();
         public Guid? CreatedById { get; set; }
         public InternalUser? CreatedBy { get; set; }
 

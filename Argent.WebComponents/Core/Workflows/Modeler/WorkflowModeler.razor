@@ -11,6 +11,7 @@
 @inject DesignerService State
 @inject IWorkflowNodeRegistry Registry
 @inject IJSRuntime JS
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div class="modeler2-layout">
     @if (EffectiveReadOnly)
@@ -71,13 +72,11 @@
                     <button class="modeler2-btn-icon" title="Save" @onclick="HandleSave">
                         <i class="bi bi-save-fill"></i>
                     </button>
+                    <span class="modeler2-save-status @(State.HasUnsavedChanges ? "dirty" : "clean")" title="@(State.HasUnsavedChanges ? "Unsaved changes" : "Saved")">
+                        <i class="bi @(State.HasUnsavedChanges ? "bi-circle-fill" : "bi-check-circle-fill")"></i>
+                    </span>
                     <button class="modeler2-btn-icon" title="Compile" @onclick="HandleCompile">
                         <i class="bi bi-gear-fill"></i>
-                    </button>
-                    <button class="modeler2-btn-icon" title="Publish"
-                            disabled="@(!(State.CompiledDefinition is not null && State.ValidationResult?.Errors.Count == 0))"
-                            @onclick="HandlePublish">
-                        <i class="bi bi-cloud-arrow-up-fill"></i>
                     </button>
                     @if (State.CompiledDefinition != null)
                     {
@@ -460,12 +459,17 @@
     private SnapResult? _snapResult;
     private const double _snapHighlightPadding = 4;
 
+    // Auto-save
+    private Timer? _autoSaveTimer;
+    private bool _autoSaving;
+
     protected override void OnInitialized() => State.OnChange += StateHasChanged;
 
     protected override async Task OnInitializedAsync()
     {
         if (WorkflowId.HasValue)
             await State.LoadWorkflowAsync(WorkflowId.Value);
+        _autoSaveTimer = new Timer(AutoSaveTick, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -485,8 +489,30 @@
         State.Notify();
     }
 
+    private void AutoSaveTick(object? state)
+    {
+        if (_autoSaving) return;
+        if (!State.HasUnsavedChanges) return;
+
+        _autoSaving = true;
+        _ = InvokeAsync(() =>
+        {
+            try
+            {
+                State.Compile();
+                State.SaveDraft();
+                StateHasChanged();
+            }
+            finally
+            {
+                _autoSaving = false;
+            }
+        });
+    }
+
     public async ValueTask DisposeAsync()
     {
+        _autoSaveTimer?.Dispose();
         State.OnChange -= StateHasChanged;
         if (_dotNetRef != null)
         {
@@ -701,7 +727,7 @@
                         UpdateNodeConnections(node, dx, dy);
                 }
 
-                State.Notify();
+                State.MarkDirty();
                 break;
 
             case Mode.Dragging:
@@ -723,7 +749,7 @@
                     UpdateNodeConnections(_activeNode, snappedX - _prevNodeX, snappedY - _prevNodeY);
                     _prevNodeX = snappedX;
                     _prevNodeY = snappedY;
-                    State.Notify();
+                    State.MarkDirty();
                 }
                 break;
 
@@ -757,7 +783,7 @@
                 if (_activeConnection != null && _draggedWpIdx >= 0)
                 {
                     RoutingService.DragWaypoint(_activeConnection.Waypoints, _draggedWpIdx, wx, wy);
-                    State.Notify();
+                    State.MarkDirty();
                 }
                 break;
 
@@ -766,7 +792,7 @@
                 {
                     RoutingService.DragSegment(_activeConnection.Waypoints, _segmentIdx,
                         ref _dragStartX, ref _dragStartY, wx, wy);
-                    State.Notify();
+                    State.MarkDirty();
                 }
                 break;
         }
@@ -951,7 +977,7 @@
         }
 
         _draftConnection = null;
-        State.Notify();
+        State.MarkDirty();
     }
 
     // ======================== CONNECTION INTERACTIONS ========================
@@ -993,7 +1019,7 @@
         if (segIdx >= 0)
         {
             RoutingService.InsertWaypointAtMidpoint(conn.Waypoints, segIdx);
-            State.Notify();
+            State.MarkDirty();
         }
     }
 
@@ -1051,6 +1077,10 @@
             _selectedNodes.Clear();
             State.DeselectAll();
             State.Notify();
+        }
+        else if ((e.CtrlKey || e.MetaKey) && e.Key == "s")
+        {
+            HandleSave();
         }
         else if (e.Key == "Delete" || e.Key == "Backspace")
         {
@@ -1117,7 +1147,7 @@
         State.Nodes.Add(node);
         State.Select(node);
         _pendingNodeDesc = null;
-        State.Notify();
+        State.MarkDirty();
     }
 
     // ======================== RESIZE ========================
@@ -1172,7 +1202,7 @@
             }
         }
 
-        State.Notify();
+        State.MarkDirty();
     }
 
     // ======================== ROUTING UPDATES ========================
@@ -1198,20 +1228,18 @@
     private void HandleSave()
     {
         State.Compile();
-        State.PersistDefinition();
+        State.SaveDraft();
         State.Notify();
+
+        if (!WorkflowId.HasValue && State.CurrentWorkflowId.HasValue)
+        {
+            Nav.NavigateTo($"/Workflows/Edit/{State.CurrentWorkflowId}", forceLoad: true);
+        }
     }
 
     private void HandleCompile()
     {
         State.Compile();
-        State.Notify();
-    }
-
-    private void HandlePublish()
-    {
-        State.Compile();
-        State.PersistDefinition();
         State.Notify();
     }
 

@@ -1,6 +1,7 @@
 ﻿using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
 using Argent.Models.Workflows;
+using Microsoft.EntityFrameworkCore;
 using Argent.Models.Workflows.Execution;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -26,9 +27,19 @@ namespace Argent.Runtime.Workflows.Execution
 
                 try
                 {
-                    // Look up the workflow definition to find the target node
-                    var workflow = await db.WorkflowDefinitions.FindAsync(workItem.DefinitionId);
-                    if (workflow?.Definition == null)
+                    // Look up the latest workflow version for the definition
+                    var version = await db.WorkflowVersions
+                        .AsNoTracking()
+                        .Where(v => v.WorkflowId == workItem.DefinitionId && v.State == Argent.Models.Enums.WorkflowDefinitionState.Deployed)
+                        .OrderByDescending(v => v.CreatedAt)
+                        .FirstOrDefaultAsync()
+                        ?? await db.WorkflowVersions
+                            .AsNoTracking()
+                            .Where(v => v.WorkflowId == workItem.DefinitionId)
+                            .OrderByDescending(v => v.CreatedAt)
+                            .FirstOrDefaultAsync();
+
+                    if (version?.Definition == null)
                     {
                         _logger.LogWarning("WorkItem {Id}: workflow definition {DefId} not found",
                             workItem.Id, workItem.DefinitionId);
@@ -37,7 +48,8 @@ namespace Argent.Runtime.Workflows.Execution
                         return;
                     }
 
-                    var node = workflow.Definition.Nodes.FirstOrDefault(n => n.Id == workItem.NodeId);
+                    var workflow = version.Definition;
+                    var node = workflow.Nodes.FirstOrDefault(n => n.Id == workItem.NodeId);
                     if (node == null)
                     {
                         _logger.LogWarning("WorkItem {Id}: node {NodeId} not found in definition",
@@ -50,7 +62,7 @@ namespace Argent.Runtime.Workflows.Execution
                     // Log the dispatch
                     _logger.LogInformation(
                         "Dispatching WorkItem {Id} for node '{NodeName}' ({NodeType}) in workflow '{WorkflowName}'",
-                        workItem.Id, node.Name, node.GetType().Name, workflow.Name);
+                        workItem.Id, node.Name, node.GetType().Name, version.Name);
 
                     // Resolve and execute the handler
                     var handlerType = typeof(IWorkItemHandler);

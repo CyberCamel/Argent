@@ -1086,6 +1086,19 @@ svg > rect[fill="url(#gridPattern)"] {
     cursor: not-allowed;
 }
 
+.modeler2-save-status {
+    font-size: 0.625rem;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+.modeler2-save-status.clean {
+    color: #a6e3a1;
+}
+.modeler2-save-status.dirty {
+    color: #f9e2af;
+}
+
 .modeler2-tool-group {
     display: flex;
     gap: 2px;
@@ -1328,7 +1341,7 @@ svg > rect[fill="url(#gridPattern)"] {
     font-size: 0.72rem;
 }
 
-.modeler2-version-list {
+.modeler2-version-panel {
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -1391,7 +1404,7 @@ svg > rect[fill="url(#gridPattern)"] {
     margin: 4px 0;
 }
 
-.modeler2-version-readonly-banner {
+.modeler2-version-banner {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1399,6 +1412,9 @@ svg > rect[fill="url(#gridPattern)"] {
     border-radius: 6px;
     font-size: 0.78rem;
     font-weight: 500;
+}
+
+.modeler2-version-banner-readonly {
     color: #fab387;
     background: rgba(250, 179, 135, 0.1);
     border: 1px solid rgba(250, 179, 135, 0.25);
@@ -1419,47 +1435,246 @@ svg > rect[fill="url(#gridPattern)"] {
     margin: 8px 0;
 }
 
-.modeler2-version-history {
+.modeler2-version-timeline {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    max-height: 300px;
-    overflow-y: auto;
+    padding-left: 8px;
 }
 
-.modeler2-version-entry {
-    padding: 8px 10px;
-    border-radius: 6px;
+.modeler2-version-node {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
     cursor: pointer;
+    padding: 6px 8px 6px 4px;
+    border-radius: 6px;
     transition: background 0.15s;
-    border: 1px solid transparent;
+    position: relative;
 }
 
-.modeler2-version-entry:hover {
-    background: #313244;
+.modeler2-version-node:hover {
+    background: rgba(69, 71, 90, 0.4);
 }
 
-.modeler2-version-entry-active {
+.modeler2-version-node-active {
     background: rgba(137, 180, 250, 0.1);
-    border-color: rgba(137, 180, 250, 0.3);
+    border: 1px solid rgba(137, 180, 250, 0.25);
 }
 
-.modeler2-version-entry-top {
+.modeler2-version-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 5px;
+    border: 2px solid;
+    transition: background 0.15s, border-color 0.15s;
+    position: relative;
+    z-index: 1;
+}
+
+.modeler2-version-dot-active {
+    background: #89b4fa;
+    border-color: #89b4fa;
+    box-shadow: 0 0 6px rgba(137, 180, 250, 0.4);
+}
+
+.modeler2-version-dot-inactive {
+    background: transparent;
+    border-color: #585b70;
+}
+
+.modeler2-version-line {
+    width: 2px;
+    min-height: 16px;
+    background: #45475a;
+    margin-left: 16px;
+}
+
+.modeler2-version-node-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.modeler2-version-node-top {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }
 
-.modeler2-version-entry-number {
-    font-size: 0.82rem;
+.modeler2-version-node-number {
+    font-size: 0.85rem;
     font-weight: 600;
     color: #cdd6f4;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
 }
 
-.modeler2-version-entry-meta {
+.modeler2-version-node-meta {
     font-size: 0.7rem;
     color: #6c7086;
+}
+
+.modeler2-version-publish {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.modeler2-version-publish-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.modeler2-version-publish-prefix {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #a6adc8;
+}
+
+.modeler2-version-publish-input {
+    flex: 1;
+    background: #1e1e2e;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: #cdd6f4;
+    font-size: 0.82rem;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.modeler2-version-publish-input:focus {
+    border-color: #89b4fa;
+}
+
+.modeler2-version-publish-input::placeholder {
+    color: #585b70;
+}
+
+.modeler2-version-publish-error {
+    font-size: 0.72rem;
+    color: #f38ba8;
+    padding-left: 18px;
+}
+
+.modeler2-version-badge-deployed {
+    background: rgba(166, 227, 161, 0.25);
+    color: #a6e3a1;
+    border: 1px solid rgba(166, 227, 161, 0.4);
+}
+
+.modeler2-version-node-deployed {
+    background: rgba(166, 227, 161, 0.06);
+    border: 1px solid rgba(166, 227, 161, 0.15);
+}
+
+.modeler2-version-dot-deployed {
+    background: #a6e3a1;
+    border-color: #a6e3a1;
+    box-shadow: 0 0 8px rgba(166, 227, 161, 0.5);
+}
+
+.modeler2-version-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    border: 1px solid #45475a;
+    background: transparent;
+    color: #a6adc8;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    margin-top: 4px;
+}
+
+.modeler2-version-action-btn:hover {
+    background: #313244;
+    color: #cdd6f4;
+    border-color: #585b70;
+}
+
+.modeler2-version-action-btn-primary {
+    background: rgba(137, 180, 250, 0.15);
+    border-color: #89b4fa;
+    color: #89b4fa;
+}
+
+.modeler2-version-action-btn-primary:hover {
+    background: rgba(137, 180, 250, 0.25);
+}
+
+.modeler2-version-action-btn-primary:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.modeler2-version-diff {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 8px 10px;
+    background: rgba(69, 71, 90, 0.15);
+    border-radius: 6px;
+    font-size: 0.75rem;
+}
+
+.modeler2-version-diff-empty {
+    color: #6c7086;
+    font-style: italic;
+    padding: 4px 0;
+}
+
+.modeler2-version-diff-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.modeler2-version-diff-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #6c7086;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 1px;
+}
+
+.modeler2-version-diff-item {
+    padding: 1px 0;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.72rem;
+}
+
+.modeler2-version-diff-added {
+    color: #a6e3a1;
+}
+
+.modeler2-version-diff-removed {
+    color: #f38ba8;
+}
+
+.modeler2-version-diff-modified {
+    color: #f9e2af;
+}
+
+.modeler2-version-publish-inline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px 4px 22px;
+}
+
+.modeler2-version-publish-input-inline {
+    width: 80px;
+    flex: none;
 }
 
 .modeler2-node:hover .modeler2-node-shape {

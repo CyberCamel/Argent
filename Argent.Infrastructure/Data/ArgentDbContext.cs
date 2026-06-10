@@ -24,6 +24,8 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
     public DbSet<WorkflowVersion> WorkflowVersions { get; set; }
 
+    public DbSet<WorkflowDraft> WorkflowDrafts { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         // 1. Setup Identity tables (MUST BE FIRST)
@@ -48,11 +50,6 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
         builder.Entity<Workflow>(entity =>
         {
-            entity.Property(e => e.Definition)
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v),
-                    v => JsonSerializer.Deserialize<WorkflowDefinition>(v) ?? new WorkflowDefinition())
-                .HasColumnType("nvarchar(max)");
             entity.HasOne(w => w.CreatedBy).WithMany().HasForeignKey(w => w.CreatedById).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(w => w.UpdatedBy).WithMany().HasForeignKey(w => w.UpdatedById).OnDelete(DeleteBehavior.Restrict);
         });
@@ -65,13 +62,34 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
                     v => JsonSerializer.Deserialize<WorkflowDefinition>(v) ?? new WorkflowDefinition())
                 .HasColumnType("nvarchar(max)");
 
+            entity.Property(e => e.Version)
+                .HasConversion(
+                    v => v.ToString(),
+                    v => Version.Parse(v));
+
             entity.HasOne(e => e.Workflow)
                 .WithMany()
                 .HasForeignKey(e => e.WorkflowId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasIndex(e => new { e.WorkflowId, VersionNumber = e.Version }).IsUnique();
+            entity.HasIndex(e => new { e.WorkflowId, e.Version }).IsUnique();
 
+        });
+
+        builder.Entity<WorkflowDraft>(entity =>
+        {
+            entity.Property(e => e.Definition)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v),
+                    v => JsonSerializer.Deserialize<WorkflowDefinition>(v) ?? new WorkflowDefinition())
+                .HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.Workflow)
+                .WithMany()
+                .HasForeignKey(e => e.WorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.WorkflowId).IsUnique();
         });
 
         builder.Entity<FormDocument>(entity =>

@@ -29,10 +29,10 @@ public class DesignerService(
     public string CurrentWorkflowName { get; set; } = "New Workflow";
     public string CurrentWorkflowDescription { get; set; } = "";
 
-    // --- Versioning ---
+    // --- Draft / Version tracking ---
+    public Guid? LoadedDraftId { get; private set; }
     public Guid? LoadedVersionId { get; private set; }
-    public bool IsReadOnlyVersion { get; private set; }
-    private string _latestVersionString;
+    public bool IsReadOnlyVersion => LoadedVersionId != null;
 
     public WorkflowValidator Validator { get; } = new();
 
@@ -45,6 +45,7 @@ public class DesignerService(
     public bool IsExecuting { get; set; }
     public HashSet<Guid> ActiveTokenNodeIds { get; } = [];
     public HashSet<Guid> VisitedNodeIds { get; } = [];
+    public bool HasUnsavedChanges { get; set; }
     public event Action? OnChange;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -66,9 +67,8 @@ public class DesignerService(
         CompiledDefinition = null;
         ValidationResult = null;
         CompiledJson = null;
-        _latestVersionString = string.Empty;
+        LoadedDraftId = null;
         LoadedVersionId = null;
-        IsReadOnlyVersion = false;
 
         var nodeMap = new Dictionary<Guid, DesignerNode>();
         var metadataCache = _registry.GetRegisteredTypes().ToList();
@@ -120,65 +120,74 @@ public class DesignerService(
         }
 
         Notify();
+        HasUnsavedChanges = false;
     }
 
     public async Task LoadWorkflowAsync(Guid workflowId)
     {
-        var workflow = await _dbContext.WorkflowDefinitions.FindAsync(workflowId);
+        var workflow = await _dbContext.WorkflowDefinitions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(w => w.Id == workflowId);
+
         if (workflow == null) return;
 
         CurrentWorkflowId = workflow.Id;
         CurrentWorkflowName = workflow.Name;
         CurrentWorkflowDescription = workflow.Description;
-        IsReadOnlyVersion = false;
 
-        // Load the latest version from WorkflowVersions, or fall back to Workflow.Definition
-        var latestVersion = await _dbContext.WorkflowVersions
-            .Where(v => v.WorkflowId == workflowId)
-            .OrderByDescending(v => v.Version)
-            .FirstOrDefaultAsync();
+        // Prefer loading the draft (editable)
+        var draft = await _dbContext.WorkflowDrafts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.WorkflowId == workflowId);
 
-        if (latestVersion != null)
+        if (draft != null)
         {
-            LoadedVersionId = latestVersion.Id;
-            _latestVersionString = latestVersion.Version.ToString();
-            LoadDefinition(latestVersion.Definition);
+            LoadDefinition(draft.Definition);
+            LoadedDraftId = draft.Id;
+            return;
         }
-        else if (workflow.Definition != null)
+
+        // Fallback to deployed version, then latest
+        var version = await _dbContext.WorkflowVersions
+            .AsNoTracking()
+            .Where(v => v.WorkflowId == workflowId && v.State == WorkflowDefinitionState.Deployed)
+            .OrderByDescending(v => v.CreatedAt)
+            .FirstOrDefaultAsync()
+            ?? await _dbContext.WorkflowVersions
+                .AsNoTracking()
+                .Where(v => v.WorkflowId == workflowId)
+                .OrderByDescending(v => v.CreatedAt)
+                .FirstOrDefaultAsync();
+
+        if (version != null)
         {
-            LoadedVersionId = null;
-            _latestVersionString = "0";
-            LoadDefinition(workflow.Definition);
+            LoadDefinition(version.Definition);
+            LoadedVersionId = version.Id;
         }
     }
 
     public async Task LoadVersionAsync(Guid versionId)
     {
-        var version = await _dbContext.WorkflowVersions.FindAsync(versionId);
+        var version = await _dbContext.WorkflowVersions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == versionId);
+
         if (version == null) return;
 
         CurrentWorkflowId = version.WorkflowId;
         CurrentWorkflowName = version.Name;
         CurrentWorkflowDescription = version.Description;
-        LoadedVersionId = version.Id;
-        _latestVersionString = version.Version.ToString();
 
-        var latest = await _dbContext.WorkflowVersions
-            .Where(v => v.WorkflowId == version.WorkflowId)
-            .OrderByDescending(v => v.Version)
-            .Select(v => v.Version)
-            .FirstOrDefaultAsync();
-
-        IsReadOnlyVersion = version.Version < latest;
         LoadDefinition(version.Definition);
+        LoadedVersionId = version.Id;
     }
 
     public async Task<List<WorkflowVersion>> GetVersionsAsync(Guid workflowId)
     {
-        return await _dbContext.WorkflowVersions
-            .Where(v => v.WorkflowId == workflowId)
-            .OrderByDescending(v => v.Version)
+        var versions = await _dbContext.WorkflowVersions
+            .Where(v => v.WorkflowId == workflowId && v.State != WorkflowDefinitionState.Draft)
             .ToListAsync();
+        return [.. versions.OrderByDescending(v => v.Version)];
     }
 
     public void Compile()
@@ -202,7 +211,7 @@ public class DesignerService(
         {
             Metadata = new WorkflowMetadata()
             {
-                CreatedAt = CurrentWorkflowId.HasValue ? DateTime.UtcNow : DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
                 CreatedBy = userName,
                 UpdatedAt = DateTime.UtcNow,
                 UpdatedBy = userName,
@@ -220,17 +229,18 @@ public class DesignerService(
         Notify();
     }
 
-    public void PersistDefinition()
+    public void SaveDraft()
     {
         if (CompiledDefinition == null) return;
 
         var currentUser = _httpContextAccessor.HttpContext?.User;
         var userName = currentUser?.Identity?.Name ?? "Unknown";
+        var now = DateTime.UtcNow;
 
-        CompiledDefinition.Metadata.UpdatedAt = DateTime.UtcNow;
+        CompiledDefinition.Metadata.UpdatedAt = now;
         CompiledDefinition.Metadata.UpdatedBy = userName;
 
-        // Create or update the Workflow entity
+        // Create or update the Workflow entity (metadata only)
         if (!CurrentWorkflowId.HasValue)
         {
             var wf = new Workflow
@@ -238,7 +248,9 @@ public class DesignerService(
                 Id = Guid.NewGuid(),
                 Name = CurrentWorkflowName,
                 Description = CurrentWorkflowDescription,
-                Definition = CompiledDefinition
+                CreatedOn = now,
+                UpdatedOn = now,
+                Tags = []
             };
             _dbContext.WorkflowDefinitions.Add(wf);
             CurrentWorkflowId = wf.Id;
@@ -250,33 +262,152 @@ public class DesignerService(
             {
                 existing.Name = CurrentWorkflowName;
                 existing.Description = CurrentWorkflowDescription;
-                existing.Definition = CompiledDefinition;
+                existing.UpdatedOn = now;
             }
         }
 
-        // Create a new version entry
-        var versionNumber = Version.Parse(_latestVersionString + 1);
-        var version = new WorkflowVersion
+        // Upsert the draft
+        var draft = LoadedDraftId.HasValue
+            ? _dbContext.WorkflowDrafts.Find(LoadedDraftId.Value)
+            : _dbContext.WorkflowDrafts.FirstOrDefault(d => d.WorkflowId == CurrentWorkflowId.Value);
+
+        if (draft != null)
+        {
+            draft.Definition = CompiledDefinition;
+            draft.Name = CurrentWorkflowName;
+            draft.Description = CurrentWorkflowDescription;
+            draft.UpdatedAt = now;
+            LoadedDraftId = draft.Id;
+        }
+        else
+        {
+            draft = new WorkflowDraft
+            {
+                Id = Guid.NewGuid(),
+                WorkflowId = CurrentWorkflowId.Value,
+                Name = CurrentWorkflowName,
+                Description = CurrentWorkflowDescription,
+                Definition = CompiledDefinition,
+                CreatedAt = now,
+                UpdatedAt = now,
+                CreatedBy = userName
+            };
+            _dbContext.WorkflowDrafts.Add(draft);
+            LoadedDraftId = draft.Id;
+        }
+
+        LoadedVersionId = null;
+        _dbContext.SaveChanges();
+        HasUnsavedChanges = false;
+    }
+
+    public void PublishVersion(bool isMajor)
+    {
+        if (!LoadedDraftId.HasValue) return;
+
+        var draft = _dbContext.WorkflowDrafts.Find(LoadedDraftId.Value);
+        if (draft == null) return;
+
+        // Find the latest published/deployed version to compute the bump
+        var latestVersion = _dbContext.WorkflowVersions
+            .Where(v => v.WorkflowId == draft.WorkflowId && v.State != WorkflowDefinitionState.Draft)
+            .OrderByDescending(v => v.CreatedAt)
+            .FirstOrDefault();
+
+        Version newVersion;
+        if (latestVersion != null)
+            newVersion = isMajor
+                ? new Version(latestVersion.Version.Major + 1, 0)
+                : new Version(latestVersion.Version.Major, latestVersion.Version.Minor + 1);
+        else
+            newVersion = isMajor ? new Version(1, 0) : new Version(0, 1);
+
+        var versionEntry = new WorkflowVersion
         {
             Id = Guid.NewGuid(),
-            WorkflowId = CurrentWorkflowId.Value,
-            Version = versionNumber,
-            Name = CurrentWorkflowName,
-            Description = CurrentWorkflowDescription,
-            Definition = CompiledDefinition,
+            WorkflowId = draft.WorkflowId,
+            Version = newVersion,
+            Name = draft.Name,
+            Description = draft.Description,
+            Definition = draft.Definition,
             State = WorkflowDefinitionState.Published,
             CreatedAt = DateTime.UtcNow,
-            CreatedBy = userName
+            CreatedBy = draft.CreatedBy
         };
-        _dbContext.WorkflowVersions.Add(version);
-        LoadedVersionId = version.Id;
-        _latestVersionString = versionNumber.ToString();
-        IsReadOnlyVersion = false;
 
+        _dbContext.WorkflowVersions.Add(versionEntry);
+        _dbContext.WorkflowDrafts.Remove(draft);
+        _dbContext.SaveChanges();
+
+        // Now viewing the published version (read-only)
+        LoadedVersionId = versionEntry.Id;
+        LoadedDraftId = null;
+        LoadDefinition(draft.Definition);
+        HasUnsavedChanges = false;
+    }
+
+    public void DeployVersion(Guid versionId)
+    {
+        var version = _dbContext.WorkflowVersions.Find(versionId);
+        if (version == null || version.State != WorkflowDefinitionState.Published) return;
+
+        // Un-deploy any previously deployed version for this workflow
+        var previouslyDeployed = _dbContext.WorkflowVersions
+            .Where(v => v.WorkflowId == version.WorkflowId && v.State == WorkflowDefinitionState.Deployed)
+            .ToList();
+        foreach (var v in previouslyDeployed)
+        {
+            v.State = WorkflowDefinitionState.Published;
+        }
+
+        version.State = WorkflowDefinitionState.Deployed;
         _dbContext.SaveChanges();
     }
 
-    public void Notify() => OnChange?.Invoke();
+    public void CreateDraftFromVersion(Guid versionId)
+    {
+        var source = _dbContext.WorkflowVersions.Find(versionId);
+        if (source == null) return;
+
+        var currentUser = _httpContextAccessor.HttpContext?.User;
+        var userName = currentUser?.Identity?.Name ?? "Unknown";
+        var now = DateTime.UtcNow;
+
+        // Replace any existing draft for this workflow
+        var existingDraft = _dbContext.WorkflowDrafts
+            .FirstOrDefault(d => d.WorkflowId == source.WorkflowId);
+        if (existingDraft != null)
+            _dbContext.WorkflowDrafts.Remove(existingDraft);
+
+        var draft = new WorkflowDraft
+        {
+            Id = Guid.NewGuid(),
+            WorkflowId = source.WorkflowId,
+            Name = source.Name,
+            Description = source.Description,
+            Definition = source.Definition,
+            CreatedAt = now,
+            UpdatedAt = now,
+            CreatedBy = userName
+        };
+        _dbContext.WorkflowDrafts.Add(draft);
+        _dbContext.SaveChanges();
+
+        // Load the new draft into the editor
+        CurrentWorkflowId = source.WorkflowId;
+        CurrentWorkflowName = source.Name;
+        CurrentWorkflowDescription = source.Description;
+        LoadedDraftId = draft.Id;
+        LoadedVersionId = null;
+        LoadDefinition(draft.Definition);
+        HasUnsavedChanges = false;
+    }
+
+    public void Notify()
+    {
+        OnChange?.Invoke();
+    }
+    public void MarkDirty() { HasUnsavedChanges = true; Notify(); }
 
     public void DeleteSelected()
     {
@@ -291,7 +422,7 @@ public class DesignerService(
             Connections.Remove(SelectedConnection);
             SelectedConnection = null;
         }
-        Notify();
+        MarkDirty();
     }
 
     public void Select(object? item)

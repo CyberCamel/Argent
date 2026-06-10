@@ -27,13 +27,13 @@
                     <label class="properties-panel-label">Name</label>
                     <input class="properties-panel-input"
                            value="@Node.Title"
-                           @oninput="@(e => { Node.Title = e.Value?.ToString() ?? ""; State.Notify(); })" />
+                           @oninput="@(e => { Node.Title = e.Value?.ToString() ?? ""; State.MarkDirty(); })" />
                 </div>
                 <div class="properties-panel-field">
                     <label class="properties-panel-label">Description</label>
                     <textarea class="properties-panel-input properties-panel-textarea" rows="2"
                               value="@Node.Description"
-                              @oninput="@(e => { Node.Description = e.Value?.ToString() ?? ""; State.Notify(); })"></textarea>
+                              @oninput="@(e => { Node.Description = e.Value?.ToString() ?? ""; State.MarkDirty(); })"></textarea>
                 </div>
             </div>
 
@@ -108,7 +108,7 @@
         else
             prop.SetValue(Node.NodeData, val);
 
-        State.Notify();
+        State.MarkDirty();
     }
 
     private void HandleClose()
