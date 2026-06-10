@@ -1,5 +1,5 @@
 ﻿@page "/Workflows/Edit/{id:guid}"
-@using Argent.WebComponents.Core.Workflows.Modeler2
+@using Argent.WebComponents.Core.Workflows.Modeler
 @model Argent.Web.Pages.Workflows.Model.EditModel
 @{
     ViewData["Title"] = "Edit - " + Model.WorkflowName;
@@ -7,7 +7,7 @@
 }
 
 <div class="flex-grow-1 d-flex" style="height: calc(100vh - 56px);">
-    <component type="typeof(WorkflowModeler2)" render-mode="ServerPrerendered"
+    <component type="typeof(WorkflowModeler)" render-mode="ServerPrerendered"
                param-WorkflowId="@Model.WorkflowId" />
 </div>
 

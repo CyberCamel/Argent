@@ -36,6 +36,8 @@
     <_ContentIncludedByDefault Remove="Pages\DomainObjects\Index.cshtml" />
     <_ContentIncludedByDefault Remove="Pages\DomainObjects\_DataSourcesContainer.cshtml" />
     <_ContentIncludedByDefault Remove="Pages\DomainObjects\_PropertiesTable.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\Workflows\Model2\Create.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\Workflows\Model2\Edit.cshtml" />
   </ItemGroup>
 
 </Project>

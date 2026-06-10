@@ -22,4 +22,8 @@
     <ProjectReference Include="..\Argent.Runtime\Argent.Runtime.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Core\Workflows\Modeler2\" />
+  </ItemGroup>
+
 </Project>

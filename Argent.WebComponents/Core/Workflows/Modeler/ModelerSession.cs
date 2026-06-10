@@ -1,8 +1,8 @@
 using System.Globalization;
 
-namespace Argent.WebComponents.Core.Workflows.Modeler2;
+namespace Argent.WebComponents.Core.Workflows.Modeler;
 
-public sealed class Modeler2Session
+public sealed class ModelerSession
 {
     public double Zoom { get; set; } = 1.0;
     public double PanX { get; set; }
