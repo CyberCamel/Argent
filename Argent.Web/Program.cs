@@ -27,33 +27,26 @@ CultureInfo.DefaultThreadCurrentUICulture = rootCulture;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseStaticWebAssets();
-var connectionString = builder.Configuration.GetConnectionString("AppDatabase");
+var connectionString = builder.Configuration.GetConnectionString("ArgentDB");
 
-// ----- MVC & Razor Pages -----
+// ----- Services -----
 builder.Services.AddRazorPages();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-
-builder.Services.AddControllersWithViews()
-    .AddDataAnnotationsLocalization(options =>
-    {
-        options.DataAnnotationLocalizerProvider = (type, factory) =>
-            factory.Create(typeof(SharedResource));
-    });
-
 builder.Services.AddHttpClient();
+builder.Services.AddCors();
 
 
 // ----- DbContext -----
-builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+builder.Services.AddDbContextFactory<ArgentDbContext>(options =>
     options.UseSqlServer(connectionString, x => x.MigrationsAssembly("Argent.Infrastructure")));
 
 // This ensures that components/services expecting a standard scoped DbContext 
 // (like ASP.NET Core Identity) can still resolve it normally.
 builder.Services.AddScoped(p => 
-    p.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContext());
+    p.GetRequiredService<IDbContextFactory<ArgentDbContext>>().CreateDbContext());
 
 // ----- Identity & Security -----
 
@@ -63,7 +56,7 @@ builder.Services.AddIdentity<InternalUser, IdentityRole<Guid>>(options =>
     options.SignIn.RequireConfirmedAccount = false;
     options.Password.RequireNonAlphanumeric  = false;
 })
-.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddEntityFrameworkStores<ArgentDbContext>()
 .AddRoles<IdentityRole<Guid>>()
 .AddDefaultTokenProviders();
 builder.Services.AddScoped<IUserClaimsPrincipalFactory<InternalUser>, AdditionalUserClaimsPrincipalFactory>();
@@ -131,11 +124,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
-app.MapControllers();
 app.MapRazorPages();
+
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
 
 app.MapRazorComponents<Program>()
     .AddInteractiveServerRenderMode();
@@ -146,11 +137,11 @@ Debug.WriteLine("Seeding data...");
 using (var scope = app.Services.CreateScope())
 {
     // Resolve the factory instead of the raw context to guarantee isolation
-    var contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
-    using var context = contextFactory.CreateDbContext();
+    var contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ArgentDbContext>>();
+    await using var context = contextFactory.CreateDbContext();
 
-    //context.Database.EnsureDeleted();
-    //context.Database.EnsureCreated();
+    context.Database.EnsureDeleted();
+    context.Database.EnsureCreated();
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<InternalUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
@@ -158,7 +149,7 @@ using (var scope = app.Services.CreateScope())
 
     var serializer = new JSchemaGenerator();
     var formSchema = serializer.Generate(typeof(FormDefinition));
-    File.WriteAllLines(".\\Resources\\form-schema.json", formSchema.ToString().Split('\n'));
+    File.WriteAllLines(@".\Resources\form-schema.json", formSchema.ToString().Split('\n'));
 }
 
 app.Run();

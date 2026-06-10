@@ -7,9 +7,9 @@ namespace Argent.Web.Pages;
 
 public class IndexModel : PageModel
 {
-    private readonly ApplicationDbContext _ctx;
+    private readonly ArgentDbContext _ctx;
 
-    public IndexModel(ApplicationDbContext ctx)
+    public IndexModel(ArgentDbContext ctx)
     {
         _ctx = ctx;
     }

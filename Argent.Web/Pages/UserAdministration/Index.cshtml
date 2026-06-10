@@ -1,5 +1,5 @@
-﻿@model IEnumerable<Argent.Web.ViewModels.UserViewModel>
-
+@page "/UserAdministration"
+@model Argent.Web.Pages.UserAdministration.IndexModel
 @{
     ViewData["Title"] = "User Management";
 }
@@ -33,7 +33,7 @@
                    hx-get="/UserAdministration/List"
                    hx-trigger="load, userActionCompleted from:body, userDeleted from:body"
                    hx-swap="innerHTML">
-                <partial name="_UserTablePartial" model="Model" />
+                <partial name="~/Pages/UserAdministration/_UserTablePartial.cshtml" model="Model.Users" />
             </tbody>
         </table>
     </div>
@@ -50,7 +50,7 @@
     </div>
 </div>
 
-<partial name="_ValidationScriptsPartial" />
+<partial name="~/Pages/Shared/_ValidationScriptsPartial.cshtml" />
 
 <script>
     document.body.addEventListener('htmx:afterSwap', function (e) {

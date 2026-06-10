@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Argent.Infrastructure.Migrations
 {
-    [DbContext(typeof(ApplicationDbContext))]
+    [DbContext(typeof(ArgentDbContext))]
     [Migration("20260313213658_InitialIdentitySetup")]
     partial class InitialIdentitySetup
     {

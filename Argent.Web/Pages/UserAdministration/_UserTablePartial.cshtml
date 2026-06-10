@@ -1,4 +1,5 @@
-﻿@model IEnumerable<Argent.Web.ViewModels.UserViewModel>
+@using Argent.Web.Models.ViewModels
+@model IEnumerable<UserViewModel>
 
 @foreach (var user in Model)
 {
@@ -13,7 +14,7 @@
         </td>
         <td>
             <button 
-                hx-get="UserAdministration/Edit/@user.UserName"
+                hx-get="/UserAdministration/Edit/@user.UserName"
                 hx-target="#modalBody" 
                 hx-trigger="click" 
                 hx-on="htmx:afterSwap: bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show()" 
@@ -21,7 +22,7 @@
                 Edit
             </button>
 
-            <form hx-delete="UserAdministration/Delete/@user.UserName" method="post"
+            <form hx-post="/UserAdministration/Delete/@user.UserName" method="post"
                   class="d-inline"
                   hx-confirm="Are you sure?"
                   hx-target="closest tr"

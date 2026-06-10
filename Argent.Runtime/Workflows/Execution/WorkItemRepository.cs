@@ -8,7 +8,7 @@ using System.Text;
 
 namespace Argent.Runtime.Workflows.Execution;
 
-public class WorkItemRepository(ApplicationDbContext context) : IWorkItemRepository
+public class WorkItemRepository(ArgentDbContext context) : IWorkItemRepository
 {
     public async Task<IReadOnlyList<WorkItem>> GetWorkAsync()
     {

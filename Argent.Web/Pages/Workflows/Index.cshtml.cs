@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 
 namespace Argent.Web.Pages.Workflows;
-public class IndexModel(ApplicationDbContext _ctx) : PageModel
+public class IndexModel(ArgentDbContext _ctx) : PageModel
 {
     public List<WorkflowListItemDto> Defs { get; set; }
 

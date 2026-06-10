@@ -13,7 +13,7 @@ public class FormListItem
     public DateTime UpdatedAt { get; set; }
 }
 
-public class IndexModel(ApplicationDbContext _ctx) : PageModel
+public class IndexModel(ArgentDbContext _ctx) : PageModel
 {
     public List<FormListItem> Forms { get; set; } = [];
 
