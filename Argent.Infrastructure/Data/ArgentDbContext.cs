@@ -9,7 +9,7 @@ using Argent.Models.Workflows;
 
 namespace Argent.Infrastructure.Data;
 
-public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<InternalUser, IdentityRole<Guid>, Guid>(options)
+public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : IdentityDbContext<InternalUser, IdentityRole<Guid>, Guid>(options)
 {
 
     public DbSet<Position> Positions { get; set; }
@@ -53,6 +53,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                     v => JsonSerializer.Serialize(v),
                     v => JsonSerializer.Deserialize<WorkflowDefinition>(v) ?? new WorkflowDefinition())
                 .HasColumnType("nvarchar(max)");
+            entity.HasOne(w => w.CreatedBy).WithMany().HasForeignKey(w => w.CreatedById).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(w => w.UpdatedBy).WithMany().HasForeignKey(w => w.UpdatedById).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<WorkflowVersion>(entity =>
@@ -68,7 +70,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasForeignKey(e => e.WorkflowId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasIndex(e => new { e.WorkflowId, e.VersionNumber }).IsUnique();
+            entity.HasIndex(e => new { e.WorkflowId, VersionNumber = e.Version }).IsUnique();
+
         });
 
         builder.Entity<FormDocument>(entity =>
@@ -79,5 +82,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                     v => JsonSerializer.Deserialize<FormDefinition>(v) ?? new FormDefinition())
                 .HasColumnType("nvarchar(max)");
         });
+        
     }
 }

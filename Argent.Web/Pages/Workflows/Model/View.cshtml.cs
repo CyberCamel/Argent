@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Argent.Web.Pages.Workflows;
 
-public class ViewModel(ApplicationDbContext _ctx) : PageModel
+public class ViewModel(ArgentDbContext _ctx) : PageModel
 {
     public Guid WorkflowId { get; set; }
     public string WorkflowName { get; set; } = string.Empty;

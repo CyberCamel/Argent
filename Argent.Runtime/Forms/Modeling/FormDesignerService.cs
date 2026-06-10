@@ -15,7 +15,7 @@ public class ToolboxItem
 }
 
 public class FormDesignerService(
-    ApplicationDbContext _dbContext,
+    ArgentDbContext _dbContext,
     IHttpContextAccessor _httpContextAccessor)
 {
     public FormDefinition Definition { get; set; } = new()

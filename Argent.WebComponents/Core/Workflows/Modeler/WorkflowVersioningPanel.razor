@@ -2,7 +2,7 @@
 @using Argent.Models.Enums
 @using Microsoft.EntityFrameworkCore
 @implements IDisposable
-@inject IDbContextFactory<Argent.Infrastructure.Data.ApplicationDbContext> DbFactory
+@inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
 
 <div class="modeler2-version-list">
     <h3 class="modeler2-version-title">
@@ -55,7 +55,7 @@
                 <div class="modeler2-version-entry @(isLoaded ? "modeler2-version-entry-active" : "")"
                      @onclick="() => LoadVersion(v.Id)">
                     <div class="modeler2-version-entry-top">
-                        <span class="modeler2-version-entry-number">v@(v.VersionNumber)</span>
+                        <span class="modeler2-version-entry-number">v@(v.Version)</span>
                         @if (v.State == WorkflowDefinitionState.Published)
                         {
                             <span class="modeler2-version-badge modeler2-version-badge-published">Published</span>
@@ -116,11 +116,11 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         _versions = await db.WorkflowVersions
             .Where(v => v.WorkflowId == State.CurrentWorkflowId.Value)
-            .OrderByDescending(v => v.VersionNumber)
+            .OrderByDescending(v => v.Version)
             .ToListAsync();
         var latest = _versions.FirstOrDefault();
         _loadedVersionLabel = latest != null
-            ? $"v{latest.VersionNumber}" + (State.LoadedVersionId.HasValue ? "" : " (latest)")
+            ? $"v{latest.Version}" + (State.LoadedVersionId.HasValue ? "" : " (latest)")
             : "—";
     }
 

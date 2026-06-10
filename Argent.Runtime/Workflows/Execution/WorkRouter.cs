@@ -22,7 +22,7 @@ namespace Argent.Runtime.Workflows.Execution
             {
                 using var scope = _scopeFactory.CreateScope();
                 var repo = scope.ServiceProvider.GetRequiredService<IWorkItemRepository>();
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<ArgentDbContext>();
 
                 try
                 {

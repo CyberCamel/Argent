@@ -8,9 +8,9 @@ namespace Argent.Web.Pages.Forms;
 
 public class LiveModel : PageModel
 {
-    private readonly ApplicationDbContext _ctx;
+    private readonly ArgentDbContext _ctx;
 
-    public LiveModel(ApplicationDbContext ctx)
+    public LiveModel(ArgentDbContext ctx)
     {
         _ctx = ctx;
     }

@@ -14,7 +14,7 @@ namespace Argent.Runtime.Workflows.Modeling;
 
 public class DesignerService(
     IHttpContextAccessor _httpContextAccessor,
-    ApplicationDbContext _dbContext,
+    ArgentDbContext _dbContext,
     IWorkflowNodeRegistry _registry)
 {
     public DesignerSession Session { get; } = new();
@@ -32,7 +32,7 @@ public class DesignerService(
     // --- Versioning ---
     public Guid? LoadedVersionId { get; private set; }
     public bool IsReadOnlyVersion { get; private set; }
-    private int _latestVersionNumber;
+    private string _latestVersionString;
 
     public WorkflowValidator Validator { get; } = new();
 
@@ -66,7 +66,7 @@ public class DesignerService(
         CompiledDefinition = null;
         ValidationResult = null;
         CompiledJson = null;
-        _latestVersionNumber = 0;
+        _latestVersionString = string.Empty;
         LoadedVersionId = null;
         IsReadOnlyVersion = false;
 
@@ -135,19 +135,19 @@ public class DesignerService(
         // Load the latest version from WorkflowVersions, or fall back to Workflow.Definition
         var latestVersion = await _dbContext.WorkflowVersions
             .Where(v => v.WorkflowId == workflowId)
-            .OrderByDescending(v => v.VersionNumber)
+            .OrderByDescending(v => v.Version)
             .FirstOrDefaultAsync();
 
         if (latestVersion != null)
         {
             LoadedVersionId = latestVersion.Id;
-            _latestVersionNumber = latestVersion.VersionNumber;
+            _latestVersionString = latestVersion.Version.ToString();
             LoadDefinition(latestVersion.Definition);
         }
         else if (workflow.Definition != null)
         {
             LoadedVersionId = null;
-            _latestVersionNumber = 0;
+            _latestVersionString = "0";
             LoadDefinition(workflow.Definition);
         }
     }
@@ -161,15 +161,15 @@ public class DesignerService(
         CurrentWorkflowName = version.Name;
         CurrentWorkflowDescription = version.Description;
         LoadedVersionId = version.Id;
-        _latestVersionNumber = version.VersionNumber;
+        _latestVersionString = version.Version.ToString();
 
         var latest = await _dbContext.WorkflowVersions
             .Where(v => v.WorkflowId == version.WorkflowId)
-            .OrderByDescending(v => v.VersionNumber)
-            .Select(v => v.VersionNumber)
+            .OrderByDescending(v => v.Version)
+            .Select(v => v.Version)
             .FirstOrDefaultAsync();
 
-        IsReadOnlyVersion = version.VersionNumber < latest;
+        IsReadOnlyVersion = version.Version < latest;
         LoadDefinition(version.Definition);
     }
 
@@ -177,7 +177,7 @@ public class DesignerService(
     {
         return await _dbContext.WorkflowVersions
             .Where(v => v.WorkflowId == workflowId)
-            .OrderByDescending(v => v.VersionNumber)
+            .OrderByDescending(v => v.Version)
             .ToListAsync();
     }
 
@@ -255,12 +255,12 @@ public class DesignerService(
         }
 
         // Create a new version entry
-        var versionNumber = _latestVersionNumber + 1;
+        var versionNumber = Version.Parse(_latestVersionString + 1);
         var version = new WorkflowVersion
         {
             Id = Guid.NewGuid(),
             WorkflowId = CurrentWorkflowId.Value,
-            VersionNumber = versionNumber,
+            Version = versionNumber,
             Name = CurrentWorkflowName,
             Description = CurrentWorkflowDescription,
             Definition = CompiledDefinition,
@@ -270,7 +270,7 @@ public class DesignerService(
         };
         _dbContext.WorkflowVersions.Add(version);
         LoadedVersionId = version.Id;
-        _latestVersionNumber = versionNumber;
+        _latestVersionString = versionNumber.ToString();
         IsReadOnlyVersion = false;
 
         _dbContext.SaveChanges();
