@@ -193,6 +193,39 @@ public static class RoutingService
         }
     }
 
+    /// <summary>
+    /// Draft path for re-dragging a connection's source endpoint: the path runs from the
+    /// mouse to the fixed target so the arrowhead (marker-end) stays on the fixed end.
+    /// </summary>
+    public static string DraftPathToTarget(
+        IDesignerItem target, AnchorDirection targetDir,
+        double mouseX, double mouseY,
+        IDesignerItem? sourceHint = null,
+        double offset = DefaultOffset)
+    {
+        if (sourceHint != null)
+        {
+            var (_, _, sourceDir) = AnchorService.GetClosestAnchor(sourceHint, (mouseX, mouseY));
+            var wps = AutoRoute(sourceHint, sourceDir, target, targetDir, offset);
+            return WaypointsToSvgPath(wps);
+        }
+
+        var (tx, ty, _) = AnchorService.GetBaseAnchor(target, targetDir);
+
+        if (IsHorizontal(targetDir))
+        {
+            double ex = tx + offset * GetDirDx(targetDir);
+            return string.Create(CultureInfo.InvariantCulture,
+                $"M {mouseX} {mouseY} L {ex} {mouseY} L {ex} {ty} L {tx} {ty}");
+        }
+        else
+        {
+            double ey = ty + offset * GetDirDy(targetDir);
+            return string.Create(CultureInfo.InvariantCulture,
+                $"M {mouseX} {mouseY} L {mouseX} {ey} L {tx} {ey} L {tx} {ty}");
+        }
+    }
+
     public static string WaypointsToSvgPath(List<DesignerWaypoint> waypoints, double cornerRadius = CornerRadius)
     {
         if (waypoints.Count < 2) return "";

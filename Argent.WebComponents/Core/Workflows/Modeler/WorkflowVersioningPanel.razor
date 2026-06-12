@@ -264,9 +264,14 @@
 
     private async Task RefreshVersions()
     {
-        _timeline = null;
-        if (State.CurrentWorkflowId == null) return;
+        if (State.CurrentWorkflowId == null)
+        {
+            _timeline = [];
+            StateHasChanged();
+            return;
+        }
 
+        _timeline = null;
         await using var db = await DbFactory.CreateDbContextAsync();
 
         var versions = await db.WorkflowVersions
@@ -316,6 +321,10 @@
 
         _showChanges = false;
         _diff = null;
+
+        // This runs outside Blazor's event pipeline when triggered by State.OnChange,
+        // so request a render explicitly.
+        StateHasChanged();
     }
 
     private void ComputeBumpVersions(List<WorkflowVersion> versions)
@@ -427,5 +436,6 @@
         if (latestVersion?.Definition == null) return;
 
         _diff = WorkflowDiff.Compare(latestVersion.Definition, draft.Definition);
+        StateHasChanged();
     }
 }

@@ -17,11 +17,8 @@ public class DesignerService(
     ArgentDbContext _dbContext,
     IWorkflowNodeRegistry _registry)
 {
-    public DesignerSession Session { get; } = new();
     public List<DesignerNode> Nodes { get; } = [];
     public List<DesignerConnection> Connections { get; } = [];
-    public ConnectionDraft? ActiveDraft { get; set; }
-    public DesignerNode? PendingNewNode { get; set; }
     public DesignerNode? SelectedNode { get; set; }
     public DesignerConnection? SelectedConnection { get; set; }
 
@@ -41,10 +38,6 @@ public class DesignerService(
     public WorkflowDefinition? CompiledDefinition { get; private set; }
     public string? CompiledJson { get; private set; }
 
-    // --- Execution State ---
-    public bool IsExecuting { get; set; }
-    public HashSet<Guid> ActiveTokenNodeIds { get; } = [];
-    public HashSet<Guid> VisitedNodeIds { get; } = [];
     public bool HasUnsavedChanges { get; set; }
     public event Action? OnChange;
 
@@ -54,15 +47,24 @@ public class DesignerService(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public void SetWorkflowMetadata(string name, string description)
+    /// <summary>
+    /// Clears the canvas (nodes, connections, selection, compiled output) but keeps
+    /// workflow identity and draft/version tracking intact.
+    /// </summary>
+    private void ResetCanvas()
     {
-        CurrentWorkflowName = name;
-        CurrentWorkflowDescription = description;
+        Nodes.Clear();
+        Connections.Clear();
+        SelectedNode = null;
+        SelectedConnection = null;
+        CompiledDefinition = null;
+        ValidationResult = null;
+        CompiledJson = null;
     }
 
     public void LoadDefinition(WorkflowDefinition def)
     {
-
+        ResetCanvas();
 
         var nodeMap = new Dictionary<Guid, DesignerNode>();
         var metadataCache = _registry.GetRegisteredTypes().ToList();
@@ -119,15 +121,10 @@ public class DesignerService(
 
     public async Task LoadWorkflowAsync(Guid workflowId)
     {
-        
-        Nodes.Clear();
-        Connections.Clear();
-        CompiledDefinition = null;
-        ValidationResult = null;
-        CompiledJson = null;
+        ResetCanvas();
         LoadedDraftId = null;
         LoadedVersionId = null;
-        
+
         var workflow = await _dbContext.WorkflowDefinitions
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == workflowId);
@@ -171,16 +168,10 @@ public class DesignerService(
 
     public async Task LoadVersionAsync(Guid versionId)
     {
-        
-        Nodes.Clear();
-        Connections.Clear();
-        CompiledDefinition = null;
-        ValidationResult = null;
-        CompiledJson = null;
+        ResetCanvas();
         LoadedDraftId = null;
         LoadedVersionId = null;
-        
-        
+
         var version = await _dbContext.WorkflowVersions
             .AsNoTracking()
             .FirstOrDefaultAsync(v => v.Id == versionId);
@@ -193,14 +184,6 @@ public class DesignerService(
 
         LoadDefinition(version.Definition);
         LoadedVersionId = version.Id;
-    }
-
-    public async Task<List<WorkflowVersion>> GetVersionsAsync(Guid workflowId)
-    {
-        var versions = await _dbContext.WorkflowVersions
-            .Where(v => v.WorkflowId == workflowId && v.State != WorkflowDefinitionState.Draft)
-            .ToListAsync();
-        return [.. versions.OrderByDescending(v => v.Version)];
     }
 
     public void Compile()
@@ -322,10 +305,12 @@ public class DesignerService(
         var draft = _dbContext.WorkflowDrafts.Find(LoadedDraftId.Value);
         if (draft == null) return;
 
-        // Find the latest published/deployed version to compute the bump
+        // Find the highest published/deployed version to compute the bump.
+        // System.Version doesn't translate to SQL, so order client-side.
         var latestVersion = _dbContext.WorkflowVersions
             .Where(v => v.WorkflowId == draft.WorkflowId && v.State != WorkflowDefinitionState.Draft)
-            .OrderByDescending(v => v.CreatedAt)
+            .AsEnumerable()
+            .OrderByDescending(v => v.Version)
             .FirstOrDefault();
 
         Version newVersion;
@@ -447,11 +432,7 @@ public class DesignerService(
         }
         else
         {
-            Nodes.Clear();
-            Connections.Clear();
-            CompiledDefinition = null;
-            ValidationResult = null;
-            CompiledJson = null;
+            ResetCanvas();
             LoadedVersionId = null;
         }
 
@@ -473,13 +454,14 @@ public class DesignerService(
             Connections.RemoveAll(c => c.Source == SelectedNode || c.Target == SelectedNode);
             Nodes.Remove(SelectedNode);
             SelectedNode = null;
+            MarkDirty();
         }
         else if (SelectedConnection != null)
         {
             Connections.Remove(SelectedConnection);
             SelectedConnection = null;
+            MarkDirty();
         }
-        MarkDirty();
     }
 
     public void Select(object? item)

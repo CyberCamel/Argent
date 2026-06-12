@@ -102,9 +102,8 @@
                  @onpointercancel="OnPointerUp"
                  @onwheel="OnMouseWheel"
                  @onwheel:preventDefault
-                  @onkeydown="OnKeyDown"
-                  @onkeyup="OnKeyUp"
-                  @oncontextmenu:preventDefault>
+                 @onkeydown="OnKeyDown"
+                 @oncontextmenu:preventDefault>
 
                 <svg viewBox="@Session.ViewBox" width="100%" height="100%" style="display: block;">
                     <defs>
@@ -142,12 +141,14 @@
 
                             @if (isSel)
                             {
-                                for (int i = 1; i < wps.Count - 1; i++)
+                                for (int i = 0; i < wps.Count; i++)
                                 {
-                                    <circle cx="@wps[i].X" cy="@wps[i].Y" r="5"
-                                            class="modeler2-waypoint"
+                                    var idx = i; // the loop variable is shared across iterations; lambdas must capture a copy
+                                    var isEndpoint = idx == 0 || idx == wps.Count - 1;
+                                    <circle cx="@wps[idx].X" cy="@wps[idx].Y" r="5"
+                                            class="modeler2-waypoint @(isEndpoint ? "modeler2-waypoint-endpoint" : "")"
                                             @onpointerdown:stopPropagation
-                                            @onpointerdown="(e) => OnWaypointPointerDown(e, conn, i)" />
+                                            @onpointerdown="(e) => OnWaypointPointerDown(e, conn, idx)" />
                                 }
                             }
                         </g>
@@ -156,10 +157,15 @@
                     @* Draft connection *@
                     @if (_draftConnection != null)
                     {
-                        var draftPath = RoutingService.DraftPath(
-                            _draftConnection.Source, _draftConnection.SourceDir,
-                            _draftConnection.MouseX, _draftConnection.MouseY,
-                            _draftConnection.TargetHint);
+                        var draftPath = _draftConnection.FixedEndIsTarget
+                            ? RoutingService.DraftPathToTarget(
+                                _draftConnection.FixedNode, _draftConnection.FixedDir,
+                                _draftConnection.MouseX, _draftConnection.MouseY,
+                                _draftConnection.TargetHint)
+                            : RoutingService.DraftPath(
+                                _draftConnection.FixedNode, _draftConnection.FixedDir,
+                                _draftConnection.MouseX, _draftConnection.MouseY,
+                                _draftConnection.TargetHint);
                         <path d="@draftPath" class="modeler2-draft-path" marker-end="url(#g2-arrowhead)" />
                     }
 
@@ -288,9 +294,10 @@
 
                         var isHighlighted = _highlightedNodeId.HasValue && node.NodeData.Id == _highlightedNodeId.Value;
 
+                        @* Pointer-down on nodes is handled by the canvas hit-test in OnPointerDown;
+                           a second handler here would race it across the JS-interop awaits. *@
                         <g class="modeler2-node @(isSel ? "modeler2-node-selected" : "") @(isHighlighted ? "modeler2-node-highlighted" : "")"
                            transform="translate(@node.X.ToString("F2", CultureInfo.InvariantCulture), @node.Y.ToString("F2", CultureInfo.InvariantCulture))"
-                           @onpointerdown="(e) => OnNodePointerDown(e, node)"
                            @ondblclick="() => OnNodeDoubleClick(node)">
 
                             @switch (node.Shape)
@@ -425,6 +432,7 @@
 
     // Connection draft
     private ConnectionDraft? _draftConnection;
+    private DesignerConnection? _rerouteOriginal;
 
     // Waypoint drag
     private int _draggedWpIdx = -1;
@@ -492,6 +500,9 @@
     private void AutoSaveTick(object? state)
     {
         if (_autoSaving) return;
+        if (EffectiveReadOnly) return;
+        if (State.CurrentWorkflowId == null) return; // never silently create a workflow
+        if (_mode != Mode.Idle) return;              // don't save mid-drag
         if (!State.HasUnsavedChanges) return;
 
         _autoSaving = true;
@@ -516,13 +527,26 @@
         State.OnChange -= StateHasChanged;
         if (_dotNetRef != null)
         {
-            await JS.InvokeVoidAsync("Modeler2.destroy", _canvasContainer);
+            try
+            {
+                await JS.InvokeVoidAsync("Modeler2.destroy", _canvasContainer);
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit already torn down; nothing to clean up client-side.
+            }
             _dotNetRef.Dispose();
         }
     }
 
     private Task<BoundingRect> GetCanvasRect() =>
         JS.InvokeAsync<BoundingRect>("Modeler2.getDimensions", _canvasContainer).AsTask();
+
+    private async Task<(double X, double Y)> ToWorldAsync(double clientX, double clientY)
+    {
+        var dims = await GetCanvasRect();
+        return Session.ScreenToWorld(clientX, clientY, dims.Left, dims.Top);
+    }
 
     // ======================== TOOLBOX ========================
 
@@ -541,14 +565,19 @@
 
     private async Task OnPointerDown(PointerEventArgs e)
     {
-        if (EffectiveReadOnly) return;
         if (_mode != Mode.Idle) return;
 
         _startMouseX = e.ClientX;
         _startMouseY = e.ClientY;
 
-        var dims = await GetCanvasRect();
-        var (wx, wy) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
+        if (EffectiveReadOnly)
+        {
+            // View mode: any drag pans
+            BeginPan();
+            return;
+        }
+
+        var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
 
         if (_pendingNodeDesc != null)
         {
@@ -558,91 +587,98 @@
 
         if (_activeTool == ActiveTool.AddSpace)
         {
-            _mode = Mode.SpaceTool;
-            _spaceStartX = wx;
-            _spaceStartY = wy;
-            _spaceDirectionLocked = false;
-            _nodeOrigins = State.Nodes.ToDictionary(n => n, n => (n.X, n.Y));
-            State.DeselectAll();
-            _editingNode = null;
-            _snapResult = null;
-            State.Notify();
+            BeginSpaceTool(wx, wy);
             return;
         }
 
-        var hitNode = State.Nodes.FirstOrDefault(n =>
+        // Last node in document order renders on top, so it wins the hit-test.
+        var hitNode = State.Nodes.LastOrDefault(n =>
             wx >= n.X && wx <= n.X + n.Width &&
             wy >= n.Y && wy <= n.Y + n.Height);
 
         if (hitNode != null)
         {
-            if (e.ShiftKey)
-            {
-                if (_selectedNodes.Contains(hitNode))
-                    _selectedNodes.Remove(hitNode);
-                else
-                    _selectedNodes.Add(hitNode);
+            BeginNodeDrag(hitNode, e.ShiftKey);
+            return;
+        }
 
-                if (_selectedNodes.Count > 0)
-                    State.Select(_selectedNodes.Last());
-                else
-                    State.DeselectAll();
+        _editingNode = null;
+        _snapResult = null;
 
-                _activeNode = hitNode;
-                _mode = Mode.Dragging;
-                _startNodeX = hitNode.X;
-                _startNodeY = hitNode.Y;
-                _prevNodeX = hitNode.X;
-                _prevNodeY = hitNode.Y;
-                State.Notify();
-                return;
-            }
-
-            _selectedNodes.Clear();
-            _selectedNodes.Add(hitNode);
-
-            if (_editingNode != null && _editingNode != hitNode)
-                _editingNode = null;
-
-            State.Select(hitNode);
-            _activeNode = hitNode;
-            _mode = Mode.Dragging;
-            _startNodeX = hitNode.X;
-            _startNodeY = hitNode.Y;
-            _prevNodeX = hitNode.X;
-            _prevNodeY = hitNode.Y;
+        if (e.Button == 1 || e.CtrlKey)
+        {
+            // Middle-click or Ctrl+click → pan
+            BeginPan();
         }
         else
         {
-            _editingNode = null;
-            _snapResult = null;
-
-            if (e.Button == 1 || e.CtrlKey)
-            {
-                // Middle-click or Ctrl+click → pan
-                _mode = Mode.Panning;
-                _startPanX = Session.PanX;
-                _startPanY = Session.PanY;
-            }
-            else
-            {
-                // Left click → rubber band selection
-                _selectedNodes.Clear();
-                _mode = Mode.Selecting;
-                _selStartX = wx;
-                _selStartY = wy;
-                _selEndX = wx;
-                _selEndY = wy;
-                State.DeselectAll();
-            }
-
+            // Left click → rubber band selection
+            _selectedNodes.Clear();
+            _mode = Mode.Selecting;
+            _selStartX = wx;
+            _selStartY = wy;
+            _selEndX = wx;
+            _selEndY = wy;
+            State.DeselectAll();
             State.Notify();
         }
     }
 
+    private void BeginPan()
+    {
+        _mode = Mode.Panning;
+        _startPanX = Session.PanX;
+        _startPanY = Session.PanY;
+    }
+
+    private void BeginSpaceTool(double wx, double wy)
+    {
+        _mode = Mode.SpaceTool;
+        _spaceStartX = wx;
+        _spaceStartY = wy;
+        _spaceDirectionLocked = false;
+        _nodeOrigins = State.Nodes.ToDictionary(n => n, n => (n.X, n.Y));
+        State.DeselectAll();
+        _editingNode = null;
+        _snapResult = null;
+        State.Notify();
+    }
+
+    private void BeginNodeDrag(DesignerNode node, bool shiftKey)
+    {
+        if (shiftKey)
+        {
+            if (!_selectedNodes.Add(node))
+                _selectedNodes.Remove(node);
+
+            if (_selectedNodes.Count > 0)
+                State.Select(_selectedNodes.Last());
+            else
+                State.DeselectAll();
+        }
+        else
+        {
+            _selectedNodes.Clear();
+            _selectedNodes.Add(node);
+
+            if (_editingNode != null && _editingNode != node)
+                _editingNode = null;
+
+            State.Select(node);
+        }
+
+        _activeNode = node;
+        _mode = Mode.Dragging;
+        _startNodeX = node.X;
+        _startNodeY = node.Y;
+        _prevNodeX = node.X;
+        _prevNodeY = node.Y;
+        State.Notify();
+    }
+
     private async Task OnPointerMove(PointerEventArgs e)
     {
-        if (EffectiveReadOnly) return;
+        if (EffectiveReadOnly && _mode != Mode.Panning) return;
 
         var dims = await GetCanvasRect();
         var (wx, wy) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
@@ -762,7 +798,7 @@
                     if (_activeNode != null)
                     {
                         var (_, _, bestDir) = AnchorService.GetClosestAnchor(_activeNode, (wx, wy));
-                        _draftConnection.SourceDir = bestDir;
+                        _draftConnection.FixedDir = bestDir;
                     }
 
                     _draftConnection.TargetHint = State.Nodes.FirstOrDefault(n =>
@@ -848,69 +884,15 @@
 
     // ======================== NODE INTERACTIONS ========================
 
-    private async Task OnNodePointerDown(PointerEventArgs e, DesignerNode node)
+    private void OnNodeDoubleClick(DesignerNode node)
     {
         if (EffectiveReadOnly) return;
-        if (_activeTool == ActiveTool.AddSpace) return;
-
-        _startMouseX = e.ClientX;
-        _startMouseY = e.ClientY;
-
-        var dims = await GetCanvasRect();
-        var (wx, wy) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
-
-        if (_pendingNodeDesc != null)
-        {
-            PlaceNodeFromToolbox(wx, wy);
-            return;
-        }
-
-        if (e.ShiftKey)
-        {
-            if (_selectedNodes.Contains(node))
-                _selectedNodes.Remove(node);
-            else
-                _selectedNodes.Add(node);
-
-            if (_selectedNodes.Count > 0)
-                State.Select(_selectedNodes.Last());
-            else
-                State.DeselectAll();
-
-            _activeNode = node;
-            _mode = Mode.Dragging;
-            _startNodeX = node.X;
-            _startNodeY = node.Y;
-            _prevNodeX = node.X;
-            _prevNodeY = node.Y;
-            State.Notify();
-            return;
-        }
-
-        _selectedNodes.Clear();
-        _selectedNodes.Add(node);
-
-        if (_editingNode != null && _editingNode != node)
-            _editingNode = null;
-
-        State.Select(node);
-        _activeNode = node;
-        _mode = Mode.Dragging;
-        _startNodeX = node.X;
-        _startNodeY = node.Y;
-        _prevNodeX = node.X;
-        _prevNodeY = node.Y;
-        State.Notify();
-    }
-
-    private async Task OnNodeDoubleClick(DesignerNode node)
-    {
         State.Select(node);
         _editingNode = node;
         State.Notify();
     }
 
-    private async Task ClosePropertiesPanel()
+    private void ClosePropertiesPanel()
     {
         _editingNode = null;
         State.Notify();
@@ -938,15 +920,14 @@
         _startMouseX = e.ClientX;
         _startMouseY = e.ClientY;
 
-        var dims = await GetCanvasRect();
-        var (wx, wy) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
+        var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
 
         _mode = Mode.Connecting;
         _activeNode = node;
         _draftConnection = new ConnectionDraft
         {
-            Source = node,
-            SourceDir = dir,
+            FixedNode = node,
+            FixedDir = dir,
             MouseX = wx,
             MouseY = wy
         };
@@ -957,31 +938,60 @@
     {
         if (_draftConnection == null || _activeNode == null) return;
 
-        var dims = await GetCanvasRect();
-        var (wx, wy) = Session.ScreenToWorld(clientX, clientY, dims.Left, dims.Top);
+        var (wx, wy) = await ToWorldAsync(clientX, clientY);
 
-        var targetNode = State.Nodes.FirstOrDefault(n =>
+        var dropNode = State.Nodes.LastOrDefault(n =>
             n != _activeNode &&
             wx >= n.X && wx <= n.X + n.Width &&
             wy >= n.Y && wy <= n.Y + n.Height);
 
-        if (targetNode != null)
+        if (dropNode == null)
         {
-            var (_, _, targetDir) = AnchorService.GetBestTargetAnchor(
-                targetNode, (wx, wy), _draftConnection.SourceDir);
-
-            var conn = new DesignerConnection
+            // Dropped on empty canvas: put a rerouted connection back, or just clear the draft
+            if (_rerouteOriginal != null)
             {
-                Source = _activeNode,
-                SourceDir = _draftConnection.SourceDir,
-                Target = targetNode,
-                TargetDir = targetDir,
-                EngineConnection = new Connection { From = _activeNode.NodeData, To = targetNode.NodeData },
-            };
-            conn.Waypoints = RoutingService.AutoRoute(conn.Source, conn.SourceDir, conn.Target, conn.TargetDir);
-            State.Connections.Add(conn);
+                State.Connections.Add(_rerouteOriginal);
+                _rerouteOriginal = null;
+            }
+            _draftConnection = null;
+            State.Notify();
+            return;
         }
 
+        var fixedNode = _draftConnection.FixedNode;
+        var fixedDir = _draftConnection.FixedDir;
+
+        DesignerConnection conn;
+        if (_draftConnection.FixedEndIsTarget)
+        {
+            // Source endpoint re-drag: the dropped node becomes the new source,
+            // the fixed node keeps its target role and anchor.
+            var (_, _, sourceDir) = AnchorService.GetClosestAnchor(dropNode, (wx, wy));
+            conn = new DesignerConnection
+            {
+                Source = dropNode,
+                SourceDir = sourceDir,
+                Target = fixedNode,
+                TargetDir = fixedDir,
+                EngineConnection = new Connection { From = dropNode.NodeData, To = fixedNode.NodeData },
+            };
+        }
+        else
+        {
+            var (_, _, targetDir) = AnchorService.GetBestTargetAnchor(dropNode, (wx, wy), fixedDir);
+            conn = new DesignerConnection
+            {
+                Source = fixedNode,
+                SourceDir = fixedDir,
+                Target = dropNode,
+                TargetDir = targetDir,
+                EngineConnection = new Connection { From = fixedNode.NodeData, To = dropNode.NodeData },
+            };
+        }
+
+        conn.Waypoints = RoutingService.AutoRoute(conn.Source, conn.SourceDir, conn.Target, conn.TargetDir);
+        State.Connections.Add(conn);
+        _rerouteOriginal = null;
         _draftConnection = null;
         State.MarkDirty();
     }
@@ -996,8 +1006,7 @@
         _startMouseX = e.ClientX;
         _startMouseY = e.ClientY;
 
-        var dims = await GetCanvasRect();
-        var (wx, wy) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
+        var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
 
         int segIdx = RoutingService.FindNearestSegment(conn.Waypoints, wx, wy);
         State.Select(conn);
@@ -1018,8 +1027,7 @@
     {
         if (EffectiveReadOnly) return;
 
-        var dims = await GetCanvasRect();
-        var (wx, wy) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
+        var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
 
         int segIdx = RoutingService.FindNearestSegment(conn.Waypoints, wx, wy);
         if (segIdx >= 0)
@@ -1036,24 +1044,27 @@
         _startMouseX = e.ClientX;
         _startMouseY = e.ClientY;
 
-        var dims = await GetCanvasRect();
-        var (wx, wy) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
+        var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
 
-        // Reroute endpoints
+        // Endpoint re-drag: detach this end and continue as a connection draft.
+        // The other end stays fixed and keeps its role, so re-dragging the source
+        // endpoint produces (new node) → (old target), not the reverse.
         if (idx == 0 || idx == conn.Waypoints.Count - 1)
         {
-            bool isSource = idx == 0;
+            bool draggingSourceEnd = idx == 0;
             var draft = new ConnectionDraft
             {
-                Source = isSource ? conn.Target : conn.Source,
-                SourceDir = isSource ? conn.TargetDir : conn.SourceDir,
+                FixedNode = draggingSourceEnd ? conn.Target : conn.Source,
+                FixedDir = draggingSourceEnd ? conn.TargetDir : conn.SourceDir,
+                FixedEndIsTarget = draggingSourceEnd,
                 MouseX = wx,
                 MouseY = wy
             };
 
             State.Connections.Remove(conn);
+            _rerouteOriginal = conn; // restored if the drag ends on empty canvas or is cancelled
             _mode = Mode.Connecting;
-            _activeNode = draft.Source;
+            _activeNode = draft.FixedNode;
             _draftConnection = draft;
             State.Notify();
             return;
@@ -1076,6 +1087,11 @@
         if (e.Key == "Escape")
         {
             _pendingNodeDesc = null;
+            if (_rerouteOriginal != null)
+            {
+                State.Connections.Add(_rerouteOriginal);
+                _rerouteOriginal = null;
+            }
             _draftConnection = null;
             _editingNode = null;
             _mode = Mode.Idle;
@@ -1084,31 +1100,35 @@
             State.DeselectAll();
             State.Notify();
         }
-        else if ((e.CtrlKey || e.MetaKey) && e.Key == "s")
+        else if ((e.CtrlKey || e.MetaKey) && e.Key is "s" or "S")
         {
             HandleSave();
         }
         else if (e.Key == "Delete" || e.Key == "Backspace")
         {
-            if (_selectedNodes.Count > 0)
-            {
-                foreach (var n in _selectedNodes.ToList())
-                {
-                    State.Connections.RemoveAll(c => c.Source == n || c.Target == n);
-                    State.Nodes.Remove(n);
-                }
-                _selectedNodes.Clear();
-                State.DeselectAll();
-            }
-            else
-            {
-                State.DeleteSelected();
-            }
-            State.Notify();
+            DeleteSelection();
         }
     }
 
-    private void OnKeyUp(KeyboardEventArgs e) { }
+    private void DeleteSelection()
+    {
+        if (_selectedNodes.Count > 0)
+        {
+            foreach (var n in _selectedNodes)
+            {
+                State.Connections.RemoveAll(c => c.Source == n || c.Target == n);
+                State.Nodes.Remove(n);
+            }
+            _selectedNodes.Clear();
+            State.DeselectAll();
+            State.MarkDirty();
+        }
+        else
+        {
+            // A connection may be selected without any nodes
+            State.DeleteSelected();
+        }
+    }
 
     // ======================== MOUSE WHEEL ========================
 
@@ -1159,15 +1179,12 @@
 
     // ======================== RESIZE ========================
 
-    private async Task OnResizeStart(PointerEventArgs e, DesignerNode node, ResizeDir dir)
+    private void OnResizeStart(PointerEventArgs e, DesignerNode node, ResizeDir dir)
     {
         if (EffectiveReadOnly) return;
 
         _startMouseX = e.ClientX;
         _startMouseY = e.ClientY;
-
-        var dims = await GetCanvasRect();
-        var (wx, wy) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
 
         _mode = Mode.Resizing;
         _activeNode = node;
@@ -1238,6 +1255,9 @@
         DesignerConnection? targetConn = null;
         foreach (var conn in State.Connections)
         {
+            // Never split a connection the node is already part of
+            if (conn.Source == node || conn.Target == node) continue;
+
             if (RoutingService.FindNearestSegment(conn.Waypoints, cx, cy, threshold: 15) >= 0)
             {
                 targetConn = conn;

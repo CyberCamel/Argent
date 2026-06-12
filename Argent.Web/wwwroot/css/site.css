@@ -1759,6 +1759,11 @@ svg > rect[fill="url(#gridPattern)"] {
     r: 7;
 }
 
+.modeler2-waypoint-endpoint {
+    fill: #f9e2af;
+    cursor: grab;
+}
+
 .modeler2-anchor {
     fill: #89b4fa;
     stroke: #1e1e2e;
