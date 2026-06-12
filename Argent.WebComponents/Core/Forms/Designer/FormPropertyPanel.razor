@@ -1,0 +1,480 @@
+@using Argent.Models.Forms.Components.Base
+@using Argent.Runtime.Forms.Modeling
+
+@if (State.SelectedComponent == null)
+{
+    <p class="text-muted small">Select a component on the canvas to edit its properties.</p>
+}
+else if (State.SelectedComponent is FormField field)
+{
+    <div class="property-section">
+        <div class="property-label">Field</div>
+        <div class="mb-2">
+            <label class="small text-muted mb-1">Name</label>
+            <input type="text" class="form-control form-control-sm font-monospace"
+                   value="@field.Name"
+                   @onchange="(e) => RenameField(field, e.Value?.ToString())" />
+            @if (_nameWarning != null)
+            {
+                <div class="text-warning small mt-1"><i class="bi bi-exclamation-triangle"></i> @_nameWarning</div>
+            }
+        </div>
+        <div class="mb-2">
+            <label class="small text-muted mb-1">Label</label>
+            <input type="text" class="form-control form-control-sm"
+                   value="@field.FieldLabel"
+                   @oninput="(e) => field.FieldLabel = e.Value?.ToString()"
+                   @onchange="() => State.MarkDirty()" />
+        </div>
+        <div class="mb-2">
+            <label class="small text-muted mb-1">Placeholder</label>
+            <input type="text" class="form-control form-control-sm"
+                   value="@field.Placeholder"
+                   @oninput="(e) => field.Placeholder = e.Value?.ToString()"
+                   @onchange="() => State.MarkDirty()" />
+        </div>
+        <div class="mb-2">
+            <label class="small text-muted mb-1">Help text</label>
+            <input type="text" class="form-control form-control-sm"
+                   value="@field.Description"
+                   @oninput="(e) => field.Description = e.Value?.ToString()"
+                   @onchange="() => State.MarkDirty()" />
+        </div>
+    </div>
+
+    <div class="property-section">
+        <div class="property-label">Layout</div>
+        <div class="row g-1">
+            <div class="col-6 mb-2">
+                <label class="small text-muted mb-1">Span (1–12)</label>
+                <input type="number" class="form-control form-control-sm" min="1" max="12"
+                       value="@field.Span"
+                       @onchange="(e) => { field.Span = Clamp(e.Value, 1, 12, 12); State.MarkDirty(); }" />
+            </div>
+            <div class="col-6 mb-2">
+                <label class="small text-muted mb-1">Order</label>
+                <input type="number" class="form-control form-control-sm" min="0"
+                       value="@field.Order"
+                       @onchange="(e) => { field.Order = Clamp(e.Value, 0, 99, 0); State.MarkDirty(); }" />
+            </div>
+        </div>
+        <div class="mb-2">
+            <label class="small text-muted mb-1">CSS class</label>
+            <input type="text" class="form-control form-control-sm"
+                   value="@field.CssClass"
+                   @oninput="(e) => field.CssClass = e.Value?.ToString()"
+                   @onchange="() => State.MarkDirty()" />
+        </div>
+    </div>
+
+    <div class="property-section">
+        <div class="property-label">State</div>
+        <div class="row g-2">
+            <div class="col-6">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="pp-required"
+                           checked="@(!field.AllowBlank)"
+                           @onchange="() => { field.AllowBlank = !field.AllowBlank; State.MarkDirty(); }" />
+                    <label class="form-check-label small" for="pp-required">Required</label>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="pp-disabled"
+                           checked="@field.Disabled"
+                           @onchange="() => { field.Disabled = !field.Disabled; State.MarkDirty(); }" />
+                    <label class="form-check-label small" for="pp-disabled">Disabled</label>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="pp-readonly"
+                           checked="@field.ReadOnly"
+                           @onchange="() => { field.ReadOnly = !field.ReadOnly; State.MarkDirty(); }" />
+                    <label class="form-check-label small" for="pp-readonly">Read only</label>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="pp-hidden"
+                           checked="@field.Hidden"
+                           @onchange="() => { field.Hidden = !field.Hidden; State.MarkDirty(); }" />
+                    <label class="form-check-label small" for="pp-hidden">Hidden</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Type-specific configuration ─────────────────────────── *@
+    @switch (field.Xtype)
+    {
+        case "TextField":
+            <div class="property-section">
+                <div class="property-label">Text options</div>
+                <div class="row g-1">
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Min length</label>
+                        <input type="number" class="form-control form-control-sm" min="0"
+                               value="@field.MinLength"
+                               @onchange="(e) => { field.MinLength = ParseInt(e.Value); State.MarkDirty(); }" />
+                    </div>
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Max length</label>
+                        <input type="number" class="form-control form-control-sm" min="0"
+                               value="@field.MaxLength"
+                               @onchange="(e) => { field.MaxLength = ParseInt(e.Value); State.MarkDirty(); }" />
+                    </div>
+                </div>
+                <div class="row g-1 align-items-end">
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Rows (textarea)</label>
+                        <input type="number" class="form-control form-control-sm" min="1"
+                               value="@field.Rows"
+                               @onchange="(e) => { field.Rows = ParseInt(e.Value); State.MarkDirty(); }" />
+                    </div>
+                    <div class="col-6 mb-2">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="pp-grow"
+                                   checked="@field.Grow"
+                                   @onchange="() => { field.Grow = !field.Grow; State.MarkDirty(); }" />
+                            <label class="form-check-label small" for="pp-grow">Multiline</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            break;
+
+        case "NumericField":
+            <div class="property-section">
+                <div class="property-label">Number options</div>
+                <div class="row g-1">
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Min</label>
+                        <input type="number" class="form-control form-control-sm"
+                               value="@field.Min"
+                               @onchange="(e) => { field.Min = ParseDouble(e.Value); State.MarkDirty(); }" />
+                    </div>
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Max</label>
+                        <input type="number" class="form-control form-control-sm"
+                               value="@field.Max"
+                               @onchange="(e) => { field.Max = ParseDouble(e.Value); State.MarkDirty(); }" />
+                    </div>
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Step</label>
+                        <input type="number" class="form-control form-control-sm"
+                               value="@field.Step"
+                               @onchange="(e) => { field.Step = ParseDouble(e.Value); State.MarkDirty(); }" />
+                    </div>
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Precision</label>
+                        <input type="number" class="form-control form-control-sm" min="0"
+                               value="@field.Precision"
+                               @onchange="(e) => { field.Precision = ParseInt(e.Value); State.MarkDirty(); }" />
+                    </div>
+                </div>
+            </div>
+            break;
+
+        case "DropdownField":
+            <div class="property-section">
+                <div class="property-label">Options</div>
+                @for (int i = 0; i < field.Items.Count; i++)
+                {
+                    var idx = i;
+                    var option = field.Items[idx];
+                    <div class="d-flex gap-1 mb-1 align-items-center">
+                        <input type="text" class="form-control form-control-sm"
+                               value="@option.Label" placeholder="Label"
+                               @oninput="(e) => option.Label = e.Value?.ToString() ?? string.Empty"
+                               @onchange="() => State.MarkDirty()" />
+                        <input type="text" class="form-control form-control-sm"
+                               value="@option.Value?.ToString()" placeholder="Value"
+                               @oninput="(e) => option.Value = e.Value?.ToString()"
+                               @onchange="() => State.MarkDirty()" />
+                        <button class="btn btn-sm py-0 px-1" title="Remove option"
+                                @onclick="() => { field.Items.RemoveAt(idx); State.MarkDirty(); }">
+                            <i class="bi bi-x text-danger"></i>
+                        </button>
+                    </div>
+                }
+                <button class="btn btn-sm btn-outline-secondary py-0 px-1 mb-2" style="font-size: 0.7rem;"
+                        @onclick="() => AddOption(field)">
+                    <i class="bi bi-plus"></i> Add option
+                </button>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="pp-multi"
+                                   checked="@field.MultiSelect"
+                                   @onchange="() => { field.MultiSelect = !field.MultiSelect; State.MarkDirty(); }" />
+                            <label class="form-check-label small" for="pp-multi">Multi-select</label>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="pp-filter"
+                                   checked="@field.Filterable"
+                                   @onchange="() => { field.Filterable = !field.Filterable; State.MarkDirty(); }" />
+                            <label class="form-check-label small" for="pp-filter">Filterable</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            break;
+
+        case "CheckboxField":
+            <div class="property-section">
+                <div class="property-label">Checkbox options</div>
+                <div class="mb-2">
+                    <label class="small text-muted mb-1">Box label</label>
+                    <input type="text" class="form-control form-control-sm"
+                           value="@field.BoxLabel"
+                           @oninput="(e) => field.BoxLabel = e.Value?.ToString()"
+                           @onchange="() => State.MarkDirty()" />
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="pp-defchecked"
+                           checked="@(field.Value is true)"
+                           @onchange="() => { field.Value = !(field.Value is true); State.MarkDirty(); }" />
+                    <label class="form-check-label small" for="pp-defchecked">Checked by default</label>
+                </div>
+            </div>
+            break;
+    }
+
+    @if (field.Xtype != "CheckboxField")
+    {
+        <div class="property-section">
+            <div class="property-label">Default value</div>
+            <input type="text" class="form-control form-control-sm"
+                   value="@(field.Value?.ToString())"
+                   @oninput="(e) => field.Value = e.Value?.ToString()"
+                   @onchange="() => State.MarkDirty()" />
+        </div>
+    }
+
+    <div class="property-section">
+        <div class="property-label">Validation</div>
+        <ValidatorListEditor Field="@field" State="@State" />
+    </div>
+
+    <div class="property-section">
+        <div class="property-label">Conditions</div>
+        <label class="small text-muted mb-1 d-block">Visible when</label>
+        <ConditionBuilder Condition="@field.VisibleWhen" Fields="@State.FieldNames()"
+                          ConditionChanged="@((c) => { field.VisibleWhen = c; State.MarkDirty(); })"
+                          OnChanged="() => State.MarkDirty()" />
+        <label class="small text-muted mb-1 d-block">Required when</label>
+        <ConditionBuilder Condition="@field.RequiredWhen" Fields="@State.FieldNames()"
+                          ConditionChanged="@((c) => { field.RequiredWhen = c; State.MarkDirty(); })"
+                          OnChanged="() => State.MarkDirty()" />
+        <label class="small text-muted mb-1 d-block">Disabled when</label>
+        <ConditionBuilder Condition="@field.DisabledWhen" Fields="@State.FieldNames()"
+                          ConditionChanged="@((c) => { field.DisabledWhen = c; State.MarkDirty(); })"
+                          OnChanged="() => State.MarkDirty()" />
+        <label class="small text-muted mb-1 d-block">Read-only when</label>
+        <ConditionBuilder Condition="@field.ReadOnlyWhen" Fields="@State.FieldNames()"
+                          ConditionChanged="@((c) => { field.ReadOnlyWhen = c; State.MarkDirty(); })"
+                          OnChanged="() => State.MarkDirty()" />
+    </div>
+}
+else if (State.SelectedComponent is FormLayout container)
+{
+    <div class="property-section">
+        <div class="property-label">@container.Xtype</div>
+        @if (container.Xtype != "HtmlBox")
+        {
+            <div class="mb-2">
+                <label class="small text-muted mb-1">Title</label>
+                <input type="text" class="form-control form-control-sm"
+                       value="@container.Title"
+                       @oninput="(e) => container.Title = e.Value?.ToString()"
+                       @onchange="() => State.MarkDirty()" />
+            </div>
+        }
+        <div class="mb-2">
+            <label class="small text-muted mb-1">CSS class</label>
+            <input type="text" class="form-control form-control-sm"
+                   value="@container.CssClass"
+                   @oninput="(e) => container.CssClass = e.Value?.ToString()"
+                   @onchange="() => State.MarkDirty()" />
+        </div>
+    </div>
+
+    @if (container.Xtype == "HtmlBox")
+    {
+        <div class="property-section">
+            <div class="property-label">HTML content</div>
+            <MonacoEditor Value="@(container.Html ?? "")"
+                          Language="html"
+                          Height="300px"
+                          ValueChanged="@((v) => { container.Html = v; State.MarkDirty(); })" />
+        </div>
+    }
+    else
+    {
+        <div class="property-section">
+            <div class="property-label">Flex</div>
+            <div class="mb-2">
+                <label class="small text-muted mb-1">Direction</label>
+                <select class="form-select form-select-sm"
+                        @onchange="(e) => SetDirection(container, e.Value)">
+                    @foreach (var dir in new[] { "row", "column", "row-reverse", "column-reverse" })
+                    {
+                        <option value="@dir" selected="@(container.Direction == dir)">@dir</option>
+                    }
+                </select>
+            </div>
+            <div class="row g-1 align-items-end">
+                <div class="col-6 mb-2">
+                    <label class="small text-muted mb-1">Gap</label>
+                    <input type="number" class="form-control form-control-sm" min="0" max="10"
+                           value="@container.Gap"
+                           @onchange="(e) => { container.Gap = Clamp(e.Value, 0, 10, 3); State.MarkDirty(); }" />
+                </div>
+                <div class="col-6 mb-2">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="pp-wrap"
+                               checked="@container.Wrap"
+                               @onchange="() => { container.Wrap = !container.Wrap; State.MarkDirty(); }" />
+                        <label class="form-check-label small" for="pp-wrap">Wrap</label>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="small text-muted mb-1">Align items</label>
+                <select class="form-select form-select-sm"
+                        @onchange="(e) => { container.Align = NullIfEmpty(e.Value); State.MarkDirty(); }">
+                    <option value="" selected="@(string.IsNullOrEmpty(container.Align))">Default</option>
+                    @foreach (var v in new[] { "flex-start", "center", "flex-end", "stretch", "baseline" })
+                    {
+                        <option value="@v" selected="@(container.Align == v)">@v</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-2">
+                <label class="small text-muted mb-1">Justify content</label>
+                <select class="form-select form-select-sm"
+                        @onchange="(e) => { container.Justify = NullIfEmpty(e.Value); State.MarkDirty(); }">
+                    <option value="" selected="@(string.IsNullOrEmpty(container.Justify))">Default</option>
+                    @foreach (var v in new[] { "flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly" })
+                    {
+                        <option value="@v" selected="@(container.Justify == v)">@v</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-2">
+                <label class="small text-muted mb-1">Columns</label>
+                <input type="number" class="form-control form-control-sm" min="1" max="12"
+                       value="@container.Columns"
+                       @onchange="(e) => { container.Columns = Clamp(e.Value, 1, 12, 1); State.MarkDirty(); }" />
+            </div>
+        </div>
+
+        @if (container.Xtype == "Fieldset")
+        {
+            <div class="property-section">
+                <div class="property-label">Fieldset</div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="pp-collapsible"
+                           checked="@container.Collapsible"
+                           @onchange="() => { container.Collapsible = !container.Collapsible; State.MarkDirty(); }" />
+                    <label class="form-check-label small" for="pp-collapsible">Collapsible</label>
+                </div>
+            </div>
+        }
+
+        @if (container.Xtype == "Tabs")
+        {
+            <div class="property-section">
+                <div class="property-label">Tabs</div>
+                <label class="small text-muted mb-1">Active tab index</label>
+                <input type="number" class="form-control form-control-sm" min="0"
+                       value="@container.ActiveItem"
+                       @onchange="(e) => { container.ActiveItem = Clamp(e.Value, 0, 99, 0); State.MarkDirty(); }" />
+            </div>
+        }
+
+        @if (container.Xtype == "Accordion")
+        {
+            <div class="property-section">
+                <div class="property-label">Accordion</div>
+                <div class="form-check mb-1">
+                    <input type="checkbox" class="form-check-input" id="pp-multiexpand"
+                           checked="@container.MultiExpand"
+                           @onchange="() => { container.MultiExpand = !container.MultiExpand; State.MarkDirty(); }" />
+                    <label class="form-check-label small" for="pp-multiexpand">Multi expand</label>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="pp-defopen"
+                           checked="@container.DefaultOpen"
+                           @onchange="() => { container.DefaultOpen = !container.DefaultOpen; State.MarkDirty(); }" />
+                    <label class="form-check-label small" for="pp-defopen">Default open</label>
+                </div>
+            </div>
+        }
+
+        <div class="property-section">
+            <div class="small text-muted">@container.Items.Count item@(container.Items.Count == 1 ? "" : "s")</div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public required FormDesignerService State { get; set; }
+
+    private string? _nameWarning;
+
+    private void RenameField(FormField field, string? rawName)
+    {
+        _nameWarning = null;
+        var name = (rawName ?? "").Trim();
+
+        if (string.IsNullOrEmpty(name))
+        {
+            _nameWarning = "Name cannot be empty.";
+            return;
+        }
+
+        if (name != field.Name && State.AllFieldNames().Contains(name))
+        {
+            name = State.UniqueFieldName(name);
+            _nameWarning = $"Name was taken — renamed to '{name}'.";
+        }
+
+        field.Name = name;
+        State.MarkDirty();
+    }
+
+    private void AddOption(FormField field)
+    {
+        field.Items.Add(new SelectOption
+        {
+            Label = $"Option {field.Items.Count + 1}",
+            Value = $"opt{field.Items.Count + 1}"
+        });
+        State.MarkDirty();
+    }
+
+    private void SetDirection(FormLayout container, object? value)
+    {
+        container.Direction = value?.ToString() ?? "row";
+        State.MarkDirty();
+    }
+
+    private static int Clamp(object? value, int min, int max, int fallback) =>
+        int.TryParse(value?.ToString(), out var i) ? Math.Clamp(i, min, max) : fallback;
+
+    private static int? ParseInt(object? value) =>
+        int.TryParse(value?.ToString(), out var i) ? i : null;
+
+    private static double? ParseDouble(object? value) =>
+        double.TryParse(value?.ToString(), out var d) ? d : null;
+
+    private static string? NullIfEmpty(object? value)
+    {
+        var s = value?.ToString();
+        return string.IsNullOrWhiteSpace(s) ? null : s;
+    }
+}

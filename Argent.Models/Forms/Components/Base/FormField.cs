@@ -51,7 +51,7 @@ public class FormField : FormComponent
     public Condition? ReadOnlyWhen { get; set; }
 
     [JsonPropertyName("validators")]
-    public List<ValidationConfig> Validators { get; set; } = [];
+    public List<FieldValidator> Validators { get; set; } = [];
 
     [JsonPropertyName("dataProvider")]
     public DataProviderConfig? DataProvider { get; set; }

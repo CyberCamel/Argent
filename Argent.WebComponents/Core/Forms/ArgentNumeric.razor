@@ -6,7 +6,7 @@
     <div class="mb-3 @Metadata.CssClass">
         <label class="form-label">
             @Metadata.FieldLabel
-            @if (!Metadata.AllowBlank)
+            @if (Context.IsRequired(Metadata))
             {
                 <span class="text-danger">*</span>
             }
@@ -36,7 +36,7 @@
 
 @code {
     private bool IsVisible => Context.IsVisible(Metadata);
-    private string? CurrentValue => Context.GetValue<string>(Metadata.Name ?? Metadata.Id);
+    private string? CurrentValue => Context.GetValue(Metadata.Name ?? Metadata.Id)?.ToString();
     private IEnumerable<string> Errors => Context.GetErrors(Metadata);
 
     private void OnValueChanged(object? val)

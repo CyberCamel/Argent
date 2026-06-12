@@ -41,6 +41,10 @@ public class FormLayout : FormComponent
     [JsonPropertyName("title")]
     public string? Title { get; set; }
 
+    /// <summary>Raw HTML content for HtmlBox containers.</summary>
+    [JsonPropertyName("html")]
+    public string? Html { get; set; }
+
     [JsonPropertyName("collapsible")]
     public bool Collapsible { get; set; }
 

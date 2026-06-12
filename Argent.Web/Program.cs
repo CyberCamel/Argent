@@ -83,14 +83,11 @@ componentRegistry.Register("NumericField", typeof(ArgentNumeric));
 componentRegistry.Register("CheckboxField", typeof(ArgentCheckbox));
 
 builder.Services.AddSingleton<IFormComponentRegistry>(componentRegistry);
-builder.Services.AddSingleton<IFormValidatorRegistry>(new ArgentFormValidatorRegistry());
 builder.Services.AddSingleton<IConditionEvaluator, ConditionEvaluator>();
-builder.Services.AddScoped<IFormContext>(sp =>
-{
-    var validatorRegistry = sp.GetRequiredService<IFormValidatorRegistry>();
-    var conditionEvaluator = sp.GetRequiredService<IConditionEvaluator>();
-    return new ArgentFormContext(validatorRegistry, conditionEvaluator);
-});
+builder.Services.AddSingleton<IFormValidator, FormValidationService>();
+builder.Services.AddScoped<IFormContext>(sp => new ArgentFormContext(
+    sp.GetRequiredService<IFormValidator>(),
+    sp.GetRequiredService<IConditionEvaluator>()));
 builder.Services.AddScoped<DesignerService, DesignerService>();
 builder.Services.AddScoped<FormDesignerService, FormDesignerService>();
 builder.Services.AddSingleton<IWorkflowNodeRegistry, ArgentWorkflowNodeRegistry>();

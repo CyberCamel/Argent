@@ -1,20 +1,22 @@
 @using Argent.Models.Forms.Components.Configuration
-@using Argent.Models.Forms.Components.Base
 
 <div class="condition-builder border rounded p-2 mb-2" style="background: #f8f9fa;">
     @if (Condition == null)
     {
         <div class="d-flex gap-1 flex-wrap">
-            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="AddCompare" style="font-size: 0.7rem;">
+            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => Replace(new CompareCondition())" style="font-size: 0.7rem;">
                 <i class="bi bi-plus"></i> Compare
             </button>
-            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="AddAnd" style="font-size: 0.7rem;">
+            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => Replace(new AndCondition())" style="font-size: 0.7rem;">
                 <i class="bi bi-plus"></i> And
             </button>
-            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="AddOr" style="font-size: 0.7rem;">
+            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => Replace(new OrCondition())" style="font-size: 0.7rem;">
                 <i class="bi bi-plus"></i> Or
             </button>
-            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="AddExpression" style="font-size: 0.7rem;">
+            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => Replace(new NotCondition())" style="font-size: 0.7rem;">
+                <i class="bi bi-plus"></i> Not
+            </button>
+            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => Replace(new ExpressionCondition())" style="font-size: 0.7rem;">
                 <i class="bi bi-plus"></i> Expression
             </button>
         </div>
@@ -32,17 +34,7 @@
                         <option value="@f" selected="@(compare.Field == f)">@f</option>
                     }
                 }
-                <option value="" disabled>───</option>
-                <option value="__custom__" selected="@(compare.Field != "" && (Fields == null || !Fields.Contains(compare.Field)))">Custom...</option>
             </select>
-            @if (Fields == null || !Fields.Contains(compare.Field))
-            {
-                <input type="text" class="form-control form-control-sm" style="width: 100px; font-size: 0.75rem;"
-                       value="@(compare.Field)"
-                       @oninput="(e) => { compare.Field = e.Value?.ToString() ?? string.Empty; }"
-                       @onchange="() => NotifyChanged()"
-                       placeholder="field name" />
-            }
             <select class="form-select form-select-sm" style="width: auto; font-size: 0.75rem;"
                     @onchange="@((e) => { compare.Operator = e.Value?.ToString() ?? "=="; NotifyChanged(); })">
                 @foreach (var op in CompareOperators.All)
@@ -54,23 +46,15 @@
             {
                 @* No value input needed for these operators *@
             }
-            else if (compare.Operator is "in" or "notIn")
-            {
-                <input type="text" class="form-control form-control-sm" style="width: 150px; font-size: 0.75rem;"
-                       value="@(compare.Value?.ToString() ?? "")"
-                       @oninput="(e) => { compare.Value = e.Value?.ToString(); }"
-                       @onchange="() => NotifyChanged()"
-                       placeholder="comma,separated,values" />
-            }
             else
             {
-                <input type="text" class="form-control form-control-sm" style="width: 120px; font-size: 0.75rem;"
+                <input type="text" class="form-control form-control-sm" style="width: 130px; font-size: 0.75rem;"
                        value="@(compare.Value?.ToString() ?? "")"
                        @oninput="(e) => { compare.Value = e.Value?.ToString(); }"
                        @onchange="() => NotifyChanged()"
-                       placeholder="value" />
+                       placeholder="@(compare.Operator is "in" or "notIn" ? "comma,separated" : "value")" />
             }
-            <button class="btn btn-sm py-0 px-1" @onclick="Remove" style="font-size: 0.65rem;">
+            <button class="btn btn-sm py-0 px-1" @onclick="() => Replace(null)" style="font-size: 0.65rem;">
                 <i class="bi bi-x text-danger"></i>
             </button>
         </div>
@@ -79,15 +63,17 @@
     {
         <div class="mb-1">
             <span class="badge bg-secondary" style="font-size: 0.65rem;">ALL of:</span>
-            <button class="btn btn-sm py-0 px-1 float-end" @onclick="Remove" style="font-size: 0.65rem;">
+            <button class="btn btn-sm py-0 px-1 float-end" @onclick="() => Replace(null)" style="font-size: 0.65rem;">
                 <i class="bi bi-x text-danger"></i>
             </button>
         </div>
         @for (int i = 0; i < and.All.Count; i++)
         {
-            var sub = and.All[i];
+            var idx = i;
             <div class="ms-3 mb-1 border-start ps-2" style="border-left: 2px solid #0d6efd !important;">
-                <ConditionBuilder Condition="sub" Fields="@Fields" OnChanged="() => NotifyChanged()" />
+                <ConditionBuilder Condition="@and.All[idx]" Fields="@Fields"
+                                  ConditionChanged="@((c) => ReplaceChild(and.All, idx, c))"
+                                  OnChanged="() => NotifyChanged()" />
             </div>
         }
         <button class="btn btn-sm btn-outline-primary py-0 px-1 mt-1" @onclick="() => { and.All.Add(new CompareCondition()); NotifyChanged(); }" style="font-size: 0.7rem;">
@@ -98,15 +84,17 @@
     {
         <div class="mb-1">
             <span class="badge bg-secondary" style="font-size: 0.65rem;">ANY of:</span>
-            <button class="btn btn-sm py-0 px-1 float-end" @onclick="Remove" style="font-size: 0.65rem;">
+            <button class="btn btn-sm py-0 px-1 float-end" @onclick="() => Replace(null)" style="font-size: 0.65rem;">
                 <i class="bi bi-x text-danger"></i>
             </button>
         </div>
         @for (int i = 0; i < or.Any.Count; i++)
         {
-            var sub = or.Any[i];
+            var idx = i;
             <div class="ms-3 mb-1 border-start ps-2" style="border-left: 2px solid #198754 !important;">
-                <ConditionBuilder Condition="sub" Fields="@Fields" OnChanged="() => NotifyChanged()" />
+                <ConditionBuilder Condition="@or.Any[idx]" Fields="@Fields"
+                                  ConditionChanged="@((c) => ReplaceChild(or.Any, idx, c))"
+                                  OnChanged="() => NotifyChanged()" />
             </div>
         }
         <button class="btn btn-sm btn-outline-primary py-0 px-1 mt-1" @onclick="() => { or.Any.Add(new CompareCondition()); NotifyChanged(); }" style="font-size: 0.7rem;">
@@ -117,12 +105,14 @@
     {
         <div class="mb-1">
             <span class="badge bg-danger" style="font-size: 0.65rem;">NOT:</span>
-            <button class="btn btn-sm py-0 px-1 float-end" @onclick="Remove" style="font-size: 0.65rem;">
+            <button class="btn btn-sm py-0 px-1 float-end" @onclick="() => Replace(null)" style="font-size: 0.65rem;">
                 <i class="bi bi-x text-danger"></i>
             </button>
         </div>
         <div class="ms-3 mb-1 border-start ps-2" style="border-left: 2px solid #dc3545 !important;">
-            <ConditionBuilder Condition="not.Not" Fields="@Fields" OnChanged="() => NotifyChanged()" />
+            <ConditionBuilder Condition="@not.Not" Fields="@Fields"
+                              ConditionChanged="@(async (c) => { if (c == null) { await Replace(null); } else { not.Not = c; NotifyChanged(); } })"
+                              OnChanged="() => NotifyChanged()" />
         </div>
     }
     else if (Condition is ExpressionCondition expr)
@@ -134,7 +124,7 @@
                    @oninput="(e) => { expr.Expression = e.Value?.ToString() ?? string.Empty; }"
                    @onchange="() => NotifyChanged()"
                    placeholder="e.g. field_x == 'yes'" />
-            <button class="btn btn-sm py-0 px-1" @onclick="Remove" style="font-size: 0.65rem;">
+            <button class="btn btn-sm py-0 px-1" @onclick="() => Replace(null)" style="font-size: 0.65rem;">
                 <i class="bi bi-x text-danger"></i>
             </button>
         </div>
@@ -143,38 +133,35 @@
 
 @code {
     [Parameter] public Condition? Condition { get; set; }
+
+    /// <summary>
+    /// Raised when this builder replaces or removes its condition instance. The owner
+    /// must assign the new value to its own model — this component cannot reach the
+    /// parent's reference itself (the old version silently dropped these changes).
+    /// </summary>
+    [Parameter] public EventCallback<Condition?> ConditionChanged { get; set; }
+
+    /// <summary>Raised for in-place edits (field/operator/value changes).</summary>
     [Parameter] public EventCallback OnChanged { get; set; }
+
     [Parameter] public List<string>? Fields { get; set; }
 
     private void NotifyChanged() => OnChanged.InvokeAsync();
 
-    private void Remove()
+    private async Task Replace(Condition? condition)
     {
-        Condition = null;
-        NotifyChanged();
+        Condition = condition;
+        await ConditionChanged.InvokeAsync(condition);
+        await OnChanged.InvokeAsync();
     }
 
-    private void AddCompare()
+    private void ReplaceChild(List<Condition> list, int index, Condition? child)
     {
-        Condition = new CompareCondition();
-        NotifyChanged();
-    }
-
-    private void AddAnd()
-    {
-        Condition = new AndCondition();
-        NotifyChanged();
-    }
-
-    private void AddOr()
-    {
-        Condition = new OrCondition();
-        NotifyChanged();
-    }
-
-    private void AddExpression()
-    {
-        Condition = new ExpressionCondition();
+        if (index < 0 || index >= list.Count) return;
+        if (child == null)
+            list.RemoveAt(index);
+        else
+            list[index] = child;
         NotifyChanged();
     }
 }

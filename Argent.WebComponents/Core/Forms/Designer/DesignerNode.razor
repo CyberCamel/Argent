@@ -1,0 +1,99 @@
+@using Argent.Models.Forms.Components.Base
+@using Argent.Runtime.Forms.Modeling
+@using Argent.WebComponents.Core.Forms
+
+@{
+    var isSelected = State.SelectedComponent == Component;
+    var container = Component as FormLayout;
+    var isContainer = container != null && Component.Xtype != "HtmlBox";
+    var toolbox = FormDesignerService.ToolboxItems.FirstOrDefault(t => t.TypeName == Component.Xtype);
+}
+
+<div class="fd-node @(isSelected ? "selected" : "") @(isContainer ? "fd-node-container" : "")"
+     @onclick:stopPropagation
+     @onclick="() => State.SelectComponent(Component)">
+
+    <div class="fd-node-header"
+         draggable="true"
+         @ondragstart="() => State.BeginDragMove(Component.Id)"
+         @ondragend="() => State.EndDrag()">
+        <i class="bi bi-grip-vertical fd-grip" title="Drag to move"></i>
+        <i class="bi @(toolbox?.Icon ?? "bi-question-square") fd-type-icon"></i>
+        <span class="fd-node-title">@HeaderText</span>
+        <span class="fd-node-meta">@(Component is FormField f ? f.Name : Component.Xtype)</span>
+
+        <span class="fd-node-actions" @onclick:stopPropagation>
+            <button class="fd-action" title="Move up" @onclick="() => State.MoveUp(Component)"><i class="bi bi-chevron-up"></i></button>
+            <button class="fd-action" title="Move down" @onclick="() => State.MoveDown(Component)"><i class="bi bi-chevron-down"></i></button>
+            <button class="fd-action" title="Duplicate" @onclick="() => State.Duplicate(Component)"><i class="bi bi-copy"></i></button>
+            <button class="fd-action fd-action-danger" title="Delete" @onclick="() => State.Remove(Component)"><i class="bi bi-trash"></i></button>
+        </span>
+    </div>
+
+    @if (isContainer && container != null)
+    {
+        @if (container.Xtype is "Tabs" or "Accordion")
+        {
+            <div class="fd-container-hint">each child below becomes one @(container.Xtype == "Tabs" ? "tab" : "section")</div>
+        }
+
+        @if (container.Columns > 1)
+        {
+            <div class="fd-columns">
+                @for (int col = 0; col < container.Columns; col++)
+                {
+                    var column = col;
+                    <div class="fd-column">
+                        <div class="fd-column-label">Column @(column + 1)</div>
+                        @foreach (var child in container.Items.Where(i => i.ColumnIndex == column))
+                        {
+                            <DropZone State="@State" Target="@TargetBefore(container, child, column)" />
+                            <DesignerNode State="@State" Component="@child" />
+                        }
+                        <DropZone State="@State" Inside="true" Label="Drop here"
+                                  Target="@(new DropTarget(container.Id, container.Items.Count, column))" />
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="fd-container-body">
+                @for (int i = 0; i < container.Items.Count; i++)
+                {
+                    var index = i;
+                    <DropZone State="@State" Target="@(new DropTarget(container.Id, index))" />
+                    <DesignerNode State="@State" Component="@container.Items[index]" />
+                }
+                <DropZone State="@State" Inside="true"
+                          Label="@(container.Items.Count == 0 ? $"Drop into {container.Xtype}" : null)"
+                          Target="@(new DropTarget(container.Id, container.Items.Count))" />
+            </div>
+        }
+    }
+    else
+    {
+        @* Live preview — pointer events disabled so clicks select the node instead of focusing inputs *@
+        <div class="fd-node-preview">
+            <ArgentRenderer Metadata="@Component" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public required FormDesignerService State { get; set; }
+    [Parameter] public required FormComponent Component { get; set; }
+
+    private string HeaderText => Component switch
+    {
+        FormField formField => string.IsNullOrWhiteSpace(formField.FieldLabel) ? formField.Xtype : formField.FieldLabel,
+        FormLayout { Title: { Length: > 0 } title } => title,
+        _ => Component.Xtype
+    };
+
+    private static DropTarget TargetBefore(FormLayout container, FormComponent child, int column)
+    {
+        var index = container.Items.IndexOf(child);
+        return new DropTarget(container.Id, index < 0 ? container.Items.Count : index, column);
+    }
+}

@@ -7,7 +7,7 @@
     <div class="mb-3 @Metadata.CssClass">
         <label class="form-label">
             @Metadata.FieldLabel
-            @if (!Metadata.AllowBlank)
+            @if (Context.IsRequired(Metadata))
             {
                 <span class="text-danger">*</span>
             }

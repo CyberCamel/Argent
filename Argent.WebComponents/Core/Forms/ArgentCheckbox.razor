@@ -12,7 +12,7 @@
                disabled="@Metadata.Disabled"
                readOnly="@Metadata.ReadOnly" />
         <label class="form-check-label" for="@Metadata.Id">
-            @Metadata.BoxLabel ?? @Metadata.FieldLabel
+            @(Metadata.BoxLabel ?? Metadata.FieldLabel)
         </label>
         @if (Metadata.Description != null)
         {

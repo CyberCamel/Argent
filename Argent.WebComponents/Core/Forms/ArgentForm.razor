@@ -1,5 +1,109 @@
-﻿<h3>ArgentForm</h3>
+@using Argent.Contracts.Forms
+@using Argent.Models.Forms.Components
+@using Argent.Runtime.Forms
+@using Microsoft.EntityFrameworkCore
+@implements IDisposable
+@inject IFormContext Context
+@inject IFormValidator Validator
+@inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
+
+@if (_definition == null)
+{
+    <div class="alert alert-warning">Form not found.</div>
+}
+else
+{
+    <div class="argent-form @CssClass">
+        @if (!string.IsNullOrEmpty(_definition.Title))
+        {
+            <h4 class="mb-3">@_definition.Title</h4>
+        }
+
+        @foreach (var component in _definition.Components)
+        {
+            <ArgentRenderer Metadata="component" />
+        }
+
+        @if (_errors is { Count: > 0 })
+        {
+            <div class="alert alert-danger mt-3">
+                <strong>Please fix the following:</strong>
+                <ul class="mb-0">
+                    @foreach (var fieldErrors in _errors.Values)
+                    {
+                        foreach (var error in fieldErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    }
+                </ul>
+            </div>
+        }
+
+        @if (_submitted)
+        {
+            <div class="alert alert-success mt-3">@(SuccessMessage ?? "Form submitted successfully.")</div>
+        }
+        else
+        {
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <button type="button" class="btn btn-primary px-4" @onclick="Submit">@(SubmitLabel ?? "Submit")</button>
+            </div>
+        }
+    </div>
+}
 
 @code {
-    
+    /// <summary>Load the form definition from the database by document id…</summary>
+    [Parameter] public Guid? FormId { get; set; }
+
+    /// <summary>…or supply a definition directly (e.g. from a workflow user activity).</summary>
+    [Parameter] public FormDefinition? Definition { get; set; }
+
+    [Parameter] public string? SubmitLabel { get; set; }
+    [Parameter] public string? SuccessMessage { get; set; }
+    [Parameter] public string? CssClass { get; set; }
+
+    /// <summary>Raised with the submitted values after validation passes.</summary>
+    [Parameter] public EventCallback<Dictionary<string, object?>> OnValidSubmit { get; set; }
+
+    private FormDefinition? _definition;
+    private Dictionary<string, List<string>>? _errors;
+    private bool _submitted;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Context.OnStateChanged += StateHasChanged;
+
+        if (Definition != null)
+        {
+            _definition = Definition;
+        }
+        else if (FormId.HasValue)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var doc = await db.FormDocuments.AsNoTracking().FirstOrDefaultAsync(f => f.Id == FormId.Value);
+            _definition = doc?.Definition;
+        }
+    }
+
+    public void Dispose()
+    {
+        Context.OnStateChanged -= StateHasChanged;
+    }
+
+    private async Task Submit()
+    {
+        if (_definition == null) return;
+
+        // From here on, untouched fields show their errors too.
+        (Context as ArgentFormContext)?.RevealAllErrors();
+
+        _errors = Validator.ValidateForm(_definition, Context);
+        if (_errors.Count > 0) return;
+
+        _submitted = true;
+        if (OnValidSubmit.HasDelegate)
+            await OnValidSubmit.InvokeAsync(Context.GetAllData());
+    }
 }

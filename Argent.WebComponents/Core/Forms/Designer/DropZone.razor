@@ -1,0 +1,26 @@
+@using Argent.Runtime.Forms.Modeling
+
+@{
+    var visible = State.IsDragging && State.CanDrop(Target);
+    var active = visible && State.Hover == Target;
+}
+<div class="fd-dropzone @(Inside ? "fd-dropzone-inside" : "") @(visible ? "visible" : "") @(active ? "active" : "")"
+     @ondragenter="() => State.SetHover(Target)"
+     @ondragleave="() => State.ClearHover(Target)"
+     @ondrop="() => State.Drop(Target)"
+     @ondragover:preventDefault>
+    @if (visible && !string.IsNullOrEmpty(Label))
+    {
+        <span class="fd-dropzone-label"><i class="bi bi-plus-circle"></i> @Label</span>
+    }
+</div>
+
+@code {
+    [Parameter] public required FormDesignerService State { get; set; }
+    [Parameter] public DropTarget Target { get; set; }
+
+    /// <summary>Larger zone used for empty containers / empty canvas (vs. the thin between-items bar).</summary>
+    [Parameter] public bool Inside { get; set; }
+
+    [Parameter] public string? Label { get; set; }
+}

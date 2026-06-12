@@ -1,500 +1,386 @@
+using System.Text.Json;
 using Argent.Infrastructure.Data;
 using Argent.Models.Forms.Components;
 using Argent.Models.Forms.Components.Base;
-using Argent.Models.Forms.Components.Configuration;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace Argent.Runtime.Forms.Modeling;
 
 public class ToolboxItem
 {
-    public required string TypeName { get; set; }
-    public required string DisplayName { get; set; }
-    public required string Icon { get; set; }
-    public required Func<FormComponent> Factory { get; set; }
+    public required string TypeName { get; init; }
+    public required string DisplayName { get; init; }
+    public required string Icon { get; init; }
+    public required string Category { get; init; }
+    public required Func<FormComponent> Factory { get; init; }
 }
+
+/// <summary>
+/// Where a dragged component would land: a parent container (null = form root),
+/// an insertion index within that container's items, and — for multi-column
+/// containers — the target column.
+/// </summary>
+public readonly record struct DropTarget(string? ContainerId, int Index, int ColumnIndex = 0);
 
 public class FormDesignerService(
     ArgentDbContext _dbContext,
     IHttpContextAccessor _httpContextAccessor)
 {
-    public FormDefinition Definition { get; set; } = new()
+    public FormDefinition Definition { get; private set; } = NewDefinition();
+
+    public FormComponent? SelectedComponent { get; private set; }
+    public Guid? StoredFormId { get; set; }
+    public string Name { get; set; } = "New Form";
+    public string Description { get; set; } = "";
+    public bool HasUnsavedChanges { get; private set; }
+
+    // ── Drag state ─────────────────────────────────────────────────
+    public bool IsDragging { get; private set; }
+    private string? _dragPayload;          // "add:<xtype>" or "move:<componentId>"
+    public DropTarget? Hover { get; private set; }
+
+    public event Action? OnChange;
+    public void Notify() => OnChange?.Invoke();
+    public void MarkDirty() { HasUnsavedChanges = true; Notify(); }
+
+    private static FormDefinition NewDefinition() => new()
     {
         FormId = Guid.NewGuid().ToString(),
         Components = []
     };
 
-    public FormComponent? SelectedComponent { get; set; }
-
-    // Drag-and-drop state
-    public bool IsDragging { get; set; }
-    public string? DragPayload { get; set; }
-    public string? HoverComponentId { get; set; }
-    public int HoverDropIndex { get; set; } = -1;
-    public bool HoverInsideContainer { get; set; }
-    public int HoverColumnIndex { get; set; } = -1;
-
-    public Guid? StoredFormId { get; set; }
-    public string Name { get; set; } = "New Form";
-    public string Description { get; set; } = "";
-
     public static readonly List<ToolboxItem> ToolboxItems =
     [
-        new() { TypeName = "TextField",     DisplayName = "Text Field",   Icon = "bi-input-cursor-text",   Factory = () => new FormField { Xtype = "TextField",     Name = "field_" + Guid.NewGuid().ToString("N")[..8], FieldLabel = "Text Field" } },
-        new() { TypeName = "NumericField",  DisplayName = "Numeric",      Icon = "bi-123",                 Factory = () => new FormField { Xtype = "NumericField",  Name = "field_" + Guid.NewGuid().ToString("N")[..8], FieldLabel = "Numeric" } },
-        new() { TypeName = "DropdownField", DisplayName = "Dropdown",     Icon = "bi-menu-down",           Factory = () => new FormField { Xtype = "DropdownField", Name = "field_" + Guid.NewGuid().ToString("N")[..8], FieldLabel = "Dropdown", Items = [new SelectOption { Label = "Option 1", Value = "opt1" }, new SelectOption { Label = "Option 2", Value = "opt2" }] } },
-        new() { TypeName = "CheckboxField", DisplayName = "Checkbox",     Icon = "bi-check-square",        Factory = () => new FormField { Xtype = "CheckboxField", Name = "field_" + Guid.NewGuid().ToString("N")[..8], FieldLabel = "Checkbox", Value = false } },
-        new() { TypeName = "HtmlBox",       DisplayName = "HTML Block",   Icon = "bi-code-slash",          Factory = () => new FormLayout { Xtype = "HtmlBox", Title = "<p>Enter HTML content here</p>" } },
-        new() { TypeName = "Row",           DisplayName = "Row",          Icon = "bi-arrows-expand",       Factory = () => new FormLayout { Xtype = "Row",    Direction = "row" } },
-        new() { TypeName = "Column",        DisplayName = "Column",       Icon = "bi-arrows-vertical",     Factory = () => new FormLayout { Xtype = "Column", Direction = "column" } },
-        new() { TypeName = "Flex",          DisplayName = "Flex Box",     Icon = "bi-layout-three-columns",Factory = () => new FormLayout { Xtype = "Flex", Direction = "row", Gap = 3 } },
-        new() { TypeName = "Fieldset",      DisplayName = "Fieldset",     Icon = "bi-border-all",          Factory = () => new FormLayout { Xtype = "Fieldset", Title = "Fieldset", LayoutType = LayoutType.Fieldset, Direction = "column" } },
-        new() { TypeName = "Tabs",          DisplayName = "Tabs",         Icon = "bi-files",               Factory = () => new FormLayout { Xtype = "Tabs", LayoutType = LayoutType.Tabs } },
-        new() { TypeName = "Accordion",     DisplayName = "Accordion",    Icon = "bi-arrows-collapse",     Factory = () => new FormLayout { Xtype = "Accordion", LayoutType = LayoutType.Accordion } },
+        // Fields
+        new() { TypeName = "TextField",     Category = "Fields", DisplayName = "Text",      Icon = "bi-input-cursor-text",    Factory = () => new FormField { Xtype = "TextField", Name = "", FieldLabel = "Text" } },
+        new() { TypeName = "TextArea",      Category = "Fields", DisplayName = "Text Area", Icon = "bi-textarea-resize",      Factory = () => new FormField { Xtype = "TextField", Name = "", FieldLabel = "Text Area", Rows = 4, Grow = true } },
+        new() { TypeName = "NumericField",  Category = "Fields", DisplayName = "Number",    Icon = "bi-123",                  Factory = () => new FormField { Xtype = "NumericField", Name = "", FieldLabel = "Number" } },
+        new() { TypeName = "DropdownField", Category = "Fields", DisplayName = "Dropdown",  Icon = "bi-menu-down",            Factory = () => new FormField { Xtype = "DropdownField", Name = "", FieldLabel = "Dropdown", Items = [new SelectOption { Label = "Option 1", Value = "opt1" }, new SelectOption { Label = "Option 2", Value = "opt2" }] } },
+        new() { TypeName = "CheckboxField", Category = "Fields", DisplayName = "Checkbox",  Icon = "bi-check-square",         Factory = () => new FormField { Xtype = "CheckboxField", Name = "", FieldLabel = "Checkbox", Value = false } },
+
+        // Layout
+        new() { TypeName = "Row",       Category = "Layout", DisplayName = "Row",       Icon = "bi-layout-three-columns", Factory = () => new FormLayout { Xtype = "Row", Direction = "row" } },
+        new() { TypeName = "Column",    Category = "Layout", DisplayName = "Column",    Icon = "bi-layout-split",         Factory = () => new FormLayout { Xtype = "Column", Direction = "column" } },
+        new() { TypeName = "Flex",      Category = "Layout", DisplayName = "Flex Box",  Icon = "bi-distribute-horizontal",Factory = () => new FormLayout { Xtype = "Flex", Direction = "row", Gap = 3 } },
+        new() { TypeName = "Fieldset",  Category = "Layout", DisplayName = "Fieldset",  Icon = "bi-border-all",           Factory = () => new FormLayout { Xtype = "Fieldset", Title = "Fieldset", LayoutType = LayoutType.Fieldset, Direction = "column" } },
+        new() { TypeName = "Tabs",      Category = "Layout", DisplayName = "Tabs",      Icon = "bi-files",                Factory = () => new FormLayout { Xtype = "Tabs", LayoutType = LayoutType.Tabs } },
+        new() { TypeName = "Accordion", Category = "Layout", DisplayName = "Accordion", Icon = "bi-arrows-collapse",      Factory = () => new FormLayout { Xtype = "Accordion", LayoutType = LayoutType.Accordion } },
+
+        // Content
+        new() { TypeName = "HtmlBox", Category = "Content", DisplayName = "HTML Block", Icon = "bi-code-slash", Factory = () => new FormLayout { Xtype = "HtmlBox", Html = "<p>HTML content</p>" } },
     ];
 
-    public event Action? OnChange;
+    // ── Selection ──────────────────────────────────────────────────
 
-    public void Notify() => OnChange?.Invoke();
-
-    public void AddComponent(FormComponent component, int? index = null)
+    public void SelectComponent(FormComponent? component)
     {
-        if (index.HasValue)
-            Definition.Components.Insert(index.Value, component);
-        else
-            Definition.Components.Add(component);
+        if (SelectedComponent == component) return;
         SelectedComponent = component;
         Notify();
     }
 
-    public void RemoveComponent(FormComponent component)
-    {
-        if (TryRemoveComponent(component, Definition.Components))
-        {
-            if (SelectedComponent == component)
-                SelectedComponent = Definition.Components.LastOrDefault();
-            Notify();
-        }
-    }
+    // ── Tree operations ────────────────────────────────────────────
 
-    private bool TryRemoveComponent(FormComponent target, List<FormComponent> list)
+    public FormComponent? Find(string id) => Find(id, Definition.Components);
+
+    private static FormComponent? Find(string id, List<FormComponent> list)
     {
-        if (list.Remove(target))
-            return true;
         foreach (var c in list)
         {
-            if (c is FormLayout layout && TryRemoveComponent(target, layout.Items))
-                return true;
+            if (c.Id == id) return c;
+            if (c is FormLayout l && Find(id, l.Items) is { } found)
+                return found;
         }
-        return false;
+        return null;
     }
 
-    public void MoveComponent(int fromIndex, int toIndex)
+    private (List<FormComponent> list, int index)? FindParentList(string id) =>
+        FindParentList(id, Definition.Components);
+
+    private static (List<FormComponent> list, int index)? FindParentList(string id, List<FormComponent> list)
     {
-        if (fromIndex < 0 || fromIndex >= Definition.Components.Count) return;
-        if (toIndex < 0 || toIndex >= Definition.Components.Count) return;
-        if (fromIndex == toIndex) return;
-
-        var item = Definition.Components[fromIndex];
-        Definition.Components.RemoveAt(fromIndex);
-        Definition.Components.Insert(toIndex, item);
-        Notify();
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i].Id == id) return (list, i);
+            if (list[i] is FormLayout l && FindParentList(id, l.Items) is { } found)
+                return found;
+        }
+        return null;
     }
 
-    // ── Drag‑and‑drop ──────────────────────────────────────────────
+    private List<FormComponent>? ResolveContainerItems(string? containerId)
+    {
+        if (containerId == null) return Definition.Components;
+        return (Find(containerId) as FormLayout)?.Items;
+    }
 
-    public void BeginDrag(string payload)
+    public void Remove(FormComponent component)
+    {
+        var location = FindParentList(component.Id);
+        if (location == null) return;
+
+        location.Value.list.RemoveAt(location.Value.index);
+        if (SelectedComponent != null && (SelectedComponent == component || IsDescendantOf(SelectedComponent.Id, component)))
+            SelectedComponent = null;
+        MarkDirty();
+    }
+
+    public void RemoveSelected()
+    {
+        if (SelectedComponent != null)
+            Remove(SelectedComponent);
+    }
+
+    /// <summary>Deep-clones a component (new ids, unique field names) next to the original.</summary>
+    public void Duplicate(FormComponent component)
+    {
+        var location = FindParentList(component.Id);
+        if (location == null) return;
+
+        var clone = CloneComponent(component);
+        if (clone == null) return;
+
+        RegenerateIdsAndNames(clone);
+        location.Value.list.Insert(location.Value.index + 1, clone);
+        SelectedComponent = clone;
+        MarkDirty();
+    }
+
+    private static FormComponent? CloneComponent(FormComponent component)
+    {
+        var json = JsonSerializer.Serialize(component);
+        return JsonSerializer.Deserialize<FormComponent>(json);
+    }
+
+    private void RegenerateIdsAndNames(FormComponent component)
+    {
+        component.Id = Guid.NewGuid().ToString();
+        if (component is FormField field && !string.IsNullOrEmpty(field.Name))
+            field.Name = UniqueFieldName(field.Name);
+        if (component is FormLayout layout)
+            foreach (var child in layout.Items)
+                RegenerateIdsAndNames(child);
+    }
+
+    /// <summary>field → field_2 → field_3 … until the name is unused.</summary>
+    public string UniqueFieldName(string baseName)
+    {
+        var existing = AllFieldNames();
+        if (!existing.Contains(baseName)) return baseName;
+
+        var stem = System.Text.RegularExpressions.Regex.Replace(baseName, @"_\d+$", "");
+        for (int i = 2; ; i++)
+        {
+            var candidate = $"{stem}_{i}";
+            if (!existing.Contains(candidate)) return candidate;
+        }
+    }
+
+    public HashSet<string> AllFieldNames()
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        void Walk(List<FormComponent> list)
+        {
+            foreach (var c in list)
+            {
+                if (c is FormField f && !string.IsNullOrEmpty(f.Name)) names.Add(f.Name);
+                if (c is FormLayout l) Walk(l.Items);
+            }
+        }
+        Walk(Definition.Components);
+        return names;
+    }
+
+    public List<string> FieldNames() => [.. AllFieldNames().Order()];
+
+    private static bool IsDescendantOf(string id, FormComponent ancestor) =>
+        ancestor is FormLayout layout && Find(id, layout.Items) != null;
+
+    // ── Drag & drop ────────────────────────────────────────────────
+
+    public void BeginDragAdd(string xtype) => BeginDrag("add:" + xtype);
+    public void BeginDragMove(string componentId) => BeginDrag("move:" + componentId);
+
+    private void BeginDrag(string payload)
     {
         IsDragging = true;
-        DragPayload = payload;
+        _dragPayload = payload;
+        Hover = null;
         Notify();
     }
 
     public void EndDrag()
     {
         IsDragging = false;
-        DragPayload = null;
-        HoverComponentId = null;
-        HoverDropIndex = -1;
-        HoverInsideContainer = false;
-        HoverColumnIndex = -1;
+        _dragPayload = null;
+        Hover = null;
         Notify();
     }
 
-    public void SetHover(int index)
+    public void SetHover(DropTarget target)
     {
-        HoverDropIndex = index;
-        HoverComponentId = null;
-        HoverInsideContainer = false;
+        if (Hover == target) return;
+        // Never highlight a target the payload is not allowed to drop on.
+        if (!CanDrop(target)) { Hover = null; Notify(); return; }
+        Hover = target;
         Notify();
     }
 
-    public void SetHoverInside(string containerId, int columnIndex = -1)
+    public void ClearHover(DropTarget target)
     {
-        HoverDropIndex = -1;
-        HoverComponentId = containerId;
-        HoverInsideContainer = true;
-        HoverColumnIndex = columnIndex;
-        Notify();
+        // dragleave fires after the next dragenter when moving between zones;
+        // only clear if we're still the active target.
+        if (Hover == target)
+        {
+            Hover = null;
+            Notify();
+        }
     }
 
-    public void ClearHover()
+    public bool CanDrop(DropTarget target)
     {
-        HoverDropIndex = -1;
-        HoverComponentId = null;
-        HoverInsideContainer = false;
-        HoverColumnIndex = -1;
-        Notify();
+        if (_dragPayload == null) return false;
+        if (!_dragPayload.StartsWith("move:")) return true;
+
+        var id = _dragPayload["move:".Length..];
+        // A container must never be dropped into itself or its own subtree.
+        if (target.ContainerId == null) return true;
+        if (target.ContainerId == id) return false;
+        var dragged = Find(id);
+        return dragged == null || !IsDescendantOf(target.ContainerId, dragged);
     }
 
-    public void DropAt(int index)
+    public void Drop(DropTarget target)
     {
-        if (string.IsNullOrEmpty(DragPayload)) return;
-        var parts = DragPayload.Split(':');
+        if (_dragPayload == null || !CanDrop(target)) { EndDrag(); return; }
+
+        var parts = _dragPayload.Split(':', 2);
         if (parts[0] == "add")
-            DropAdd(parts[1], index);
+            DropAdd(parts[1], target);
         else if (parts[0] == "move")
-            DropMove(parts[1], index);
+            DropMove(parts[1], target);
+
         EndDrag();
     }
 
-    public void DropIntoContainer(string containerId, int columnIndex = -1)
+    private void DropAdd(string xtype, DropTarget target)
     {
-        if (string.IsNullOrEmpty(DragPayload)) return;
-        var container = FindComponent(containerId, Definition.Components) as FormLayout;
-        if (container == null) return;
+        var component = ToolboxItems.FirstOrDefault(t => t.TypeName == xtype)?.Factory();
+        if (component == null) return;
 
-        var parts = DragPayload.Split(':');
-        if (parts[0] == "add")
-        {
-            var comp = CreateComponent(parts[1]);
-            if (comp != null)
-            {
-                comp.ColumnIndex = columnIndex >= 0 ? columnIndex : 0;
-                container.Items.Add(comp);
-                SelectedComponent = comp;
-                Notify();
-            }
-        }
-        else if (parts[0] == "move")
-        {
-            var comp = FindComponent(parts[1], Definition.Components);
-            if (comp != null)
-            {
-                var (parentList, idx) = FindParentList(parts[1], Definition.Components);
-                parentList?.RemoveAt(idx);
-                comp.ColumnIndex = columnIndex >= 0 ? columnIndex : 0;
-                container.Items.Add(comp);
-                SelectedComponent = comp;
-                Notify();
-            }
-        }
-        EndDrag();
-    }
+        if (component is FormField field && string.IsNullOrEmpty(field.Name))
+            field.Name = UniqueFieldName("field_1");
 
-    private void DropAdd(string xtype, int index)
-    {
-        var comp = CreateComponent(xtype);
-        if (comp == null) return;
-        if (index >= 0 && index <= Definition.Components.Count)
-            Definition.Components.Insert(index, comp);
-        else
-            Definition.Components.Add(comp);
-        SelectedComponent = comp;
-        Notify();
-    }
-
-    private FormComponent? CreateComponent(string xtype)
-    {
-        var template = ToolboxItems.FirstOrDefault(t => t.TypeName == xtype);
-        return template?.Factory();
-    }
-
-    private void DropMove(string componentId, int targetIndex)
-    {
-        var (parentList, oldIndex) = FindParentList(componentId, Definition.Components);
-        if (parentList == null) return;
-        var comp = parentList[oldIndex];
-
-        if (parentList == Definition.Components && oldIndex < targetIndex)
-            targetIndex--;
-
-        parentList.RemoveAt(oldIndex);
-
-        if (targetIndex >= 0 && targetIndex <= Definition.Components.Count)
-            Definition.Components.Insert(targetIndex, comp);
-        else
-            Definition.Components.Add(comp);
-
-        SelectedComponent = comp;
-        Notify();
-    }
-
-    private FormComponent? FindComponent(string id, List<FormComponent> list)
-    {
-        foreach (var c in list)
-        {
-            if (c.Id == id) return c;
-            if (c is FormLayout l)
-            {
-                var found = FindComponent(id, l.Items);
-                if (found != null) return found;
-            }
-        }
-        return null;
-    }
-
-    private (List<FormComponent>? list, int index) FindParentList(string id, List<FormComponent> list)
-    {
-        for (int i = 0; i < list.Count; i++)
-        {
-            if (list[i].Id == id) return (list, i);
-            if (list[i] is FormLayout l)
-            {
-                var (found, idx) = FindParentList(id, l.Items);
-                if (found != null) return (found, idx);
-            }
-        }
-        return (null, -1);
-    }
-
-    public void SelectComponent(FormComponent? component)
-    {
+        InsertAt(component, target);
         SelectedComponent = component;
-        Notify();
+        MarkDirty();
     }
 
-    public void RemoveSelectedComponent()
+    private void DropMove(string componentId, DropTarget target)
     {
-        if (SelectedComponent != null)
-            RemoveComponent(SelectedComponent);
+        var location = FindParentList(componentId);
+        if (location == null) return;
+        var (sourceList, sourceIndex) = location.Value;
+        var component = sourceList[sourceIndex];
+
+        var targetList = ResolveContainerItems(target.ContainerId);
+        if (targetList == null) return;
+
+        var index = target.Index;
+        sourceList.RemoveAt(sourceIndex);
+        // Removing from the same list above the insertion point shifts it down by one.
+        if (ReferenceEquals(sourceList, targetList) && sourceIndex < index)
+            index--;
+
+        component.ColumnIndex = Math.Max(0, target.ColumnIndex);
+        targetList.Insert(Math.Clamp(index, 0, targetList.Count), component);
+        SelectedComponent = component;
+        MarkDirty();
     }
 
-    public void UpdateSelectedName(string value)
+    private void InsertAt(FormComponent component, DropTarget target)
     {
-        if (SelectedComponent is FormField field)
+        var list = ResolveContainerItems(target.ContainerId);
+        if (list == null) return;
+        component.ColumnIndex = Math.Max(0, target.ColumnIndex);
+        list.Insert(Math.Clamp(target.Index, 0, list.Count), component);
+    }
+
+    /// <summary>Click-to-add fallback: appends to the selected container or the root.</summary>
+    public void AddFromToolbox(string xtype)
+    {
+        var container = SelectedComponent as FormLayout ?? FindAncestorLayout(SelectedComponent);
+        var items = container?.Items ?? Definition.Components;
+        _dragPayload = "add:" + xtype;
+        Drop(new DropTarget(container?.Id, items.Count));
+    }
+
+    private FormLayout? FindAncestorLayout(FormComponent? component)
+    {
+        if (component == null) return null;
+        var location = FindParentList(component.Id);
+        if (location == null) return null;
+        // Walk up: find the layout whose Items is the located list.
+        FormLayout? owner = null;
+        void Walk(List<FormComponent> list, FormLayout? parent)
         {
-            field.Name = value;
-            Notify();
+            if (ReferenceEquals(list, location.Value.list)) { owner = parent; return; }
+            foreach (var c in list)
+                if (c is FormLayout l)
+                    Walk(l.Items, l);
         }
+        Walk(Definition.Components, null);
+        return owner;
     }
 
-    public void UpdateSelectedFieldLabel(string? value)
+    public void MoveUp(FormComponent component) => Nudge(component, -1);
+    public void MoveDown(FormComponent component) => Nudge(component, +1);
+
+    private void Nudge(FormComponent component, int delta)
     {
-        if (SelectedComponent is FormField field)
-        {
-            field.FieldLabel = value;
-            Notify();
-        }
+        var location = FindParentList(component.Id);
+        if (location == null) return;
+        var (list, index) = location.Value;
+        var newIndex = index + delta;
+        if (newIndex < 0 || newIndex >= list.Count) return;
+        (list[index], list[newIndex]) = (list[newIndex], list[index]);
+        MarkDirty();
     }
 
-    public void UpdateSelectedDescription(string? value)
-    {
-        if (SelectedComponent is FormField field)
-        {
-            field.Description = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedAllowBlank(bool value)
-    {
-        if (SelectedComponent is FormField field)
-        {
-            field.AllowBlank = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedValue(object? value)
-    {
-        if (SelectedComponent is FormField field)
-        {
-            field.Value = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedPlaceholder(string? value)
-    {
-        if (SelectedComponent is FormField field)
-        {
-            field.Placeholder = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedDisabled(bool value)
-    {
-        if (SelectedComponent is FormField field)
-        {
-            field.Disabled = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedReadOnly(bool value)
-    {
-        if (SelectedComponent is FormField field)
-        {
-            field.ReadOnly = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedSpan(int value)
-    {
-        if (SelectedComponent is FormField field)
-        {
-            field.Span = Math.Clamp(value, 1, 12);
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedOrder(int value)
-    {
-        if (SelectedComponent is FormField field)
-        {
-            field.Order = Math.Max(0, value);
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedHtml(string? value)
-    {
-        if (SelectedComponent is FormLayout layout)
-        {
-            layout.Title = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedCssClass(string? value)
-    {
-        if (SelectedComponent != null)
-        {
-            SelectedComponent.CssClass = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedTitle(string? value)
-    {
-        if (SelectedComponent is FormLayout layout)
-        {
-            layout.Title = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedLayoutDirection(string? value)
-    {
-        if (SelectedComponent is FormLayout layout)
-        {
-            layout.Direction = value ?? "row";
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedLayoutGap(int value)
-    {
-        if (SelectedComponent is FormLayout layout)
-        {
-            layout.Gap = Math.Max(0, value);
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedLayoutAlign(string? value)
-    {
-        if (SelectedComponent is FormLayout layout)
-        {
-            layout.Align = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedLayoutJustify(string? value)
-    {
-        if (SelectedComponent is FormLayout layout)
-        {
-            layout.Justify = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedLayoutWrap(bool value)
-    {
-        if (SelectedComponent is FormLayout layout)
-        {
-            layout.Wrap = value;
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedColumns(int value)
-    {
-        if (SelectedComponent is FormLayout layout)
-        {
-            layout.Columns = Math.Max(1, value);
-            Notify();
-        }
-    }
-
-    public void UpdateSelectedColumnIndex(int value)
-    {
-        if (SelectedComponent != null)
-        {
-            SelectedComponent.ColumnIndex = Math.Max(0, value);
-            Notify();
-        }
-    }
+    // ── Persistence ────────────────────────────────────────────────
 
     public async Task LoadAsync(Guid id)
     {
-        var doc = await _dbContext.FormDocuments.FindAsync(id);
-        if (doc?.Definition != null)
-        {
-            Definition = doc.Definition;
-            Name = doc.Name;
-            Description = doc.Description;
-            StoredFormId = doc.Id;
-            SelectedComponent = null;
-            Notify();
-        }
+        var doc = await _dbContext.FormDocuments.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
+        if (doc?.Definition == null) return;
+
+        Definition = doc.Definition;
+        Name = doc.Name;
+        Description = doc.Description;
+        StoredFormId = doc.Id;
+        SelectedComponent = null;
+        HasUnsavedChanges = false;
+        Notify();
     }
 
     public async Task SaveAsync()
     {
-        var currentUser = _httpContextAccessor.HttpContext?.User;
-        var updatedBy = currentUser?.Identity?.Name ?? "Unknown";
+        var updatedBy = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
 
-        var json = System.Text.Json.JsonSerializer.Serialize(Definition);
-        var definitionCopy = System.Text.Json.JsonSerializer.Deserialize<FormDefinition>(json) ?? Definition;
+        // Detach the stored copy from the live designer instance.
+        var definitionCopy = CloneDefinition(Definition);
 
-        if (StoredFormId.HasValue)
+        var existing = StoredFormId.HasValue
+            ? await _dbContext.FormDocuments.FindAsync(StoredFormId.Value)
+            : null;
+
+        if (existing != null)
         {
-            var existing = await _dbContext.FormDocuments.FindAsync(StoredFormId.Value);
-            if (existing != null)
-            {
-                existing.Definition = definitionCopy;
-                existing.Name = Name;
-                existing.Description = Description;
-                existing.UpdatedAt = DateTime.UtcNow;
-            }
-            else
-            {
-                var doc = new FormDocument
-                {
-                    Id = Guid.NewGuid(),
-                    Name = Name,
-                    Description = Description,
-                    Definition = definitionCopy,
-                    CreatedBy = updatedBy
-                };
-                _dbContext.FormDocuments.Add(doc);
-                StoredFormId = doc.Id;
-            }
+            existing.Definition = definitionCopy;
+            existing.Name = Name;
+            existing.Description = Description;
+            existing.UpdatedAt = DateTime.UtcNow;
         }
         else
         {
@@ -511,25 +397,24 @@ public class FormDesignerService(
         }
 
         await _dbContext.SaveChangesAsync();
+        HasUnsavedChanges = false;
+        Notify();
+    }
+
+    private static FormDefinition CloneDefinition(FormDefinition definition)
+    {
+        var json = JsonSerializer.Serialize(definition);
+        return JsonSerializer.Deserialize<FormDefinition>(json) ?? definition;
     }
 
     public void Reset()
     {
-        Definition = new FormDefinition
-        {
-            FormId = Guid.NewGuid().ToString(),
-            Components = []
-        };
+        Definition = NewDefinition();
         Name = "New Form";
         Description = "";
         StoredFormId = null;
         SelectedComponent = null;
-        HoverDropIndex = -1;
-        HoverComponentId = null;
-        HoverInsideContainer = false;
-        HoverColumnIndex = -1;
-        IsDragging = false;
-        DragPayload = null;
-        Notify();
+        HasUnsavedChanges = false;
+        EndDrag();
     }
 }

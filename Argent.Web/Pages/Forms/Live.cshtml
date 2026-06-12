@@ -1,58 +1,15 @@
 @page "/Forms/Live/{id:guid}"
 @using Argent.WebComponents.Core.Forms
-@using Argent.Models.Forms.Components.Base
 @model Argent.Web.Pages.Forms.LiveModel
 @{
     ViewData["Title"] = Model.FormName;
 }
 
-@if (Model.FormDefinition != null)
-{
-    <div class="container py-4" style="max-width: 720px;">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                @if (!string.IsNullOrEmpty(Model.FormDefinition.Title))
-                {
-                    <h4 class="card-title mb-3">@Model.FormDefinition.Title</h4>
-                }
-
-                <form method="post">
-                    @if (Model.FormDefinition.Components.Count == 1)
-                    {
-                        <component type="typeof(ArgentRenderer)" render-mode="ServerPrerendered"
-                                   param-Metadata="@Model.FormDefinition.Components[0]" />
-                    }
-                    else
-                    {
-                        <div>
-                            @foreach (var comp in Model.FormDefinition.Components)
-                            {
-                                <component type="typeof(ArgentRenderer)" render-mode="ServerPrerendered"
-                                           param-Metadata="@comp" />
-                            }
-                        </div>
-                    }
-
-                    <hr class="my-4" />
-                    <div class="d-flex justify-content-end gap-2">
-                        <a href="/" class="btn btn-outline-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary px-4">Submit</button>
-                    </div>
-                </form>
-
-                @if (!string.IsNullOrEmpty(Model.SubmittedMessage))
-                {
-                    <div class="alert alert-success mt-3 mb-0" role="alert">
-                        @Model.SubmittedMessage
-                    </div>
-                }
-            </div>
+<div class="container py-4" style="max-width: 720px;">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <component type="typeof(ArgentForm)" render-mode="ServerPrerendered"
+                       param-FormId="@Model.Id" />
         </div>
     </div>
-}
-else
-{
-    <div class="container py-5 text-center">
-        <div class="alert alert-warning">Form not found.</div>
-    </div>
-}
+</div>

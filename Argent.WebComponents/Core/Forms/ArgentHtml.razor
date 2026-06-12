@@ -6,5 +6,5 @@
 </div>
 
 @code {
-    private string Html => Metadata.Title ?? "";
+    private string Html => Metadata.Html ?? Metadata.Title ?? "";
 }
