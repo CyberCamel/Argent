@@ -312,10 +312,10 @@
 
                             <text x="@(node.Width / 2)" y="@(node.Height / 2 + 4)"
                                   text-anchor="middle" class="modeler2-node-label"
-                                  dominant-baseline="middle">@(node.Title ?? "")</text>
+                                  dominant-baseline="middle">@(node.Title)</text>
 
                             @* Anchors *@
-                            @if (!IsReadOnly && isSel)
+                            @if (!EffectiveReadOnly && isSel)
                             {
                                 var anchors = AnchorService.GetAnchors(node);
                                 foreach (var a in anchors)
@@ -328,7 +328,7 @@
                             }
 
                             @* Resize handles *@
-                            @if (!IsReadOnly && isSel && node.Shape != NodeShape.Circle)
+                            @if (!EffectiveReadOnly && isSel && node.Shape != NodeShape.Circle)
                             {
                                 <rect x="0" y="-4" width="@node.Width" height="8" fill="transparent"
                                       style="cursor: ns-resize;"
@@ -387,9 +387,9 @@
 @code {
     [Parameter] public ClaimsPrincipal? User { get; set; }
     [Parameter] public Guid? WorkflowId { get; set; }
-    [Parameter] public bool IsReadOnly { get; set; }
+    [Parameter] public bool IsViewMode { get; set; }
 
-    private bool EffectiveReadOnly => IsReadOnly || State.IsReadOnlyVersion;
+    private bool EffectiveReadOnly => IsViewMode || State.IsReadOnlyVersion;
 
     private ElementReference _canvasContainer;
     private DotNetObjectReference<WorkflowModeler>? _dotNetRef;
@@ -528,7 +528,7 @@
 
     private void OnToolboxPointerDown(PointerEventArgs e, NodeTypeDescriptor desc)
     {
-        if (IsReadOnly) return;
+        if (EffectiveReadOnly) return;
         _pendingNodeDesc = desc;
         _pendingNodeW = desc.DefaultWidth;
         _pendingNodeH = desc.DefaultHeight;
@@ -541,7 +541,7 @@
 
     private async Task OnPointerDown(PointerEventArgs e)
     {
-        if (IsReadOnly) return;
+        if (EffectiveReadOnly) return;
         if (_mode != Mode.Idle) return;
 
         _startMouseX = e.ClientX;
@@ -642,7 +642,7 @@
 
     private async Task OnPointerMove(PointerEventArgs e)
     {
-        if (IsReadOnly) return;
+        if (EffectiveReadOnly) return;
 
         var dims = await GetCanvasRect();
         var (wx, wy) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
@@ -826,6 +826,12 @@
             State.Notify();
         }
 
+        if (_mode == Mode.Dragging && _activeNode != null)
+        {
+            if (TrySplitConnectionForNode(_activeNode))
+                State.MarkDirty();
+        }
+
         _mode = Mode.Idle;
         _activeNode = null;
         _activeConnection = null;
@@ -844,7 +850,7 @@
 
     private async Task OnNodePointerDown(PointerEventArgs e, DesignerNode node)
     {
-        if (IsReadOnly) return;
+        if (EffectiveReadOnly) return;
         if (_activeTool == ActiveTool.AddSpace) return;
 
         _startMouseX = e.ClientX;
@@ -927,7 +933,7 @@
 
     private async Task OnAnchorPointerDown(PointerEventArgs e, DesignerNode node, AnchorDirection dir)
     {
-        if (IsReadOnly) return;
+        if (EffectiveReadOnly) return;
 
         _startMouseX = e.ClientX;
         _startMouseY = e.ClientY;
@@ -984,7 +990,7 @@
 
     private async Task OnConnectionPointerDown(PointerEventArgs e, DesignerConnection conn)
     {
-        if (IsReadOnly) return;
+        if (EffectiveReadOnly) return;
         if (_pendingNodeDesc != null) return;
 
         _startMouseX = e.ClientX;
@@ -1010,7 +1016,7 @@
 
     private async Task OnConnectionDoubleClick(MouseEventArgs e, DesignerConnection conn)
     {
-        if (IsReadOnly) return;
+        if (EffectiveReadOnly) return;
 
         var dims = await GetCanvasRect();
         var (wx, wy) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
@@ -1025,7 +1031,7 @@
 
     private async Task OnWaypointPointerDown(PointerEventArgs e, DesignerConnection conn, int idx)
     {
-        if (IsReadOnly) return;
+        if (EffectiveReadOnly) return;
 
         _startMouseX = e.ClientX;
         _startMouseY = e.ClientY;
@@ -1147,6 +1153,7 @@
         State.Nodes.Add(node);
         State.Select(node);
         _pendingNodeDesc = null;
+        TrySplitConnectionForNode(node);
         State.MarkDirty();
     }
 
@@ -1154,7 +1161,7 @@
 
     private async Task OnResizeStart(PointerEventArgs e, DesignerNode node, ResizeDir dir)
     {
-        if (IsReadOnly) return;
+        if (EffectiveReadOnly) return;
 
         _startMouseX = e.ClientX;
         _startMouseY = e.ClientY;
@@ -1221,6 +1228,57 @@
                     conn.Target, conn.TargetDir);
             }
         }
+    }
+
+    private bool TrySplitConnectionForNode(DesignerNode node)
+    {
+        double cx = node.X + node.Width / 2;
+        double cy = node.Y + node.Height / 2;
+
+        DesignerConnection? targetConn = null;
+        foreach (var conn in State.Connections)
+        {
+            if (RoutingService.FindNearestSegment(conn.Waypoints, cx, cy, threshold: 15) >= 0)
+            {
+                targetConn = conn;
+                break;
+            }
+        }
+
+        if (targetConn == null) return false;
+
+        var conn1 = new DesignerConnection
+        {
+            Source = targetConn.Source,
+            SourceDir = targetConn.SourceDir,
+            Target = node,
+            TargetDir = AnchorDirection.None,
+            EngineConnection = new Connection { From = targetConn.Source.NodeData, To = node.NodeData },
+        };
+
+        var conn2 = new DesignerConnection
+        {
+            Source = node,
+            SourceDir = AnchorDirection.None,
+            Target = targetConn.Target,
+            TargetDir = targetConn.TargetDir,
+            EngineConnection = new Connection { From = node.NodeData, To = targetConn.Target.NodeData },
+        };
+
+        var (srcDir1, tgtDir1) = RoutingService.GetBestDirections(conn1.Source, conn1.Target);
+        conn1.SourceDir = srcDir1;
+        conn1.TargetDir = tgtDir1;
+        conn1.Waypoints = RoutingService.AutoRoute(conn1.Source, conn1.SourceDir, conn1.Target, conn1.TargetDir);
+
+        var (srcDir2, tgtDir2) = RoutingService.GetBestDirections(conn2.Source, conn2.Target);
+        conn2.SourceDir = srcDir2;
+        conn2.TargetDir = tgtDir2;
+        conn2.Waypoints = RoutingService.AutoRoute(conn2.Source, conn2.SourceDir, conn2.Target, conn2.TargetDir);
+
+        State.Connections.Remove(targetConn);
+        State.Connections.Add(conn1);
+        State.Connections.Add(conn2);
+        return true;
     }
 
     // ======================== SAVE / COMPILE / PUBLISH ========================

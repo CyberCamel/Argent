@@ -62,13 +62,7 @@ public class DesignerService(
 
     public void LoadDefinition(WorkflowDefinition def)
     {
-        Nodes.Clear();
-        Connections.Clear();
-        CompiledDefinition = null;
-        ValidationResult = null;
-        CompiledJson = null;
-        LoadedDraftId = null;
-        LoadedVersionId = null;
+
 
         var nodeMap = new Dictionary<Guid, DesignerNode>();
         var metadataCache = _registry.GetRegisteredTypes().ToList();
@@ -125,6 +119,15 @@ public class DesignerService(
 
     public async Task LoadWorkflowAsync(Guid workflowId)
     {
+        
+        Nodes.Clear();
+        Connections.Clear();
+        CompiledDefinition = null;
+        ValidationResult = null;
+        CompiledJson = null;
+        LoadedDraftId = null;
+        LoadedVersionId = null;
+        
         var workflow = await _dbContext.WorkflowDefinitions
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == workflowId);
@@ -168,6 +171,16 @@ public class DesignerService(
 
     public async Task LoadVersionAsync(Guid versionId)
     {
+        
+        Nodes.Clear();
+        Connections.Clear();
+        CompiledDefinition = null;
+        ValidationResult = null;
+        CompiledJson = null;
+        LoadedDraftId = null;
+        LoadedVersionId = null;
+        
+        
         var version = await _dbContext.WorkflowVersions
             .AsNoTracking()
             .FirstOrDefaultAsync(v => v.Id == versionId);
@@ -231,6 +244,7 @@ public class DesignerService(
 
     public void SaveDraft()
     {
+        if (LoadedVersionId.HasValue) return;
         if (CompiledDefinition == null) return;
 
         var currentUser = _httpContextAccessor.HttpContext?.User;
@@ -342,7 +356,7 @@ public class DesignerService(
         // Now viewing the published version (read-only)
         LoadedVersionId = versionEntry.Id;
         LoadedDraftId = null;
-        LoadDefinition(draft.Definition);
+        LoadDefinition(versionEntry.Definition);
         HasUnsavedChanges = false;
     }
 
@@ -362,6 +376,12 @@ public class DesignerService(
 
         version.State = WorkflowDefinitionState.Deployed;
         _dbContext.SaveChanges();
+
+        // Switch the modeler to view this deployed version (read-only)
+        LoadedVersionId = versionId;
+        LoadedDraftId = null;
+        LoadDefinition(version.Definition);
+        HasUnsavedChanges = false;
     }
 
     public void CreateDraftFromVersion(Guid versionId)
@@ -369,15 +389,13 @@ public class DesignerService(
         var source = _dbContext.WorkflowVersions.Find(versionId);
         if (source == null) return;
 
+        // Don't create if a draft already exists — discard it first
+        if (_dbContext.WorkflowDrafts.Any(d => d.WorkflowId == source.WorkflowId))
+            return;
+
         var currentUser = _httpContextAccessor.HttpContext?.User;
         var userName = currentUser?.Identity?.Name ?? "Unknown";
         var now = DateTime.UtcNow;
-
-        // Replace any existing draft for this workflow
-        var existingDraft = _dbContext.WorkflowDrafts
-            .FirstOrDefault(d => d.WorkflowId == source.WorkflowId);
-        if (existingDraft != null)
-            _dbContext.WorkflowDrafts.Remove(existingDraft);
 
         var draft = new WorkflowDraft
         {
@@ -401,6 +419,45 @@ public class DesignerService(
         LoadedVersionId = null;
         LoadDefinition(draft.Definition);
         HasUnsavedChanges = false;
+    }
+
+    public void DiscardDraft()
+    {
+        if (!LoadedDraftId.HasValue || !CurrentWorkflowId.HasValue) return;
+
+        var draft = _dbContext.WorkflowDrafts.Find(LoadedDraftId.Value);
+        if (draft != null)
+            _dbContext.WorkflowDrafts.Remove(draft);
+        _dbContext.SaveChanges();
+
+        // Fallback to the latest deployed/published version
+        var version = _dbContext.WorkflowVersions
+            .Where(v => v.WorkflowId == CurrentWorkflowId.Value && v.State == WorkflowDefinitionState.Deployed)
+            .OrderByDescending(v => v.CreatedAt)
+            .FirstOrDefault()
+            ?? _dbContext.WorkflowVersions
+                .Where(v => v.WorkflowId == CurrentWorkflowId.Value)
+                .OrderByDescending(v => v.CreatedAt)
+                .FirstOrDefault();
+
+        if (version != null)
+        {
+            LoadedVersionId = version.Id;
+            LoadDefinition(version.Definition);
+        }
+        else
+        {
+            Nodes.Clear();
+            Connections.Clear();
+            CompiledDefinition = null;
+            ValidationResult = null;
+            CompiledJson = null;
+            LoadedVersionId = null;
+        }
+
+        LoadedDraftId = null;
+        HasUnsavedChanges = false;
+        Notify();
     }
 
     public void Notify()

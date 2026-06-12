@@ -1615,6 +1615,16 @@ svg > rect[fill="url(#gridPattern)"] {
     cursor: default;
 }
 
+.modeler2-version-action-btn-danger {
+    background: rgba(243, 139, 168, 0.12);
+    border-color: #f38ba8;
+    color: #f38ba8;
+}
+
+.modeler2-version-action-btn-danger:hover {
+    background: rgba(243, 139, 168, 0.25);
+}
+
 .modeler2-version-diff {
     display: flex;
     flex-direction: column;

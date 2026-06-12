@@ -6,7 +6,7 @@
 @using Microsoft.JSInterop
 
 @inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
-@inject IJSRuntime JS
+@inject IJSRuntime Js
 
 <div class="modeler2-version-panel">
     <h3 class="modeler2-version-title">
@@ -26,7 +26,7 @@
     else
     {
         <div class="modeler2-version-timeline">
-            @for (int i = 0; i < _timeline.Count; i++)
+            @for (var i = 0; i < _timeline.Count; i++)
             {
                 var entry = _timeline[i];
                 var isLast = i == _timeline.Count - 1;
@@ -42,39 +42,48 @@
                             @entry.CreatedBy · @entry.CreatedAt.ToString("g")
                         </div>
 
-                        @if (entry.IsDraft && entry.IsLoaded && _publishing)
+                        @switch (entry)
                         {
-                            <div class="modeler2-version-publish-inline">
-                                <span class="modeler2-version-publish-label">Publish as</span>
-                                <button class="modeler2-version-action-btn modeler2-version-action-btn-primary"
-                                        @onclick="() => Publish(true)" @onclick:stopPropagation>
-                                    <i class="bi bi-arrow-up-short"></i> Major (@_majorVersion)
-                                </button>
-                                <button class="modeler2-version-action-btn modeler2-version-action-btn-primary"
-                                        @onclick="() => Publish(false)" @onclick:stopPropagation>
-                                    <i class="bi bi-arrow-right-short"></i> Minor (@_minorVersion)
-                                </button>
-                                <button class="modeler2-version-action-btn" @onclick="CancelPublish" @onclick:stopPropagation>
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                            </div>
-                        }
-                        else if (entry.IsDraft && entry.IsLoaded)
-                        {
-                            <button class="modeler2-version-action-btn modeler2-version-action-btn-primary"
-                                    @onclick="StartPublish" @onclick:stopPropagation>
-                                <i class="bi bi-send-fill"></i> Publish...
-                            </button>
-
-                            @if (_hasPublishedVersion)
+                            case { IsDraft: true, IsLoaded: true } when _publishing:
+                                <div class="modeler2-version-publish-inline">
+                                    <span class="modeler2-version-publish-label">Publish as</span>
+                                    <button class="modeler2-version-action-btn modeler2-version-action-btn-primary"
+                                            @onclick="() => Publish(true)" @onclick:stopPropagation>
+                                        <i class="bi bi-arrow-up-short"></i> Major (@_majorVersion)
+                                    </button>
+                                    <button class="modeler2-version-action-btn modeler2-version-action-btn-primary"
+                                            @onclick="() => Publish(false)" @onclick:stopPropagation>
+                                        <i class="bi bi-arrow-right-short"></i> Minor (@_minorVersion)
+                                    </button>
+                                    <button class="modeler2-version-action-btn" @onclick="CancelPublish" @onclick:stopPropagation>
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                                break;
+                            case { IsDraft: true, IsLoaded: true }:
                             {
-                                <button class="modeler2-version-action-btn" @onclick="ToggleChanges" @onclick:stopPropagation>
-                                    <i class="bi @(_showChanges ? "bi-chevron-up" : "bi-journal-text")"></i> @(_showChanges ? "Hide changes" : "View changes")
+                                <button class="modeler2-version-action-btn modeler2-version-action-btn-primary"
+                                        @onclick="StartPublish" @onclick:stopPropagation>
+                                    <i class="bi bi-send-fill"></i> Publish...
                                 </button>
+
+                                <button class="modeler2-version-action-btn modeler2-version-action-btn-danger"
+                                        @onclick="DiscardDraft" @onclick:stopPropagation>
+                                    <i class="bi bi-trash-fill"></i> Discard draft
+                                </button>
+
+                                if (HasPublishedVersion)
+                                {
+                                    <button class="modeler2-version-action-btn" @onclick="ToggleChanges" @onclick:stopPropagation>
+                                        <i class="bi @(_showChanges ? "bi-chevron-up" : "bi-journal-text")"></i> @(_showChanges ? "Hide changes" : "View changes")
+                                    </button>
+                                }
+
+                                break;
                             }
                         }
 
-                        @if (entry.IsDraft && entry.IsLoaded && _showChanges && _diff != null)
+                        @if (entry is { IsDraft: true, IsLoaded: true } && _showChanges && _diff != null)
                         {
                             <div class="modeler2-version-diff">
                                 @if (!_diff.HasChanges)
@@ -144,21 +153,21 @@
                             </button>
                         }
 
-                        @if (entry.IsPublished || entry.IsDeployed)
+                        @if (!HasDraft && (entry.IsPublished || entry.IsDeployed))
                         {
                             <button class="modeler2-version-action-btn" @onclick="() => CreateNewDraft(entry.Id)" @onclick:stopPropagation>
                                 <i class="bi bi-copy"></i> Create new draft
                             </button>
                         }
 
-                        @if (entry.IsDraft && !entry.IsLoaded)
+                        @if (entry is { IsDraft: true, IsLoaded: false })
                         {
-                            <button class="modeler2-version-action-btn" @onclick="() => SwitchToDraft()" @onclick:stopPropagation>
+                            <button class="modeler2-version-action-btn" @onclick="SwitchToDraft" @onclick:stopPropagation>
                                 <i class="bi bi-pencil-fill"></i> Edit draft
                             </button>
                         }
 
-                        @if (!entry.IsDraft && !entry.IsLoaded)
+                        @if (entry is { IsDraft: false, IsLoaded: false })
                         {
                             <button class="modeler2-version-action-btn" @onclick="() => LoadVersion(entry.Id)" @onclick:stopPropagation>
                                 <i class="bi bi-eye-fill"></i> View this version
@@ -189,27 +198,31 @@
     private bool _showChanges;
     private WorkflowDiff? _diff;
     private Guid? _lastWorkflowId;
+    private DateTime _lastDiffCompute = DateTime.MinValue;
+    private bool _lastUnsaved;
 
-    private bool _hasPublishedVersion => _timeline?.Any(e => e.IsPublished || e.IsDeployed) ?? false;
+    private bool HasPublishedVersion => _timeline?.Any(e => e.IsPublished || e.IsDeployed) ?? false;
+    private bool HasDraft => _timeline?.Any(e => e.IsDraft) ?? false;
 
     private class TimelineEntry
     {
-        public Guid Id { get; set; }
-        public string Label { get; set; } = "";
-        public string BadgeText { get; set; } = "";
-        public string BadgeCss { get; set; } = "";
-        public string CreatedBy { get; set; } = "";
-        public DateTime CreatedAt { get; set; }
-        public bool IsDraft { get; set; }
-        public bool IsPublished { get; set; }
-        public bool IsDeployed { get; set; }
-        public bool IsLoaded { get; set; }
+        public Guid Id { get; init; }
+        public string Label { get; init; } = "";
+        public string BadgeText { get; init; } = "";
+        public string BadgeCss { get; init; } = "";
+        public string CreatedBy { get; init; } = "";
+        public DateTime CreatedAt { get; init; }
+        public bool IsDraft { get; init; }
+        public bool IsPublished { get; init; }
+        public bool IsDeployed { get; init; }
+        public bool IsLoaded { get; init; }
     }
 
     protected override void OnInitialized()
     {
         State.OnChange += OnStateChanged;
         _lastWorkflowId = State.CurrentWorkflowId;
+        _lastUnsaved = State.HasUnsavedChanges;
     }
 
     protected override async Task OnInitializedAsync()
@@ -222,7 +235,25 @@
         if (_lastWorkflowId != State.CurrentWorkflowId)
         {
             _lastWorkflowId = State.CurrentWorkflowId;
+            _lastUnsaved = State.HasUnsavedChanges;
+            _lastDiffCompute = DateTime.MinValue;
             _ = InvokeAsync(RefreshVersions);
+        }
+        else
+        {
+            if (_lastUnsaved && !State.HasUnsavedChanges)
+                _ = InvokeAsync(RefreshVersions);
+            _lastUnsaved = State.HasUnsavedChanges;
+
+            if (_showChanges)
+            {
+                var now = DateTime.UtcNow;
+                if ((now - _lastDiffCompute).TotalSeconds >= 2)
+                {
+                    _lastDiffCompute = now;
+                    _ = InvokeAsync(ComputeDiffAsync);
+                }
+            }
         }
     }
 
@@ -306,7 +337,7 @@
     {
         if (State.HasUnsavedChanges)
         {
-            var confirmed = await JS.InvokeAsync<bool>("confirm", "You have unsaved changes. Discard and return to draft?");
+            var confirmed = await Js.InvokeAsync<bool>("confirm", "You have unsaved changes. Discard and return to draft?");
             if (!confirmed) return;
         }
         await State.LoadWorkflowAsync(State.CurrentWorkflowId!.Value);
@@ -318,7 +349,7 @@
     {
         if (State.HasUnsavedChanges)
         {
-            var confirmed = await JS.InvokeAsync<bool>("confirm", "You have unsaved changes. Load this version and discard changes?");
+            var confirmed = await Js.InvokeAsync<bool>("confirm", "You have unsaved changes. Load this version and discard changes?");
             if (!confirmed) return;
         }
         await State.LoadVersionAsync(versionId);
@@ -348,11 +379,24 @@
     {
         State.DeployVersion(versionId);
         await RefreshVersions();
+        await OnVersionLoaded.InvokeAsync();
     }
 
     private async Task CreateNewDraft(Guid versionId)
     {
         State.CreateDraftFromVersion(versionId);
+        await RefreshVersions();
+        await OnVersionLoaded.InvokeAsync();
+    }
+
+    private async Task DiscardDraft()
+    {
+        if (State.HasUnsavedChanges)
+        {
+            var confirmed = await Js.InvokeAsync<bool>("confirm", "Discard unsaved changes?");
+            if (!confirmed) return;
+        }
+        State.DiscardDraft();
         await RefreshVersions();
         await OnVersionLoaded.InvokeAsync();
     }

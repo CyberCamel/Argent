@@ -9,9 +9,9 @@
         <h4 class="fw-bold mb-1">Workflows</h4>
         <p class="text-muted small mb-0">Manage your workflow definitions</p>
     </div>
-    <a class="btn btn-primary" href="/Workflows/Create">
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
         <i class="bi bi-plus-lg"></i> New Workflow
-    </a>
+    </button>
 </div>
 
 @if (Model.Defs.Count == 0)
@@ -19,7 +19,7 @@
     <div class="card">
         <div class="card-body text-center py-5">
             <i class="bi bi-diagram-3 fs-1 text-muted mb-3 d-block"></i>
-            <p class="text-muted mb-0">No workflows yet. <a href="/Workflows/Create">Create your first one</a>!</p>
+            <p class="text-muted mb-0">No workflows yet. Create your first one!</p>
         </div>
     </div>
 }
@@ -56,3 +56,30 @@ else
         </div>
     </div>
 }
+
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form method="post" asp-page-handler="Create">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="fw-bold"><i class="bi bi-diagram-3 me-2 text-primary"></i>New Workflow</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label small fw-medium">Name</label>
+                        <input id="name" name="name" type="text" class="form-control" required placeholder="My workflow" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label small fw-medium">Description</label>
+                        <textarea id="description" name="description" class="form-control" rows="3" placeholder="What does this workflow do?"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save-fill"></i> Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

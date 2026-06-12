@@ -79,7 +79,8 @@ public class WorkflowDiff
         return diff;
     }
 
-    private static string DisplayName(NodeBase node) => node.Name ?? node.GetType().Name;
+    private static string DisplayName(NodeBase node) =>
+        string.IsNullOrWhiteSpace(node.Name) ? node.GetType().Name : node.Name;
 }
 
 public class DiffEntry
