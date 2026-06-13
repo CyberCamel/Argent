@@ -16,15 +16,18 @@ public class TokenRunner : ITokenRunner
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IWorkflowNodeRegistry _nodeRegistry;
+    private readonly IDbContextFactory<ArgentDbContext> _contextFactory;
     private readonly ILogger<TokenRunner> _logger;
 
     public TokenRunner(
         IServiceScopeFactory scopeFactory,
         IWorkflowNodeRegistry nodeRegistry,
+        IDbContextFactory<ArgentDbContext> contextFactory,
         ILogger<TokenRunner> logger)
     {
         _scopeFactory = scopeFactory;
         _nodeRegistry = nodeRegistry;
+        _contextFactory = contextFactory;
         _logger = logger;
     }
 
@@ -78,8 +81,6 @@ public class TokenRunner : ITokenRunner
             }
 
             // --- Gateway JOIN detection ---
-            // InclusiveGateway with multiple inbound connections: wait for N sibling tokens
-            // before evaluating outgoing paths. Each sibling carries a shared GroupId.
             var inboundCount = definition.Connections.Count(c => c.To.Id == node.Id);
 
             if (inboundCount > 1 && (node is InclusiveGateway or ParallelGateway)
@@ -93,7 +94,6 @@ public class TokenRunner : ITokenRunner
 
                 if (consumedSiblings + 1 < currentToken.TokenCount.Value)
                 {
-                    // Not all siblings have arrived — consume this token silently
                     currentToken.State = TokenState.Consumed;
                     currentToken.ConsumedAt = DateTime.UtcNow;
                     await db.SaveChangesAsync(ct);
@@ -110,7 +110,7 @@ public class TokenRunner : ITokenRunner
                     currentToken.TokenCount, node.Name);
             }
 
-            // Build execution context with current variables and candidate targets
+            // Build execution context
             var variables = TokenMovement.DeserializePayload(claimed.TokenPayload);
 
             var candidates = definition.Connections
@@ -135,25 +135,37 @@ public class TokenRunner : ITokenRunner
                 currentToken?.GroupId,
                 currentToken?.TokenCount);
 
-            // Resolve and execute the handler
+            // Resolve handler
             var handlers = scope.ServiceProvider.GetRequiredService<IEnumerable<INodeHandler>>();
             var handler = handlers.FirstOrDefault(h => h.HandledNodeType == node.GetType());
 
-            NodeResult result;
-            if (handler != null)
-            {
-                _logger.LogInformation(
-                    "Executing {NodeType} '{NodeName}' on instance {InstanceId}",
-                    node.GetType().Name, node.Name, claimed.InstanceId);
+            // Start lock heartbeat during execution
+            using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var heartbeatTask = RenewLockPeriodicallyAsync(claimed.WorkItemId, heartbeatCts.Token);
 
-                result = await handler.ExecuteAsync(node, ctx, ct);
-            }
-            else
+            NodeResult result;
+            try
             {
-                _logger.LogWarning(
-                    "No handler registered for {NodeType}. Completing work item without processing.",
-                    node.GetType().Name);
-                result = new NodeResult(true);
+                if (handler != null)
+                {
+                    _logger.LogInformation(
+                        "Executing {NodeType} '{NodeName}' on instance {InstanceId}",
+                        node.GetType().Name, node.Name, claimed.InstanceId);
+
+                    result = await handler.ExecuteAsync(node, ctx, ct);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "No handler registered for {NodeType}. Completing work item without processing.",
+                        node.GetType().Name);
+                    result = new NodeResult(true);
+                }
+            }
+            finally
+            {
+                await heartbeatCts.CancelAsync();
+                try { await heartbeatTask; } catch (OperationCanceledException) { }
             }
 
             // Handle the result
@@ -167,10 +179,7 @@ public class TokenRunner : ITokenRunner
                     break;
 
                 case NodeResultType.Failed:
-                    await SetWorkItemStateAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
-                    _logger.LogWarning(
-                        "WorkItem {Id} failed: {Error}",
-                        claimed.WorkItemId, result.ErrorMessage);
+                    await HandleFailureAsync(db, claimed, result.ErrorMessage, ct);
                     break;
 
                 default:
@@ -201,6 +210,7 @@ public class TokenRunner : ITokenRunner
                         journalEntry);
 
                     await movement.CommitAsync(request, ct);
+                    await SetWorkItemStateAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
 
                     _logger.LogInformation(
                         "Token {TokenId} moved from '{NodeName}' to {TargetCount} target(s)",
@@ -213,7 +223,65 @@ public class TokenRunner : ITokenRunner
             _logger.LogError(ex,
                 "Failed to process WorkItem {Id} for instance {InstanceId}",
                 claimed.WorkItemId, claimed.InstanceId);
-            await SetWorkItemStateAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
+            await HandleFailureAsync(db, claimed, ex.Message, ct);
+        }
+    }
+
+    private async Task RenewLockPeriodicallyAsync(Guid workItemId, CancellationToken ct)
+    {
+        await using var renewDb = await _contextFactory.CreateDbContextAsync(ct);
+
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromMinutes(2), ct);
+                await renewDb.WorkItems
+                    .Where(w => w.Id == workItemId && w.State == WorkItemState.Running)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(w => w.LockExpirationUtc, DateTime.UtcNow.AddMinutes(5)), ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Lock renewal failed for WorkItem {Id}", workItemId);
+            }
+        }
+    }
+
+    private async Task HandleFailureAsync(
+        ArgentDbContext db,
+        ClaimedWork claimed,
+        string? errorMessage,
+        CancellationToken ct)
+    {
+        if (claimed.RetryCount < claimed.MaxRetries)
+        {
+            await db.WorkItems
+                .Where(w => w.Id == claimed.WorkItemId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(w => w.State, WorkItemState.Pending)
+                    .SetProperty(w => w.LockedBy, (string?)null)
+                    .SetProperty(w => w.LockExpirationUtc, (DateTime?)null)
+                    .SetProperty(w => w.RetryCount, w => w.RetryCount + 1), ct);
+
+            _logger.LogWarning(
+                "WorkItem {Id} failed, scheduled retry {RetryCount}/{MaxRetries}: {Error}",
+                claimed.WorkItemId, claimed.RetryCount + 1, claimed.MaxRetries, errorMessage);
+        }
+        else
+        {
+            await db.WorkItems
+                .Where(w => w.Id == claimed.WorkItemId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(w => w.State, WorkItemState.Failed), ct);
+
+            _logger.LogWarning(
+                "WorkItem {Id} dead lettered after {MaxRetries} retries: {Error}",
+                claimed.WorkItemId, claimed.MaxRetries, errorMessage);
         }
     }
 
@@ -223,7 +291,6 @@ public class TokenRunner : ITokenRunner
         NodeResult result,
         ITokenExecutionContext ctx)
     {
-        // If the handler explicitly specified target nodes, use those
         if (result.ExplicitTargetNodeIds is { Count: > 0 })
         {
             return result.ExplicitTargetNodeIds
@@ -236,7 +303,6 @@ public class TokenRunner : ITokenRunner
                 .ToList();
         }
 
-        // Otherwise follow all outbound connections
         var mergedVars = TokenMovement.MergeVariables(
             ctx.Variables.Snapshot(),
             result.OutputVariables);

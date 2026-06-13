@@ -82,7 +82,7 @@ public class WorkflowEngine(
                     50 - _semaphore.CurrentCount);
                 break;
             }
-            await Task.Delay(500, stoppingToken);
+            await Task.Delay(500, CancellationToken.None);
         }
 
         logger.LogInformation("Workflow engine stopped.");

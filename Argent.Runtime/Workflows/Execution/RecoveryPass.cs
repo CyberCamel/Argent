@@ -27,11 +27,13 @@ public class RecoveryPass
 
         var now = DateTime.UtcNow;
 
-        // Step 1: Release stale locks
+        // Step 1: Release stale locks and dead-letter exhausted items
+        // Items still under max retries → release as Pending, increment retry
         var releasedCount = await context.WorkItems
             .Where(w => w.State == WorkItemState.Running
                      && w.LockExpirationUtc != null
-                     && w.LockExpirationUtc < now)
+                     && w.LockExpirationUtc < now
+                     && w.RetryCount < w.MaxRetries)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(w => w.State, WorkItemState.Pending)
                 .SetProperty(w => w.LockedBy, (string?)null)
@@ -40,6 +42,20 @@ public class RecoveryPass
 
         if (releasedCount > 0)
             _logger.LogWarning("Released {Count} stale work item locks", releasedCount);
+
+        // Items past max retries → dead letter
+        var deadLetteredCount = await context.WorkItems
+            .Where(w => w.State == WorkItemState.Running
+                     && w.LockExpirationUtc != null
+                     && w.LockExpirationUtc < now
+                     && w.RetryCount >= w.MaxRetries)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(w => w.State, WorkItemState.Failed)
+                .SetProperty(w => w.LockedBy, (string?)null)
+                .SetProperty(w => w.LockExpirationUtc, (DateTime?)null), ct);
+
+        if (deadLetteredCount > 0)
+            _logger.LogWarning("Dead-lettered {Count} work items (max retries exceeded)", deadLetteredCount);
 
         // Step 2: Recover orphan tokens — tokens in Ready state with no corresponding
         // Pending or Running work item
@@ -51,9 +67,7 @@ public class RecoveryPass
         foreach (var token in readyTokens)
         {
             var hasWorkItem = await context.WorkItems
-                .AnyAsync(w => w.TokenId == token.Id
-                            && (w.State == WorkItemState.Pending
-                             || w.State == WorkItemState.Running), ct);
+                .AnyAsync(w => w.TokenId == token.Id, ct);
 
             if (hasWorkItem)
                 continue;
@@ -124,7 +138,7 @@ public class RecoveryPass
         await context.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Recovery pass complete: {Released} locks released, {Recovered} tokens recovered, {Stuck} instances recovered",
-            releasedCount, recoveredCount, stuckCount);
+            "Recovery pass complete: {Released} locks released, {DeadLettered} dead-lettered, {Recovered} tokens recovered, {Stuck} instances recovered",
+            releasedCount, deadLetteredCount, recoveredCount, stuckCount);
     }
 }
