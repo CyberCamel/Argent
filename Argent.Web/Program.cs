@@ -98,8 +98,17 @@ builder.Services.AddScoped<DesignerService, DesignerService>();
 builder.Services.AddScoped<FormDesignerService, FormDesignerService>();
 builder.Services.AddSingleton<IWorkflowNodeRegistry, ArgentWorkflowNodeRegistry>();
 
-builder.Services.AddScoped<IWorkItemRepository, WorkItemRepository>();
-builder.Services.AddScoped<IWorkRouter, WorkRouter>();
+// --- Workflow Engine ---
+builder.Services.AddSingleton<IWorkClaimer>(sp =>
+{
+    var factory = sp.GetRequiredService<IDbContextFactory<ArgentDbContext>>();
+    using var ctx = factory.CreateDbContext();
+    return new WorkClaimer(ctx.Database.GetConnectionString()!);
+});
+builder.Services.AddSingleton<ITokenRunner, TokenRunner>();
+builder.Services.AddScoped<ITokenMovement, TokenMovement>();
+builder.Services.AddScoped<IWorkflowInstanceManager, WorkflowInstanceManager>();
+builder.Services.AddTransient<RecoveryPass>();
 builder.Services.AddHostedService<WorkflowEngine>();
 
 builder.Services.AddScoped<IDomainObjectDefinitionService, DomainObjectDefinitionService>();

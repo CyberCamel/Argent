@@ -1,61 +1,90 @@
-﻿using Argent.Contracts;
-using Argent.Contracts.Workflows.Execution;
-using Argent.Models.Workflows.Execution;
+﻿using Argent.Contracts.Workflows.Execution;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Argent.Runtime.Workflows.Execution;
 
 public class WorkflowEngine(
     ILogger<WorkflowEngine> logger,
-    IServiceProvider serviceProvider) // Inject the provider, not the scoped services
-    : BackgroundService
+    IServiceProvider serviceProvider,
+    RecoveryPass recoveryPass) : BackgroundService
 {
     private readonly SemaphoreSlim _semaphore = new(50);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Workflow engine started.");
+        logger.LogInformation("Workflow engine starting...");
+
+        await recoveryPass.RunAsync(stoppingToken);
+
+        logger.LogInformation("Workflow engine started (polling every 1s, max concurrency: 50)");
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            logger.LogInformation("Executing workflow tick...");
-
-            using (var scope = serviceProvider.CreateScope())
+            try
             {
-                var workRepository = scope.ServiceProvider.GetRequiredService<IWorkItemRepository>();
-                var router = scope.ServiceProvider.GetRequiredService<IWorkRouter>();
+                IReadOnlyList<ClaimedWork> claimed;
 
-                // 3. Fetch potential work (Lazy cleanup happens inside TryLockWorkItemAsync)
-                var availableWork = await workRepository.GetWorkAsync();
-
-                foreach (var workItem in availableWork)
+                using (var scope = serviceProvider.CreateScope())
                 {
-                    if(!await _semaphore.WaitAsync(0, stoppingToken))
+                    var claimer = scope.ServiceProvider.GetRequiredService<IWorkClaimer>();
+                    claimed = await claimer.ClaimAsync(50, stoppingToken);
+                }
+
+                foreach (var work in claimed)
+                {
+                    await _semaphore.WaitAsync(stoppingToken);
+
+                    var captured = work;
+                    _ = Task.Run(async () =>
                     {
-                        logger.LogWarning("Max concurrency reached. Skipping WorkItem {Id} for now.", workItem.Id);
-                        continue; // Skip this item for now, it will be retried in the next tick
-                    }
-                    if (!await workRepository.TryLockWorkItemAsync(workItem.Id)) continue;
-                    try
-                    {
-                        logger.LogInformation("Claimed WorkItem {Id}. Dispatching...", workItem.Id);
-                        router.Dispatch(workItem, () => _semaphore.Release());
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Failed to dispatch WorkItem {Id}", workItem.Id);
-                    }
+                        try
+                        {
+                            // TokenRunner creates its own scope internally
+                            var runner = serviceProvider.GetRequiredService<ITokenRunner>();
+                            await runner.RunAsync(captured, CancellationToken.None);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex,
+                                "Unhandled exception processing WorkItem {Id}",
+                                captured.WorkItemId);
+                        }
+                        finally
+                        {
+                            _semaphore.Release();
+                        }
+                    });
                 }
             }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Workflow engine tick failed");
+            }
 
-            await Task.Delay(5000, stoppingToken);
+            await Task.Delay(1000, stoppingToken);
         }
 
-        logger.LogInformation("Workflow engine stopping.");
+        logger.LogInformation("Workflow engine stopping...");
+
+        var waitStart = DateTime.UtcNow;
+        while (_semaphore.CurrentCount < 50)
+        {
+            if ((DateTime.UtcNow - waitStart).TotalSeconds > 30)
+            {
+                logger.LogWarning(
+                    "Graceful shutdown timeout. {Count} items still in flight.",
+                    50 - _semaphore.CurrentCount);
+                break;
+            }
+            await Task.Delay(500, stoppingToken);
+        }
+
+        logger.LogInformation("Workflow engine stopped.");
     }
 }
