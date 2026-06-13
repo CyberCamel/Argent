@@ -46,9 +46,9 @@ The leaf-node assembly. Contains no logic — only POCOs, enums, JSON-polymorphi
 |---|---|---|
 | `DomainObjects` | `DomainObject`, `DomainObjectDefinition`, `DomainObjectDraft`, `DomainObjectVersion`, `DomainObjectRecord`, `DomainProperty`, `DomainPropertyType`, `DomainChoiceOption`, `DomainDataSource`, `DomainObjectState` | Schema definitions for custom entity types, their typed properties, data source bindings, version lifecycle (draft → publish), and instance records |
 | `DomainObjects.Querying` | `DomainQuery`, `DomainQueryResult`, `DomainFilter`, `DomainSort`, `DomainFilterCondition`, `DomainFilterOperator`, `DomainFilterLogic` | Declarative query/filter/sort/pagination model for domain object records |
-| `Workflows` | `WorkflowDefinition`, `Workflow`, `WorkflowVersion`, `WorkflowDraft`, `NodeBase`, `Connection`, `StartEvent`, `EndEvent`, `ExclusiveGateway`, `InclusiveGateway`, `Lane`, `Pool`, `Token`, `WorkflowMetadata`, `WorkflowDiff` | Workflow graph model. `NodeBase` is the JSON-polymorphic base; concrete nodes carry `[WorkflowCanvasElement]` attributes with metadata for the designer |
-| `Workflows.Activities` | `Activity`, `SQLActivity`, `RestActivity`, `JintActivity`, `UserActivity`, `ServerActivity` | Concrete node types, each `NodeBase` subtypes discriminated by JSON type discriminator |
-| `Workflows.Execution` | `WorkItem`, `WorkflowInstance`, `ExecutionResult`, enums | Runtime execution state: work items (pending/locked/completed), instance tracking, handler results |
+| `Workflows` | `WorkflowDefinition`, `Workflow`, `WorkflowVersion`, `WorkflowDraft`, `NodeBase`, `Connection`, `StartEvent`, `EndEvent`, `ExclusiveGateway`, `InclusiveGateway`, `ParallelGateway`, `Lane`, `Pool`, `Token`, `WorkflowMetadata`, `WorkflowDiff` | Workflow graph model. `NodeBase` is the JSON-polymorphic base; concrete nodes carry `[WorkflowCanvasElement]` attributes with metadata for the designer. `Connection.Expression` carries the gateway condition (NCalc) for conditional branches |
+| `Workflows.Activities` | `Activity`, `SQLActivity`, `RestActivity`, `JintActivity`, `UserActivity`, `ServerActivity`, `UserExperience` (`RedirectExperience`, `WaitExperience`, `TaskExperience`) | Concrete node types, each `NodeBase` subtypes discriminated by JSON type discriminator. `UserActivity.UX` selects how a user task is surfaced |
+| `Workflows.Execution` | `WorkflowToken`, `WorkItem`, `WorkflowInstance`, `UserTask`, `WorkItemState`, `InstanceState`, `TokenState`, `UserTaskState` | Token-based execution state. `WorkflowToken` is the BPMN "token" that flows through the graph (carries the variable `Payload` plus `GroupId`/`TokenCount` for gateway join correlation); `WorkItem` is the claimable execution queue row (state, lock fields, retry counters, priority/schedule); `WorkflowInstance` tracks a running execution; `UserTask` is a pending human task |
 | `Workflows.Auditing` | `WorkflowJournalEntry`, enums | Audit trail entries for workflow execution |
 | `Workflows.Modeler` | `NodeLayout`, `LayoutElement` | Visual layout data (position, dimensions) for the workflow designer canvas |
 | `Forms.Components` | `FormDefinition` | Top-level form definition containing a tree of `FormComponent` items |
@@ -64,7 +64,7 @@ The leaf-node assembly. Contains no logic — only POCOs, enums, JSON-polymorphi
 
 All three designer subsystems (workflows, forms, domain objects) store their definitions as `nvarchar(max)` JSON columns. Polymorphism uses `System.Text.Json` type discriminators:
 
-- `NodeBase` → `SQLActivity`, `RestActivity`, `JintActivity`, `UserActivity`, `ServerActivity`, `StartEvent`, `EndEvent`, `ExclusiveGateway`, `InclusiveGateway`
+- `NodeBase` → `SQLActivity`, `RestActivity`, `JintActivity`, `UserActivity`, `ServerActivity`, `StartEvent`, `EndEvent`, `ExclusiveGateway`, `InclusiveGateway`, `ParallelGateway`
 - `FormComponent` → `FormField`, `FormLayout` (with `LayoutType` sub-discriminator)
 - `DataSource` → `SqlDataSource`, `RestDataSource`, `SoapDataSource`
 - `Condition` → `AndCondition`, `OrCondition`, `NotCondition`, `CompareCondition`, `RoleCondition`, `ExpressionCondition`
@@ -114,13 +114,29 @@ Defines all public-facing interfaces and DTOs that decouple the runtime layer fr
 
 ##### Execution (`Workflows/Execution/`)
 
+The execution layer is a **token-based BPMN interpreter**. A `WorkflowToken` carries instance
+state along a graph edge; a `WorkItem` is the claimable unit of work that advances one token
+through one node.
+
 | Interface | Signature | Consumers | Purpose |
 |---|---|---|---|
-| `IWorkItemRepository` | `GetWorkAsync()`, `TryLockWorkItemAsync(id)`, `CompleteWorkItemAsync(id)`, `FreeWorkItemAsync(id)`, `CreateWorkItemAsync(workItem)` | WorkflowEngine, WorkRouter | EF Core persistence and optimistic locking of work items |
-| `IWorkRouter` | `Dispatch(workItem, OnComplete)` | WorkflowEngine | Fire-and-forget dispatch of work items to handlers. Resolves latest deployed workflow version |
-| `IWorkflowExecutionContext` | `Instance { get; }`, `Variables { get; }` | IWorkItemHandler implementations | Provides workflow instance and variable dictionary to handlers |
-| `IWorkflowJournalManager` | `RecordEntry(entry)` | WorkRouter, handlers | Records audit trail entries during workflow execution |
-| `IWorkItemHandler` | `HandleWorkItemAsync(workItem, ctx)` | WorkRouter | Handler contract for processing a dispatched work item |
+| `IWorkClaimer` | `ClaimAsync(batchSize, ct)` → `IReadOnlyList<ClaimedWork>` | WorkflowEngine | Atomic, concurrency-safe batch claim of pending work items via raw skip-locked T-SQL. Returns `ClaimedWork` records |
+| `ITokenRunner` | `RunAsync(claimed, ct)` | WorkflowEngine | Per-work-item orchestrator: resolves the node handler, builds the execution context, applies the result, and commits token movement |
+| `ITokenMovement` | `CommitAsync(request, ct)` | TokenRunner | Transactionally consumes the input token and creates the next token(s) + work item(s). Takes a `TokenMovementRequest` (with `Targets`, optional `JournalEntry`, `IsTerminal`) |
+| `INodeHandler` | `HandledNodeType { get; }`, `ExecuteAsync(node, ctx, ct)` → `NodeResult` | TokenRunner (resolved as `IEnumerable<INodeHandler>`, matched by `HandledNodeType`) | One handler per node type. Returns a `NodeResult` (`Completed`/`Waiting`/`Failed`, optional output variables and explicit targets). Handlers never touch the DB |
+| `ITokenExecutionContext` | `InstanceId`, `TokenId`, `NodeId`, `Variables`, `CandidateTargets`, `TokenGroupId`, `TokenCount` | INodeHandler implementations | Read-only per-token context passed to handlers. `CandidateTarget` is an outgoing edge (target node + optional expression) |
+| `IVariableBag` | `Get<T>(key)`, `Get(key)`, `Set(key, value)`, `Snapshot()` | Handlers, gateway evaluators | Token-scoped variable store backed by the token `Payload` JSON |
+| `IWorkflowInstanceManager` | `StartAsync(definitionId, variables, ct)`, `SuspendAsync`, `ResumeAsync`, `CancelAsync`, `GetStateAsync` → `InstanceSnapshot` | External triggers, admin/UI | Instance lifecycle. `StartAsync` seeds the initial StartEvent token + work item |
+| `IUserTaskManager` | `CreateTaskAsync(...)`, `GetTaskByTokenAsync(tokenId, ct)`, `CompleteTaskAsync(taskId, completedBy, resultData, ct)` | UserActivityHandler, external task UI/API | User-task CRUD and completion. `CompleteTaskAsync` re-queues a work item to resume the waiting token |
+| `IAuditService` | `RecordAsync(category, eventType, instanceId?, tokenId?, actor?, details?, ct)` | Engine, managers | Writes `WorkflowJournalEntry` audit rows (details serialized to JSON) |
+
+**Supporting records:** `ClaimedWork`, `TokenMovementRequest`, `TokenTarget`, `CandidateTarget`,
+`NodeResult` / `NodeResultType`, `InstanceSnapshot`.
+
+> **Legacy (superseded, unregistered):** `IWorkRouter`, `IWorkItemRepository`, `IWorkItemHandler`,
+> and `IWorkflowExecutionContext` (plus `WorkItemRepository`/`WorkflowExecutionContext`) remain in
+> the tree from the pre-token engine but are no longer wired into DI. The active path is
+> `IWorkClaimer` → `ITokenRunner` → `INodeHandler` → `ITokenMovement`.
 
 #### Shared (`/`)
 
@@ -159,8 +175,11 @@ Extends `IdentityDbContext<InternalUser, IdentityRole<Guid>, Guid>` and configur
 |---|---|---|
 | `Positions` | `Position` | Person-position join table |
 | `FormDocuments` | `FormDocument` | Persisted form definitions (JSON) |
-| `WorkItems` | `WorkItem` | Workflow execution queue |
+| `WorkItems` | `WorkItem` | Workflow execution queue (claimable, lockable) |
+| `WorkflowTokens` | `WorkflowToken` | BPMN tokens — per-instance execution state |
 | `WorkflowInstances` | `WorkflowInstance` | Running workflow instances |
+| `WorkflowJournalEntries` | `WorkflowJournalEntry` | Execution audit trail |
+| `UserTasks` | `UserTask` | Pending/completed human tasks |
 | `WorkflowDefinitions` | `Workflow` | Workflow metadata records |
 | `WorkflowVersions` | `WorkflowVersion` | Immutable published/deployed versions |
 | `WorkflowDrafts` | `WorkflowDraft` | Editable drafts (one per workflow) |
@@ -177,6 +196,11 @@ Extends `IdentityDbContext<InternalUser, IdentityRole<Guid>, Guid>` and configur
 - Draft tables → unique index on workflow/object (one draft at a time)
 - `DataSourceDocument.Config` → encrypted JSON string, no EF conversion (decryption happens in `DataSourceCatalog`)
 - `InternalUser.ExtraAttributes` → JSON dictionary conversion
+- **Execution-engine indexes** — filtered indexes tuned for the work-item claim query:
+  `IX_WorkItems_Claim_Immediate` on `(State, Priority, CreatedAt)` filtered to
+  `State = 0 AND ScheduledAt IS NULL`, and `IX_WorkItems_Scheduled` for deferred items; plus
+  state indexes on `WorkflowTokens`, `WorkflowInstances`, `UserTasks`, and `WorkflowJournalEntries`.
+  Schema is created via `EnsureCreated()` (no migrations yet)
 
 ### Entity Documents
 
@@ -424,6 +448,7 @@ Singleton. Scans known node types via reflection for `[WorkflowCanvasElement]` a
 | `UserActivity` | User Task | Activities | Rectangle |
 | `InclusiveGateway` | Inclusive Gateway | Gateways | Diamond |
 | `ExclusiveGateway` | Exclusive Gateway | Gateways | Diamond |
+| `ParallelGateway` | Parallel Gateway | Gateways | Diamond |
 
 Each is decorated with `[WorkflowCanvasElement]` and `[NodeProperty]` attributes that control designer behavior (icon, category, shape, default size, property editor).
 
@@ -459,54 +484,134 @@ Stateful (scoped) service for the workflow modeler.
 - Incoming: `IWorkflowNodeRegistry` (node type metadata), `ArgentDbContext` (persistence)
 - Outgoing: `OnChange` event, canvas state for rendering
 
-#### Workflow Execution
+#### Workflow Execution — Token-Based Interpreter
+
+The engine models execution as BPMN **tokens** flowing through the graph. Two tables carry the
+state: `WorkflowToken` (where a token currently sits, plus its variable payload) and `WorkItem`
+(the claimable queue entry that will advance one token through one node). A handler computes
+*what* should happen at a node and returns a `NodeResult`; the engine performs *all* persistence
+in a single transaction, so a crash mid-node simply leaves the input token in place for recovery.
 
 ##### `WorkflowEngine` — Background Service
 
-**Dependencies:** `ILogger<WorkflowEngine>`, `IServiceProvider`
+**Dependencies:** `ILogger<WorkflowEngine>`, `IServiceProvider`, `RecoveryPass`
 
-`BackgroundService` that runs the execution loop:
-1. **Interval:** Polls every 5 seconds
-2. **Scope:** Creates a new DI scope per tick
-3. **Fetch:** Calls `IWorkItemRepository.GetWorkAsync()` for all available work items
-4. **Concurrency limit:** `SemaphoreSlim(50)` — skips items when max concurrency reached
-5. **Lock:** Calls `TryLockWorkItemAsync` (optimistic EF Core locking with 5-min expiration)
-6. **Dispatch:** Calls `IWorkRouter.Dispatch(workItem, releaseAction)` and releases semaphore on completion
+`BackgroundService` running: **recovery → loop(claim → dispatch) → graceful drain**.
+1. **Startup:** runs `RecoveryPass` once before serving
+2. **Interval:** polls every 1 second
+3. **Claim:** `IWorkClaimer.ClaimAsync(50)` atomically claims a batch
+4. **Concurrency limit:** `SemaphoreSlim(50)` — awaited before each dispatch
+5. **Dispatch:** fire-and-forget `Task.Run` → `ITokenRunner.RunAsync`, releasing the semaphore in `finally`. The dispatch is passed `stoppingToken` so in-flight work observes shutdown
+6. **Graceful shutdown:** waits up to 30s for in-flight items to drain
 
-**Communication:**
-- Incoming: `IServiceProvider` for scoped service resolution
-- Outgoing: `IWorkItemRepository` for fetch/lock, `IWorkRouter` for dispatch
+##### `WorkClaimer` (implements `IWorkClaimer`)
 
-##### `WorkRouter` (implements `IWorkRouter`)
+**Dependencies:** connection string (resolved from the `ArgentDbContext` at registration)
 
-**Dependencies:** `IServiceScopeFactory`, `ILogger<WorkRouter>`
+Atomic, concurrency-safe claim using **raw T-SQL** (bypasses EF) — a single
+`UPDATE … OUTPUT` over a CTE with `WITH (ROWLOCK, READPAST)`. `READPAST` skips rows another
+worker has locked, so multiple engine instances never claim the same item:
 
-Fire-and-forget dispatch (`Task.Run`):
-1. Creates a new DI scope
-2. Loads the latest deployed `WorkflowVersion` (falls back to latest version)
-3. Finds the target `NodeBase` from the workflow definition by `WorkItem.NodeId`
-4. Resolves `IWorkItemHandler` from DI
-5. Creates `WorkflowExecutionContext` with `WorkflowInstance` + empty `Variables`
-6. Calls `handler.HandleWorkItemAsync(workItem, ctx)`
-7. Completes the work item on success/failure; frees on exception
+```sql
+WITH claim_cte AS (
+    SELECT TOP (@BatchSize) Id, TokenId, …, State, LockedBy, LockExpirationUtc
+    FROM WorkItems WITH (ROWLOCK, READPAST)
+    WHERE State = 0 AND (ScheduledAt IS NULL OR ScheduledAt <= GETUTCDATE())
+    ORDER BY Priority DESC, CreatedAt)
+UPDATE claim_cte SET State = 1, LockedBy = @Machine,
+       LockExpirationUtc = DATEADD(MINUTE, 5, GETUTCDATE())
+OUTPUT INSERTED.Id, INSERTED.TokenId, …;
+```
 
-**Communication:**
-- Incoming: Dispatched from `WorkflowEngine`
-- Outgoing: `IWorkItemRepository` (complete/free), `ArgentDbContext` (read workflow versions), `IWorkItemHandler` (execute)
+> The columns being updated (`State`, `LockedBy`, `LockExpirationUtc`) must appear in the CTE's
+> select list — SQL Server only lets a CTE update columns it projects. The table is `WorkItems`
+> (the EF DbSet name), not `WorkItem`.
 
-##### `WorkItemRepository` (implements `IWorkItemRepository`)
+##### `TokenRunner` (implements `ITokenRunner`)
+
+**Dependencies:** `IServiceScopeFactory`, `IWorkflowNodeRegistry`, `IDbContextFactory<ArgentDbContext>`, `ILogger`
+
+Orchestrates one work item inside a fresh DI scope:
+1. Loads the deployed `WorkflowVersion` and the target `NodeBase`; loads the current token
+2. Skips already-consumed tokens (idempotent on duplicate delivery)
+3. **Gateway JOIN detection** (merge nodes — see below)
+4. Builds `ITokenExecutionContext` (variable bag from the token payload + candidate outgoing edges)
+5. Resolves the `INodeHandler` by `HandledNodeType`, runs it under a **lock-heartbeat** that renews `LockExpirationUtc` every 2 minutes for long activities
+6. Applies the `NodeResult`:
+   - **Waiting** → work item set `Waiting` (e.g. a user task), token stays put
+   - **Failed** → dead-lettered immediately (a deterministic/business failure is non-retryable; transient faults surface as exceptions and *are* retried)
+   - **Completed** → `DetermineTargets` resolves explicit targets (gateways) or all outgoing edges, then `ITokenMovement.CommitAsync`
+7. Exceptions → `HandleFailureAsync`: retry (`RetryCount < MaxRetries` → back to `Pending`) or dead-letter
+
+##### `TokenMovement` (implements `ITokenMovement`)
 
 **Dependencies:** `ArgentDbContext`
 
-- **GetWorkAsync:** Returns all work items (no filtering — filtering deferred)
-- **TryLockWorkItemAsync:** Optimistic lock via `ExecuteUpdateAsync` — only locks if not locked or lock expired (>5 min)
-- **FreeWorkItemAsync:** Clears lock fields
-- **CompleteWorkItemAsync:** Removes the work item from the queue
-- **CreateWorkItemAsync:** Adds a new work item
+`CommitAsync` performs the whole node transition in **one transaction**: consume the input token,
+create a token + work item per target, carry/allocate the gateway `GroupId`/`TokenCount`
+correlation (a fork of >1 target starts a new group), write the optional journal entry, and — for
+a **terminal** target (`IsTerminal`, i.e. an `EndEvent` with no further targets) — complete the
+instance once no other active tokens remain. Variable payloads are normalized on read
+(`DeserializePayload` unwraps `JsonElement` values to native CLR types so NCalc conditions and
+handlers see real numbers/strings/bools).
 
-##### `WorkflowExecutionContext` (implements `IWorkflowExecutionContext`)
+##### Gateway join (token correlation)
 
-Simple data holder: `WorkflowInstance` + `Variables` dictionary.
+When a fork (parallel/inclusive split) produces N tokens they share a `GroupId` and `TokenCount = N`.
+At a merge node `TokenRunner.ResolveJoinArrivalAsync` runs under a **serializable transaction**
+(with bounded retry on lock contention) so exactly one sibling — the final arrival — fires the
+join; the earlier arrivals are consumed and wait. This prevents both the *stall* race (every
+sibling thinks it isn't last) and the *double-fire* race (two siblings both fire).
+
+##### `WorkflowInstanceManager` (implements `IWorkflowInstanceManager`)
+
+**Dependencies:** `ArgentDbContext`
+
+Lifecycle: `StartAsync` seeds the StartEvent token + work item in a transaction; `Suspend`/`Resume`
+toggle instance state; `Cancel` consumes active tokens and fails pending work items;
+`GetStateAsync` returns an `InstanceSnapshot` with a **live** active-token count (computed, not
+stored).
+
+##### `RecoveryPass`
+
+**Dependencies:** `IDbContextFactory<ArgentDbContext>`, `ILogger`
+
+Runs at startup: (1) release stale locks (`LockExpirationUtc < now`) back to `Pending` with a
+retry bump, dead-lettering those past `MaxRetries`; (2) re-queue orphan `Ready` tokens that have
+no work item (consuming tokens whose instance is gone); (3) **flag** — but no longer silently
+complete — `Running` instances that have zero active tokens (a stalled join would otherwise be
+masked as success), logging them for inspection.
+
+##### `UserTaskManager` (implements `IUserTaskManager`)
+
+Creates `UserTask` rows when a `UserActivity` first executes; `CompleteTaskAsync` marks the task
+done and enqueues a fresh work item so the waiting token resumes.
+
+##### `AuditService` (implements `IAuditService`) & `WorkflowMeter`
+
+`AuditService.RecordAsync` writes `WorkflowJournalEntry` rows (details JSON-serialized).
+`WorkflowMeter` exposes OpenTelemetry instruments under meter `Argent.WorkflowEngine`:
+`ItemsClaimed`, `TokensMoved`, `HandlerDurationMs`.
+
+##### Node Handlers (`Workflows/Handlers/`)
+
+One `INodeHandler` per node type, registered as `IEnumerable<INodeHandler>` and matched by
+`HandledNodeType`:
+
+| Handler | Node | Behavior |
+|---|---|---|
+| `StartEventHandler` | `StartEvent` | Pass-through; flows to outgoing edges |
+| `EndEventHandler` | `EndEvent` | Pass-through; no targets → instance completion check |
+| `SQLActivityHandler` | `SQLActivity` | Runs SQL via `IDataSourceRunner`; outputs `result`/`rowCount` |
+| `RestActivityHandler` | `RestActivity` | HTTP via `IHttpClientFactory`; `{{token}}` substitution in URL/headers/body; outputs `statusCode`/`responseBody`/`responseHeaders` |
+| `JintActivityHandler` | `JintActivity` | Executes JS via Jint (30s/10MB limits); injects variables, captures `ReturnVariable` |
+| `UserActivityHandler` | `UserActivity` | Creates a `UserTask` and returns `Waiting`; resumes when the task is completed |
+| `ExclusiveGatewayEvaluator` | `ExclusiveGateway` | First matching connection expression wins; falls back to the default (null-expression) edge; no match → `Failed` |
+| `InclusiveGatewayEvaluator` | `InclusiveGateway` | Activates every matching edge (one target each); default edge if none match |
+| `ParallelGatewayEvaluator` | `ParallelGateway` | Unconditional fan-out to all outgoing edges (and acts as the join on the inbound side) |
+
+Gateway conditions are NCalc expressions on `Connection.Expression`, evaluated against the token's
+`IVariableBag`. A gateway with no viable path returns `NodeResult.Failed` (non-retryable).
 
 ### 4f. Data (`Data/`)
 
@@ -560,8 +665,14 @@ The composition root: configures DI, middleware, authentication, and hosts Blazo
 | Scoped | `IDataSourceRunner` | `DataSourceRunner` |
 | Scoped | `IDataSourceProvider` (×3) | `SqlDataSourceProvider`, `RestDataSourceProvider`, `SoapDataSourceProvider` |
 | Scoped | `ISecretProtector` | `DataProtectionSecretProtector` |
-| Scoped | `IWorkItemRepository` | `WorkItemRepository` |
-| Scoped | `IWorkRouter` | `WorkRouter` |
+| Singleton | `IWorkClaimer` | `WorkClaimer` (built with the DB connection string) |
+| Singleton | `ITokenRunner` | `TokenRunner` |
+| Scoped | `ITokenMovement` | `TokenMovement` |
+| Scoped | `IWorkflowInstanceManager` | `WorkflowInstanceManager` |
+| Transient | `RecoveryPass` | `RecoveryPass` |
+| Singleton | `IUserTaskManager` | `UserTaskManager` |
+| Singleton | `IAuditService` | `AuditService` |
+| Transient | `INodeHandler` (×9) | `StartEventHandler`, `EndEventHandler`, `ExclusiveGatewayEvaluator`, `InclusiveGatewayEvaluator`, `ParallelGatewayEvaluator`, `SQLActivityHandler`, `RestActivityHandler`, `JintActivityHandler`, `UserActivityHandler` |
 | Scoped | `IDomainObjectDefinitionService` | `DomainObjectDefinitionService` |
 | Scoped | `IDomainObjectStore` | `DomainObjectStore` |
 | Scoped | `DesignerService` | `DesignerService` |
@@ -773,19 +884,28 @@ builder.AddProject<Argent_Web>("Argent")
 
 ## 8. Argent.Runtime.Tests
 
-**Status:** Small (2 test files)  
-**Location:** `Argent.Runtime.Tests/`  
-**Project file:** `Argent.Logic.Tests.csproj` (references `Argent.Logic`, which does not exist — broken reference)
+**Location:** `Argent.Runtime.Tests/` (`Argent.Runtime.Tests.csproj` → references `Argent.Runtime`)  
+**Frameworks:** xUnit, Moq, EF Core SQLite + InMemory, `Testcontainers.MsSql`, `Xunit.SkippableFact`
 
-**Note:** The project file has a broken reference to `Argent.Logic` (stub project that was never created). The actual tests reference types from Argent.Runtime.
+Coverage centers on the token-based workflow engine, in three tiers:
 
-**Tests:**
+**Unit (`Workflows/Handlers/`, `Workflows/Execution/`):**
+- Gateway evaluators — `ExclusiveGatewayEvaluator`, `InclusiveGatewayEvaluator`, `ParallelGatewayEvaluator`
+- Activity handlers — `SQLActivityHandler` (mock `IDataSourceRunner`), `RestActivityHandler` (stub `HttpMessageHandler` asserting `{{token}}` substitution), `JintActivityHandler` (real Jint), `UserActivityHandler` (mock `IUserTaskManager`)
+- `TokenRunner` (mocked deps: consumed-token short-circuit, missing-definition failure, success/commit, `Waiting`, exception-retry), `TokenMovement` helpers, `AuditService`, `RecoveryPass` (stale-lock release, dead-letter, orphan re-queue, flag-not-complete)
 
-`DesignerSessionTests.cs` (4 theories):
-- `ScreenToWorld_NoPanNoZoom` — Identity transform
-- `ScreenToWorld_WithPan` — Pan offset applied
-- `ScreenToWorld_WithZoom` — Zoom scaling applied
-- `ScreenToWorld_WithPanAndZoom` — Combined transform round-trip
+**Integration — SQLite (`IntegrationTestBase` + `WorkflowTraversalIntegrationTests`):**
+in-memory SQLite with the real handlers and `TokenMovement`, advancing whole graphs:
+linear flow, exclusive/inclusive condition routing, and parallel split→join. Fast inner loop; it
+drives work via EF (`AdvanceAsync`) and therefore does **not** exercise the raw-T-SQL `WorkClaimer`.
+
+**Integration — SQL Server (`[Trait("Category","Sql")]`, `[SkippableFact]`):**
+`SqlServerFixture` spins up SQL Server via `Testcontainers.MsSql`. `WorkClaimerSqlServerTests`
+exercises the real skip-locked claim query; `ParallelJoinConcurrencyTests` drives two sibling
+tokens into a join on parallel tasks to assert the join fires exactly once. These caught two
+SQL-only `WorkClaimer` bugs the SQLite tier could not. The fixture auto-detects a rootless
+**Podman** socket (`$XDG_RUNTIME_DIR/podman/podman.sock`) when `DOCKER_HOST` is unset and disables
+Ryuk; if no container runtime is present the SQL tests skip rather than fail.
 
 ---
 
@@ -826,9 +946,11 @@ builder.AddProject<Argent_Web>("Argent")
 |---|---|---|
 | **DI Injection** | `DataSourceRunner` ← `IDataSourceCatalog` + `IDataSourceProvider[]` | Constructor injection, resolved by DI container |
 | **Event/Notification** | `DesignerService.OnChange` → `WorkflowModeler.razor` | C# events; Blazor `StateHasChanged()` |
-| **Background Polling** | `WorkflowEngine` polls `IWorkItemRepository` | `BackgroundService` with 5-second `Task.Delay` |
-| **Fire-and-Forget Dispatch** | `WorkRouter.Dispatch()` creates `Task.Run` | `Task.Run` with separate DI scope |
-| **Optimistic Locking** | `WorkItemRepository.TryLockWorkItemAsync()` | EF Core `ExecuteUpdateAsync` with conditional WHERE |
+| **Background Polling** | `WorkflowEngine` claims work via `IWorkClaimer` | `BackgroundService`, 1-second poll, `SemaphoreSlim(50)` |
+| **Fire-and-Forget Dispatch** | `WorkflowEngine` → `Task.Run` → `ITokenRunner.RunAsync` | `Task.Run` with separate DI scope, passed `stoppingToken` |
+| **Skip-Locked Claim** | `WorkClaimer.ClaimAsync()` | Raw T-SQL `UPDATE … OUTPUT` with `(ROWLOCK, READPAST)` — safe across concurrent engines |
+| **Serializable Join** | `TokenRunner.ResolveJoinArrivalAsync()` | Serializable transaction + bounded retry; exactly one sibling fires the merge |
+| **Single-Transaction Movement** | `TokenMovement.CommitAsync()` | Consume input token + create targets + journal + completion in one transaction |
 | **JSON Serialization** | Designer services serialize/deserialize definitions | `System.Text.Json` for persistence and cloning |
 | **Cascading Parameter** | `ArgentForm` passes `IFormContext` to field components | Blazor `CascadingValue` |
 
@@ -852,20 +974,26 @@ User fills form in browser
 User publishes/deploys workflow definition
   → DesignerService.PublishVersion() / DeployVersion()
     → Creates WorkflowVersion record in DB
-  
-External trigger or activity creates WorkItem
-  → WorkItemRepository.CreateWorkItemAsync()
 
-WorkflowEngine (BackgroundService, 5s interval)
-  → WorkItemRepository.GetWorkAsync()
-    → For each item: TryLockWorkItemAsync() → WorkRouter.Dispatch()
-      → WorkRouter (Task.Run, new scope)
-        → Loads latest deployed WorkflowVersion
-        → Finds target NodeBase
-        → Resolves IWorkItemHandler
-        → Creates WorkflowExecutionContext
-        → handler.HandleWorkItemAsync(workItem, ctx)
-        → CompleteWorkItemAsync / FreeWorkItemAsync
+IWorkflowInstanceManager.StartAsync()
+  → Creates WorkflowInstance + initial StartEvent token + WorkItem (one transaction)
+
+WorkflowEngine (BackgroundService, 1s interval)
+  → RecoveryPass on startup (stale locks, orphan tokens, stuck-instance flags)
+  → IWorkClaimer.ClaimAsync(50)        // skip-locked UPDATE … OUTPUT
+    → For each ClaimedWork: Task.Run → ITokenRunner.RunAsync (new scope)
+        → Load deployed WorkflowVersion + target NodeBase + current token
+        → If merge node: ResolveJoinArrivalAsync (serializable) — wait or fire
+        → Resolve INodeHandler by HandledNodeType, run with lock heartbeat
+        → NodeResult:
+            Waiting → WorkItem.Waiting (e.g. user task)
+            Failed  → dead-letter (non-retryable) | exception → retry
+            Completed → ITokenMovement.CommitAsync (one transaction):
+                          consume input token, create next token(s)+WorkItem(s),
+                          journal, complete instance if terminal EndEvent
+
+UserTask completion
+  → IUserTaskManager.CompleteTaskAsync() → enqueues a WorkItem → token resumes
 ```
 
 ### Data Flow: Data Source Execution
