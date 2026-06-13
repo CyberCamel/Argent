@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Argent.WebComponents.Core.Workflows.Modeler;
+namespace Argent.Runtime.Workflows.Modeling;
 
 public sealed class ModelerSession
 {

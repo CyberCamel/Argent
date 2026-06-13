@@ -213,11 +213,23 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
         {
             entity.ToTable("WorkflowJournalEntries");
 
+            entity.Property(e => e.Category)
+                .HasMaxLength(64);
+
+            entity.Property(e => e.EventType)
+                .HasMaxLength(64);
+
+            entity.Property(e => e.Actor)
+                .HasMaxLength(256);
+
             entity.Property(e => e.Details)
                 .HasColumnType("nvarchar(max)");
 
             entity.HasIndex(e => new { e.InstanceId, e.TimeStamp })
                 .HasDatabaseName("IX_WorkflowJournalEntries_InstanceId_Timestamp");
+
+            entity.HasIndex(e => new { e.Category, e.TimeStamp })
+                .HasDatabaseName("IX_WorkflowJournalEntries_Category_Timestamp");
         });
 
         builder.Entity<UserTask>(entity =>

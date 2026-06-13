@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 
-namespace Argent.Web.Pages.Workflows;
+namespace Argent.Web.Pages.Workflows.Model;
 
 public class ViewModel(ArgentDbContext _ctx) : PageModel
 {

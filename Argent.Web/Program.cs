@@ -1,30 +1,29 @@
+using System.Diagnostics;
+using System.Globalization;
 using Argent.Contracts.DataSources;
 using Argent.Contracts.DomainObjects;
 using Argent.Contracts.Forms;
 using Argent.Contracts.Workflows;
 using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
-using Argent.Runtime.DataSources;
-using Argent.Runtime.DomainObjects;
-using Argent.Web.Services;
 using Argent.Models.Forms.Components;
 using Argent.Models.Identity;
+using Argent.Runtime.DataSources;
+using Argent.Runtime.DomainObjects;
 using Argent.Runtime.Forms;
+using Argent.Runtime.Forms.Modeling;
 using Argent.Runtime.Workflows;
 using Argent.Runtime.Workflows.Execution;
 using Argent.Runtime.Workflows.Handlers;
 using Argent.Runtime.Workflows.Modeling;
-using Argent.Runtime.Forms.Modeling;
 using Argent.Web;
 using Argent.Web.Extensions;
 using Argent.Web.Factories;
+using Argent.Web.Services;
 using Argent.WebComponents.Core.Forms;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Schema.Generation;
-using System.Diagnostics;
-using System.Globalization;
-using Microsoft.EntityFrameworkCore.Internal;
 
 var rootCulture = CultureInfo.InvariantCulture;
 CultureInfo.DefaultThreadCurrentCulture = rootCulture;
@@ -111,6 +110,9 @@ builder.Services.AddScoped<ITokenMovement, TokenMovement>();
 builder.Services.AddScoped<IWorkflowInstanceManager, WorkflowInstanceManager>();
 builder.Services.AddTransient<RecoveryPass>();
 builder.Services.AddSingleton<IUserTaskManager, UserTaskManager>();
+builder.Services.AddSingleton<IAuditService, AuditService>();
+builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics
+    .AddMeter(WorkflowMeter.Engine.Name));
 builder.Services.AddHostedService<WorkflowEngine>();
 
 // --- Workflow Handlers ---
@@ -210,4 +212,7 @@ using (var scope = app.Services.CreateScope())
 
 app.Run();
 
-record CompleteTaskRequest(string? Result);
+namespace Argent.Web
+{
+    record CompleteTaskRequest(string? Result);
+}

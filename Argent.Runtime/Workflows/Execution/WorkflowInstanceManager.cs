@@ -13,11 +13,13 @@ namespace Argent.Runtime.Workflows.Execution;
 public class WorkflowInstanceManager : IWorkflowInstanceManager
 {
     private readonly ArgentDbContext _context;
+    private readonly IAuditService _audit;
     private readonly ILogger<WorkflowInstanceManager> _logger;
 
-    public WorkflowInstanceManager(ArgentDbContext context, ILogger<WorkflowInstanceManager> logger)
+    public WorkflowInstanceManager(ArgentDbContext context, IAuditService audit, ILogger<WorkflowInstanceManager> logger)
     {
         _context = context;
+        _audit = audit;
         _logger = logger;
     }
 
@@ -90,20 +92,13 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
         };
         _context.WorkItems.Add(workItem);
 
-        var journal = new WorkflowJournalEntry
-        {
-            Id = Guid.NewGuid(),
-            InstanceId = instanceId,
-            TokenId = tokenId,
-            EventType = WorkflowAuditEventType.InstanceStarted,
-            TimeStamp = DateTime.UtcNow,
-            Details = JsonSerializer.Serialize(new
-            {
-                WorkflowName = version.Name,
-                StartNode = startNode.Name
-            })
-        };
-        _context.WorkflowJournalEntries.Add(journal);
+        await _audit.RecordAsync(
+            category: "Workflow",
+            eventType: nameof(WorkflowAuditEventType.InstanceStarted),
+            instanceId: instanceId,
+            tokenId: tokenId,
+            details: new { WorkflowName = version.Name, StartNode = startNode.Name },
+            ct: ct);
 
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿namespace Argent.Models.Workflows.Auditing;
 
-namespace Argent.Models.Workflows.Auditing;
-
-public enum WorkflowAuditEventType : byte
+/// <summary>Standard audit event types used across the platform. Stored as strings in the EventType column.</summary>
+public enum WorkflowAuditEventType
 {
     None = 0,
     InstanceStarted = 1,
@@ -18,5 +15,4 @@ public enum WorkflowAuditEventType : byte
     TaskFailed = 9,
     TaskCancelled = 10,
     TaskStarted = 11
-
 }

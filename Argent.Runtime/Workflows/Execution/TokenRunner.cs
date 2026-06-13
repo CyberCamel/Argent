@@ -8,6 +8,7 @@ using Argent.Models.Workflows.Execution;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace Argent.Runtime.Workflows.Execution;
@@ -49,11 +50,11 @@ public class TokenRunner : ITokenRunner
 
             if (version?.Definition == null)
             {
-                _logger.LogWarning(
-                    "WorkItem {Id}: no deployed definition found for workflow {DefId}",
-                    claimed.WorkItemId, claimed.DefinitionId);
-                await SetWorkItemStateAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
-                return;
+                    _logger.LogWarning(
+                        "WorkItem {Id}: no deployed definition found for workflow {DefId}",
+                        claimed.WorkItemId, claimed.DefinitionId);
+                    await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
+                    return;
             }
 
             var definition = version.Definition;
@@ -64,7 +65,7 @@ public class TokenRunner : ITokenRunner
                 _logger.LogWarning(
                     "WorkItem {Id}: node {NodeId} not found in workflow definition",
                     claimed.WorkItemId, claimed.NodeId);
-                await SetWorkItemStateAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
+                await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
                 return;
             }
 
@@ -73,10 +74,11 @@ public class TokenRunner : ITokenRunner
 
             if (currentToken == null || currentToken.State == TokenState.Consumed)
             {
+                WorkflowMeter.ItemsClaimed.Add(1);
                 _logger.LogWarning(
                     "Token {TokenId} already consumed — completing work item {WorkItemId} without processing",
                     claimed.TokenId, claimed.WorkItemId);
-                await SetWorkItemStateAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
+                await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
                 return;
             }
 
@@ -97,7 +99,9 @@ public class TokenRunner : ITokenRunner
                     currentToken.State = TokenState.Consumed;
                     currentToken.ConsumedAt = DateTime.UtcNow;
                     await db.SaveChangesAsync(ct);
-                    await SetWorkItemStateAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
+                    await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
+
+                    WorkflowMeter.ItemsClaimed.Add(1);
 
                     _logger.LogInformation(
                         "Token {TokenId} consumed at merge node '{NodeName}' ({Arrived}/{Expected}) — waiting for siblings",
@@ -143,6 +147,7 @@ public class TokenRunner : ITokenRunner
             using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             var heartbeatTask = RenewLockPeriodicallyAsync(claimed.WorkItemId, heartbeatCts.Token);
 
+            var sw = Stopwatch.StartNew();
             NodeResult result;
             try
             {
@@ -164,6 +169,8 @@ public class TokenRunner : ITokenRunner
             }
             finally
             {
+                sw.Stop();
+                WorkflowMeter.HandlerDurationMs.Record(sw.Elapsed.TotalMilliseconds);
                 await heartbeatCts.CancelAsync();
                 try { await heartbeatTask; } catch (OperationCanceledException) { }
             }
@@ -172,13 +179,15 @@ public class TokenRunner : ITokenRunner
             switch (result.ResultType)
             {
                 case NodeResultType.Waiting:
-                    await SetWorkItemStateAsync(db, claimed.WorkItemId, WorkItemState.Waiting, ct);
+                    WorkflowMeter.ItemsClaimed.Add(1);
+                    await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Waiting, ct);
                     _logger.LogInformation(
                         "WorkItem {Id} set to Waiting (node '{NodeName}')",
                         claimed.WorkItemId, node.Name);
                     break;
 
                 case NodeResultType.Failed:
+                    WorkflowMeter.ItemsClaimed.Add(1);
                     await HandleFailureAsync(db, claimed, result.ErrorMessage, ct);
                     break;
 
@@ -189,9 +198,11 @@ public class TokenRunner : ITokenRunner
                     var journalEntry = new WorkflowJournalEntry
                     {
                         Id = Guid.NewGuid(),
+                        Category = "Workflow",
                         InstanceId = claimed.InstanceId,
                         TokenId = claimed.TokenId,
-                        EventType = WorkflowAuditEventType.TokenMoved,
+                        EventType = nameof(WorkflowAuditEventType.TokenMoved),
+                        Actor = null,
                         TimeStamp = DateTime.UtcNow,
                         Details = JsonSerializer.Serialize(new
                         {
@@ -210,7 +221,10 @@ public class TokenRunner : ITokenRunner
                         journalEntry);
 
                     await movement.CommitAsync(request, ct);
-                    await SetWorkItemStateAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
+                    await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
+
+                    WorkflowMeter.TokensMoved.Add(targets.Count);
+                    WorkflowMeter.ItemsClaimed.Add(1);
 
                     _logger.LogInformation(
                         "Token {TokenId} moved from '{NodeName}' to {TargetCount} target(s)",
@@ -252,7 +266,7 @@ public class TokenRunner : ITokenRunner
         }
     }
 
-    private async Task HandleFailureAsync(
+    protected internal virtual async Task HandleFailureAsync(
         ArgentDbContext db,
         ClaimedWork claimed,
         string? errorMessage,
@@ -321,7 +335,7 @@ public class TokenRunner : ITokenRunner
             .ToList();
     }
 
-    private static async Task SetWorkItemStateAsync(
+    protected internal virtual async Task SetWorkItemStateCoreAsync(
         ArgentDbContext db,
         Guid workItemId,
         WorkItemState state,
