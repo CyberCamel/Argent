@@ -38,6 +38,12 @@
                         <li class="nav-item">
                             <a class="nav-link" asp-page="/DomainObjects/Index">Domain Objects</a>
                         </li>
+                        @if (User.IsInRole("SuperAdmin"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-page="/DataSources/Index">Data Sources</a>
+                            </li>
+                        }
                     </ul>
 
                     <ul class="navbar-nav align-items-sm-center gap-1">

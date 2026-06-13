@@ -11,8 +11,8 @@ public class DomainDataSource
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
 
-    /// <summary>Connection key resolved by <c>IDataSourceService</c> at runtime.</summary>
-    public string ConnectionKey { get; set; } = string.Empty;
+    /// <summary>Key of the admin-defined <c>DataSource</c> connection this query runs against.</summary>
+    public string DataSourceKey { get; set; } = string.Empty;
 
     /// <summary>The SQL query that returns rows shaped like this object.</summary>
     public string Query { get; set; } = string.Empty;

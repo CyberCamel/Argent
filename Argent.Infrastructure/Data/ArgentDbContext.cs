@@ -7,6 +7,7 @@ using Argent.Models.Workflows.Execution;
 using Argent.Models.Forms.Components;
 using Argent.Models.Workflows;
 using Argent.Models.DomainObjects;
+using Argent.Models.DataSources;
 
 namespace Argent.Infrastructure.Data;
 
@@ -34,6 +35,8 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
     public DbSet<DomainObjectDraft> DomainObjectDrafts { get; set; }
 
     public DbSet<DomainObjectRecord> DomainObjectRecords { get; set; }
+
+    public DbSet<DataSourceDocument> DataSources { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -175,6 +178,12 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.DomainObjectId);
+        });
+
+        builder.Entity<DataSourceDocument>(entity =>
+        {
+            entity.Property(e => e.Config).HasColumnType("nvarchar(max)");
+            entity.HasIndex(e => e.Key).IsUnique();
         });
 
     }

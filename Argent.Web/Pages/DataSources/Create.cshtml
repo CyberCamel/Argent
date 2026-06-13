@@ -1,0 +1,8 @@
+@page "/DataSources/Create"
+@using Argent.WebComponents.Core.DataSources
+@model Argent.Web.Pages.DataSources.CreateModel
+@{
+    ViewData["Title"] = "Create Data Source";
+}
+
+<component type="typeof(DataSourceEditor)" render-mode="ServerPrerendered" />

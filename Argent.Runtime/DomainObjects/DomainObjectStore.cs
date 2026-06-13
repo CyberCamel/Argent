@@ -1,9 +1,10 @@
 using System.Collections;
 using System.Globalization;
 using System.Text.Json;
+using Argent.Contracts.DataSources;
 using Argent.Contracts.DomainObjects;
-using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
+using Argent.Models.DataSources;
 using Argent.Models.DomainObjects;
 using Argent.Models.DomainObjects.Querying;
 using Microsoft.AspNetCore.Http;
@@ -21,7 +22,7 @@ namespace Argent.Runtime.DomainObjects;
 public class DomainObjectStore(
     ArgentDbContext _context,
     IHttpContextAccessor _httpContextAccessor,
-    IServiceProvider _serviceProvider) : IDomainObjectStore
+    IDataSourceRunner _dataSourceRunner) : IDomainObjectStore
 {
     private string CurrentUser => _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
 
@@ -75,14 +76,13 @@ public class DomainObjectStore(
             throw new ArgumentOutOfRangeException(nameof(dataSourceIndex));
         var ds = def.DataSources[dataSourceIndex];
 
-        if (_serviceProvider.GetService(typeof(IDataSourceService)) is not IDataSourceService dataSourceService)
-            throw new InvalidOperationException("No IDataSourceService is registered; external data sources are unavailable.");
-
-        var execResult = await dataSourceService.ExecuteAsync(ds.ConnectionKey, ds.Query);
+        // v1: domain object external sources are SQL queries against an admin connection.
+        var request = new SqlRequest { Query = ds.Query };
+        var execResult = await _dataSourceRunner.ExecuteAsync(ds.DataSourceKey, request);
         if (!execResult.Success)
             throw new InvalidOperationException(execResult.Error ?? "External data source query failed.");
 
-        var records = (execResult.Rows ?? []).Select(row => MapRow(row, ds, objectKey));
+        var records = execResult.Rows.Select(row => MapRow(row, ds, objectKey));
         return ApplyQuery(records, query);
     }
 

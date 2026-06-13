@@ -1,0 +1,8 @@
+@page "/DataSources/Edit/{id:guid}"
+@using Argent.WebComponents.Core.DataSources
+@model Argent.Web.Pages.DataSources.EditModel
+@{
+    ViewData["Title"] = "Edit Data Source";
+}
+
+<component type="typeof(DataSourceEditor)" render-mode="ServerPrerendered" param-Id="@Model.Id" />

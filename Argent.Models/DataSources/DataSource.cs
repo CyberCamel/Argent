@@ -1,0 +1,23 @@
+using System.Text.Json.Serialization;
+
+namespace Argent.Models.DataSources;
+
+/// <summary>
+/// An admin-defined, reusable <b>connection</b> (endpoint + credentials) — not a query.
+/// Consumers (domain object bindings, lookup fields, workflow activities) supply the
+/// request at call time. Polymorphic by kind, stored encrypted at rest by the catalog.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
+[JsonDerivedType(typeof(SqlDataSource), "sql")]
+[JsonDerivedType(typeof(RestDataSource), "rest")]
+[JsonDerivedType(typeof(SoapDataSource), "soap")]
+public abstract class DataSource
+{
+    /// <summary>Stable system key consumers reference (e.g. "argent-db", "crm-api").</summary>
+    public string Key { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+
+    [JsonIgnore]
+    public abstract DataSourceKind Kind { get; }
+}

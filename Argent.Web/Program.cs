@@ -1,9 +1,12 @@
+using Argent.Contracts.DataSources;
 using Argent.Contracts.DomainObjects;
 using Argent.Contracts.Forms;
 using Argent.Contracts.Workflows;
 using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
+using Argent.Runtime.DataSources;
 using Argent.Runtime.DomainObjects;
+using Argent.Web.Services;
 using Argent.Models.Forms.Components;
 using Argent.Models.Identity;
 using Argent.Runtime.Forms;
@@ -39,6 +42,7 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddHttpClient();
 builder.Services.AddCors();
+builder.Services.AddDataProtection();
 
 
 // ----- DbContext -----
@@ -101,6 +105,13 @@ builder.Services.AddHostedService<WorkflowEngine>();
 builder.Services.AddScoped<IDomainObjectDefinitionService, DomainObjectDefinitionService>();
 builder.Services.AddScoped<IDomainObjectStore, DomainObjectStore>();
 builder.Services.AddScoped<DomainObjectDesignerService, DomainObjectDesignerService>();
+
+builder.Services.AddScoped<ISecretProtector, DataProtectionSecretProtector>();
+builder.Services.AddScoped<IDataSourceProvider, SqlDataSourceProvider>();
+builder.Services.AddScoped<IDataSourceProvider, RestDataSourceProvider>();
+builder.Services.AddScoped<IDataSourceProvider, SoapDataSourceProvider>();
+builder.Services.AddScoped<IDataSourceCatalog, DataSourceCatalog>();
+builder.Services.AddScoped<IDataSourceRunner, DataSourceRunner>();
 
 builder.Services.AddLogging(config =>
 {
