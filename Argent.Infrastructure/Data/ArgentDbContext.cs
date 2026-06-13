@@ -224,9 +224,15 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
             entity.HasIndex(e => e.TokenId)
                 .HasDatabaseName("IX_WorkItems_TokenId");
 
+            // Index 1: Immediately processable (No schedule)
             entity.HasIndex(e => new { e.State, e.Priority, e.CreatedAt })
-                .HasDatabaseName("IX_WorkItems_Claim")
-                .HasFilter("[State] = 0 AND ([ScheduledAt] IS NULL OR [ScheduledAt] <= GETUTCDATE())");
+                .HasDatabaseName("IX_WorkItems_Claim_Immediate")
+                .HasFilter("[State] = 0 AND [ScheduledAt] IS NULL");
+
+            // Index 2: Highly targeted index on just the scheduled field to handle future tasks
+            entity.HasIndex(e => new { e.ScheduledAt, e.State })
+                .HasDatabaseName("IX_WorkItems_Scheduled")
+                .HasFilter("[State] = 0 AND [ScheduledAt] IS NOT NULL");
         });
 
         // Recovery query support on WorkflowInstance
