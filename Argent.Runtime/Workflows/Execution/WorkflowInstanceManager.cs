@@ -62,7 +62,6 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
             Name = version.Name,
             Description = version.Description,
             State = InstanceState.Running,
-            CurrentTokenCount = 1,
             StartTime = DateTime.UtcNow
         };
         _context.WorkflowInstances.Add(instance);
@@ -172,11 +171,16 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
         if (instance == null)
             throw new InvalidOperationException($"Instance {instanceId} not found");
 
+        // Compute the live active-token count rather than storing (and having to maintain)
+        // a denormalized counter on the instance.
+        var activeTokenCount = await _context.WorkflowTokens
+            .CountAsync(t => t.InstanceId == instanceId && t.State != TokenState.Consumed, ct);
+
         return new InstanceSnapshot(
             instance.InstanceId,
             instance.WorkflowId,
             instance.State,
-            instance.CurrentTokenCount,
+            activeTokenCount,
             instance.StartTime,
             instance.EndTime);
     }

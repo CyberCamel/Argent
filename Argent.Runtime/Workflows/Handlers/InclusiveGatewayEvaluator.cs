@@ -32,7 +32,8 @@ public class InclusiveGatewayEvaluator : INodeHandler
         return Task.FromResult(new NodeResult(
             matchedTargets.Count > 0,
             matchedTargets.Count == 0 ? "No matching path in inclusive gateway" : null,
-            ExplicitTargetNodeIds: matchedTargets));
+            ExplicitTargetNodeIds: matchedTargets,
+            ResultType: matchedTargets.Count == 0 ? NodeResultType.Failed : NodeResultType.Completed));
     }
 
     private static bool EvaluateCondition(string expression, IVariableBag variables)

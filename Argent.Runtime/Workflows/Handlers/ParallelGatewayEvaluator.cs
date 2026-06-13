@@ -17,6 +17,7 @@ public class ParallelGatewayEvaluator : INodeHandler
         return Task.FromResult(new NodeResult(
             targets.Count > 0,
             targets.Count == 0 ? "Parallel gateway has no outgoing connections" : null,
-            ExplicitTargetNodeIds: targets));
+            ExplicitTargetNodeIds: targets,
+            ResultType: targets.Count == 0 ? NodeResultType.Failed : NodeResultType.Completed));
     }
 }

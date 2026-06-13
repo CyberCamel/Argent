@@ -109,7 +109,12 @@ public class RecoveryPass
                 "Recovered {Count} orphan tokens — created work items", recoveredCount);
         }
 
-        // Step 3: Detect stuck instances
+        // Step 3: Detect stuck instances. Completion is now committed atomically when a
+        // terminal (EndEvent) token is consumed (see TokenMovement), so a Running instance
+        // with no active tokens indicates lost work (e.g. a stalled join), not a normal
+        // finish. Surface it for investigation rather than silently marking it Completed —
+        // doing so would mask the underlying defect. Orphan-token recovery (Step 2) runs
+        // first, so anything flagged here has genuinely lost its tokens.
         var runningInstances = await context.WorkflowInstances
             .Where(i => i.State == InstanceState.Running)
             .ToListAsync(ct);
@@ -123,22 +128,17 @@ public class RecoveryPass
 
             if (activeTokenCount == 0)
             {
-                instance.State = InstanceState.Completed;
-                instance.EndTime = DateTime.UtcNow;
                 stuckCount++;
-                _logger.LogWarning(
-                    "Instance {InstanceId} had zero active tokens — marking Completed",
+                _logger.LogError(
+                    "Instance {InstanceId} is Running with zero active tokens — possible lost work (stalled join or dropped token). Left in place for inspection.",
                     instance.InstanceId);
             }
         }
 
-        if (stuckCount > 0)
-            _logger.LogWarning("Recovered {Count} stuck instances", stuckCount);
-
         await context.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Recovery pass complete: {Released} locks released, {DeadLettered} dead-lettered, {Recovered} tokens recovered, {Stuck} instances recovered",
+            "Recovery pass complete: {Released} locks released, {DeadLettered} dead-lettered, {Recovered} tokens recovered, {Stuck} stuck instances flagged",
             releasedCount, deadLetteredCount, recoveredCount, stuckCount);
     }
 }

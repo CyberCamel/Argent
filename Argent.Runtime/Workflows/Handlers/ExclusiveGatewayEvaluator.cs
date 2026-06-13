@@ -28,7 +28,8 @@ public class ExclusiveGatewayEvaluator : INodeHandler
 
         return Task.FromResult(new NodeResult(
             false,
-            "No matching path in exclusive gateway"));
+            "No matching path in exclusive gateway",
+            ResultType: NodeResultType.Failed));
     }
 
     private static bool EvaluateCondition(string expression, IVariableBag variables)

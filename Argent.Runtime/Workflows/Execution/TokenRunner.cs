@@ -8,6 +8,8 @@ using Argent.Models.Workflows.Execution;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Text.Json;
 
@@ -88,30 +90,17 @@ public class TokenRunner : ITokenRunner
             if (inboundCount > 1 && (node is InclusiveGateway or ParallelGateway)
                 && currentToken?.GroupId != null && currentToken.TokenCount > 0)
             {
-                var consumedSiblings = await db.WorkflowTokens
-                    .CountAsync(t => t.InstanceId == claimed.InstanceId
-                                  && t.GroupId == currentToken.GroupId
-                                  && t.NodeId == node.Id
-                                  && t.State == TokenState.Consumed, ct);
-
-                if (consumedSiblings + 1 < currentToken.TokenCount.Value)
+                var arrival = await ResolveJoinArrivalAsync(db, claimed, node, currentToken, ct);
+                if (arrival == JoinArrival.Waiting)
                 {
-                    currentToken.State = TokenState.Consumed;
-                    currentToken.ConsumedAt = DateTime.UtcNow;
-                    await db.SaveChangesAsync(ct);
                     await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
-
                     WorkflowMeter.ItemsClaimed.Add(1);
-
-                    _logger.LogInformation(
-                        "Token {TokenId} consumed at merge node '{NodeName}' ({Arrived}/{Expected}) — waiting for siblings",
-                        claimed.TokenId, node.Name, consumedSiblings + 1, currentToken.TokenCount);
                     return;
                 }
 
-                _logger.LogInformation(
-                    "All {Count} sibling tokens arrived at merge node '{NodeName}' — evaluating gateway",
-                    currentToken.TokenCount, node.Name);
+                // JoinArrival.Fire: this token is the final sibling to arrive. It is left in
+                // the Ready state and consumed by TokenMovement on the normal fire path below,
+                // which produces the join's outgoing token(s).
             }
 
             // Build execution context
@@ -188,7 +177,14 @@ public class TokenRunner : ITokenRunner
 
                 case NodeResultType.Failed:
                     WorkflowMeter.ItemsClaimed.Add(1);
-                    await HandleFailureAsync(db, claimed, result.ErrorMessage, ct);
+                    // A handler explicitly returning Failed is a deterministic/business
+                    // error (e.g. no matching gateway path) — retrying yields the same
+                    // result, so dead-letter it immediately. Transient faults surface as
+                    // exceptions and are retried via the catch block below.
+                    await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
+                    _logger.LogWarning(
+                        "WorkItem {Id} failed permanently at node '{NodeName}': {Error}",
+                        claimed.WorkItemId, node.Name, result.ErrorMessage);
                     break;
 
                 default:
@@ -218,7 +214,8 @@ public class TokenRunner : ITokenRunner
                         claimed.TokenId,
                         claimed.DefinitionId,
                         targets,
-                        journalEntry);
+                        journalEntry,
+                        IsTerminal: node is EndEvent);
 
                     await movement.CommitAsync(request, ct);
                     await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
@@ -238,6 +235,84 @@ public class TokenRunner : ITokenRunner
                 "Failed to process WorkItem {Id} for instance {InstanceId}",
                 claimed.WorkItemId, claimed.InstanceId);
             await HandleFailureAsync(db, claimed, ex.Message, ct);
+        }
+    }
+
+    private enum JoinArrival
+    {
+        /// <summary>This token is not the last sibling; it has been consumed and is waiting.</summary>
+        Waiting,
+
+        /// <summary>This token is the final sibling; the join should fire.</summary>
+        Fire
+    }
+
+    /// <summary>
+    /// Resolves a token arriving at a merge gateway. Runs under a serializable transaction so
+    /// concurrent siblings cannot both observe themselves as "not the last" (which would stall
+    /// the join) or both observe themselves as "the last" (which would fire it twice). Exactly
+    /// one sibling — the final arrival — returns <see cref="JoinArrival.Fire"/>; the rest are
+    /// consumed and return <see cref="JoinArrival.Waiting"/>. Retries on lock contention.
+    /// </summary>
+    private async Task<JoinArrival> ResolveJoinArrivalAsync(
+        ArgentDbContext db,
+        ClaimedWork claimed,
+        NodeBase node,
+        WorkflowToken currentToken,
+        CancellationToken ct)
+    {
+        const int maxAttempts = 3;
+
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+
+                // Re-load the token inside the serialized transaction; it may already have been
+                // consumed by a recovery pass or a duplicate delivery.
+                var token = await db.WorkflowTokens.FirstOrDefaultAsync(t => t.Id == claimed.TokenId, ct);
+                if (token == null || token.State == TokenState.Consumed)
+                {
+                    await tx.CommitAsync(ct);
+                    return JoinArrival.Waiting;
+                }
+
+                var consumedSiblings = await db.WorkflowTokens
+                    .CountAsync(t => t.InstanceId == claimed.InstanceId
+                                  && t.GroupId == currentToken.GroupId
+                                  && t.NodeId == node.Id
+                                  && t.State == TokenState.Consumed, ct);
+
+                if (consumedSiblings + 1 < currentToken.TokenCount!.Value)
+                {
+                    token.State = TokenState.Consumed;
+                    token.ConsumedAt = DateTime.UtcNow;
+                    await db.SaveChangesAsync(ct);
+                    await tx.CommitAsync(ct);
+
+                    _logger.LogInformation(
+                        "Token {TokenId} consumed at merge node '{NodeName}' ({Arrived}/{Expected}) — waiting for siblings",
+                        claimed.TokenId, node.Name, consumedSiblings + 1, currentToken.TokenCount);
+                    return JoinArrival.Waiting;
+                }
+
+                await tx.CommitAsync(ct);
+
+                _logger.LogInformation(
+                    "All {Count} sibling tokens arrived at merge node '{NodeName}' — firing gateway",
+                    currentToken.TokenCount, node.Name);
+                return JoinArrival.Fire;
+            }
+            catch (Exception ex) when ((ex is DbUpdateException || ex is DbException) && attempt < maxAttempts)
+            {
+                // Serializable range-lock contention between concurrent siblings (e.g. a deadlock
+                // victim). The lost transaction rolled back; retry and observe the winner's commit.
+                _logger.LogWarning(ex,
+                    "Join arrival contention at merge node '{NodeName}' (attempt {Attempt}/{Max}) — retrying",
+                    node.Name, attempt, maxAttempts);
+                await Task.Delay(20 * attempt, ct);
+            }
         }
     }
 

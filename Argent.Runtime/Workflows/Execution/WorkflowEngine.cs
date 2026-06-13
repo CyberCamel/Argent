@@ -41,9 +41,11 @@ public class WorkflowEngine(
                     {
                         try
                         {
-                            // TokenRunner creates its own scope internally
+                            // TokenRunner creates its own scope internally. Pass the stopping
+                            // token so in-flight handlers observe shutdown and unwind promptly;
+                            // the bounded drain below waits for them to finish.
                             var runner = serviceProvider.GetRequiredService<ITokenRunner>();
-                            await runner.RunAsync(captured, CancellationToken.None);
+                            await runner.RunAsync(captured, stoppingToken);
                         }
                         catch (Exception ex)
                         {

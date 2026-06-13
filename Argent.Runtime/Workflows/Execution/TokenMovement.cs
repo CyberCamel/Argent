@@ -81,14 +81,18 @@ public class TokenMovement : ITokenMovement
             _context.WorkflowJournalEntries.Add(request.JournalEntry);
         }
 
-        // 5. Check if instance should complete
-        if (request.Targets.Count == 0)
+        // 5. Check if instance should complete — only a terminating EndEvent (a terminal
+        // node that produces no further targets) can complete an instance, and only once
+        // no other active tokens remain. A non-end node with zero targets cannot silently
+        // complete the instance; the recovery pass flags it instead.
+        if (request.IsTerminal && request.Targets.Count == 0)
         {
-            var activeTokenCount = await _context.WorkflowTokens
+            var remaining = await _context.WorkflowTokens
                 .CountAsync(t => t.InstanceId == request.InstanceId
+                              && t.Id != request.ConsumedTokenId
                               && t.State != TokenState.Consumed, ct);
 
-            if (activeTokenCount == 0)
+            if (remaining == 0)
             {
                 var instance = await _context.WorkflowInstances
                     .FindAsync([request.InstanceId], ct);
@@ -109,8 +113,37 @@ public class TokenMovement : ITokenMovement
     {
         if (string.IsNullOrWhiteSpace(payload))
             return [];
-        try { return JsonSerializer.Deserialize<Dictionary<string, object?>>(payload) ?? []; }
+        try
+        {
+            var raw = JsonSerializer.Deserialize<Dictionary<string, object?>>(payload);
+            if (raw == null)
+                return [];
+
+            // System.Text.Json materializes object? values as JsonElement. Unwrap them
+            // to native CLR primitives so condition evaluators (NCalc) and handlers see
+            // real numbers/strings/bools rather than JsonElement, which they can't compare.
+            var result = new Dictionary<string, object?>(raw.Count);
+            foreach (var kvp in raw)
+                result[kvp.Key] = UnwrapJsonElement(kvp.Value);
+            return result;
+        }
         catch { return []; }
+    }
+
+    private static object? UnwrapJsonElement(object? value)
+    {
+        if (value is not JsonElement element)
+            return value;
+
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number => element.TryGetInt64(out var l) ? l : element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null or JsonValueKind.Undefined => null,
+            _ => element.ToString()
+        };
     }
 
     internal static string SerializePayload(IReadOnlyDictionary<string, object?>? variables)

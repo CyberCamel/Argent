@@ -17,8 +17,9 @@ public class WorkClaimer : IWorkClaimer
         const string sql = @"
             WITH claim_cte AS (
                 SELECT TOP (@BatchSize) Id, TokenId, WorkflowInstanceId, NodeId, NodeType,
-                       DefinitionId, RetryCount, MaxRetries, TokenPayload
-                FROM WorkItem WITH (ROWLOCK, READPAST)
+                       DefinitionId, RetryCount, MaxRetries, TokenPayload,
+                       State, LockedBy, LockExpirationUtc
+                FROM WorkItems WITH (ROWLOCK, READPAST)
                 WHERE State = 0 AND (ScheduledAt IS NULL OR ScheduledAt <= GETUTCDATE())
                 ORDER BY Priority DESC, CreatedAt
             )
