@@ -82,6 +82,7 @@ namespace Argent.Runtime.Workflows
                 typeof(UserActivity),
                 typeof(InclusiveGateway),
                 typeof(ExclusiveGateway),
+                typeof(ParallelGateway),
             };
 
             return types.ToDictionary(t => t, FromAttribute);

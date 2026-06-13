@@ -65,13 +65,66 @@ public class TokenRunner : ITokenRunner
                 return;
             }
 
-            // Build execution context with current variables
+            // Load the current token for correlation metadata
+            var currentToken = await db.WorkflowTokens.FindAsync([claimed.TokenId], ct);
+
+            // --- Gateway JOIN detection ---
+            // InclusiveGateway with multiple inbound connections: wait for N sibling tokens
+            // before evaluating outgoing paths. Each sibling carries a shared GroupId.
+            var inboundCount = definition.Connections.Count(c => c.To.Id == node.Id);
+
+            if (inboundCount > 1 && (node is InclusiveGateway or ParallelGateway)
+                && currentToken?.GroupId != null && currentToken.TokenCount > 0)
+            {
+                var consumedSiblings = await db.WorkflowTokens
+                    .CountAsync(t => t.InstanceId == claimed.InstanceId
+                                  && t.GroupId == currentToken.GroupId
+                                  && t.NodeId == node.Id
+                                  && t.State == TokenState.Consumed, ct);
+
+                if (consumedSiblings + 1 < currentToken.TokenCount.Value)
+                {
+                    // Not all siblings have arrived — consume this token silently
+                    currentToken.State = TokenState.Consumed;
+                    currentToken.ConsumedAt = DateTime.UtcNow;
+                    await db.SaveChangesAsync(ct);
+                    await SetWorkItemStateAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
+
+                    _logger.LogInformation(
+                        "Token {TokenId} consumed at merge node '{NodeName}' ({Arrived}/{Expected}) — waiting for siblings",
+                        claimed.TokenId, node.Name, consumedSiblings + 1, currentToken.TokenCount);
+                    return;
+                }
+
+                _logger.LogInformation(
+                    "All {Count} sibling tokens arrived at merge node '{NodeName}' — evaluating gateway",
+                    currentToken.TokenCount, node.Name);
+            }
+
+            // Build execution context with current variables and candidate targets
             var variables = TokenMovement.DeserializePayload(claimed.TokenPayload);
+
+            var candidates = definition.Connections
+                .Where(c => c.From.Id == node.Id)
+                .Select(c =>
+                {
+                    var targetNode = definition.Nodes.FirstOrDefault(n => n.Id == c.To.Id);
+                    return targetNode != null
+                        ? new CandidateTarget(targetNode.Id, targetNode.GetType().Name, c.Expression)
+                        : null;
+                })
+                .Where(c => c != null)
+                .Select(c => c!)
+                .ToList();
+
             var ctx = new TokenExecutionContext(
                 claimed.InstanceId,
                 claimed.TokenId,
                 claimed.NodeId,
-                new TokenVariableBag(variables));
+                new TokenVariableBag(variables),
+                candidates,
+                currentToken?.GroupId,
+                currentToken?.TokenCount);
 
             // Resolve and execute the handler
             var handlers = scope.ServiceProvider.GetRequiredService<IEnumerable<INodeHandler>>();

@@ -12,6 +12,7 @@ using Argent.Models.Identity;
 using Argent.Runtime.Forms;
 using Argent.Runtime.Workflows;
 using Argent.Runtime.Workflows.Execution;
+using Argent.Runtime.Workflows.Handlers;
 using Argent.Runtime.Workflows.Modeling;
 using Argent.Runtime.Forms.Modeling;
 using Argent.Web;
@@ -110,6 +111,17 @@ builder.Services.AddScoped<ITokenMovement, TokenMovement>();
 builder.Services.AddScoped<IWorkflowInstanceManager, WorkflowInstanceManager>();
 builder.Services.AddTransient<RecoveryPass>();
 builder.Services.AddHostedService<WorkflowEngine>();
+
+// --- Workflow Handlers ---
+builder.Services.AddTransient<INodeHandler, StartEventHandler>();
+builder.Services.AddTransient<INodeHandler, EndEventHandler>();
+builder.Services.AddTransient<INodeHandler, ExclusiveGatewayEvaluator>();
+builder.Services.AddTransient<INodeHandler, InclusiveGatewayEvaluator>();
+builder.Services.AddTransient<INodeHandler, ParallelGatewayEvaluator>();
+builder.Services.AddTransient<INodeHandler, SQLActivityHandler>();
+builder.Services.AddTransient<INodeHandler, RestActivityHandler>();
+builder.Services.AddTransient<INodeHandler, JintActivityHandler>();
+builder.Services.AddTransient<INodeHandler, UserActivityHandler>();
 
 builder.Services.AddScoped<IDomainObjectDefinitionService, DomainObjectDefinitionService>();
 builder.Services.AddScoped<IDomainObjectStore, DomainObjectStore>();

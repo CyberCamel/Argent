@@ -32,7 +32,17 @@ public class TokenMovement : ITokenMovement
         token.State = TokenState.Consumed;
         token.ConsumedAt = DateTime.UtcNow;
 
-        // 2. Create output tokens and work items for each target
+        // 2. Carry forward or create token group correlation for gateway join
+        var groupId = token.GroupId;
+        var tokenCount = token.TokenCount;
+
+        if (groupId == null && request.Targets.Count > 1)
+        {
+            groupId = Guid.NewGuid();
+            tokenCount = request.Targets.Count;
+        }
+
+        // 3. Create output tokens and work items for each target
         foreach (var target in request.Targets)
         {
             var newToken = new WorkflowToken
@@ -44,6 +54,8 @@ public class TokenMovement : ITokenMovement
                 Payload = target.Variables != null
                     ? JsonSerializer.Serialize(target.Variables)
                     : token.Payload,
+                GroupId = groupId,
+                TokenCount = tokenCount,
                 CreatedAt = DateTime.UtcNow
             };
             _context.WorkflowTokens.Add(newToken);
@@ -63,13 +75,13 @@ public class TokenMovement : ITokenMovement
             _context.WorkItems.Add(workItem);
         }
 
-        // 3. Record journal entry
+        // 4. Record journal entry
         if (request.JournalEntry != null)
         {
             _context.WorkflowJournalEntries.Add(request.JournalEntry);
         }
 
-        // 4. Check if instance should complete
+        // 5. Check if instance should complete
         if (request.Targets.Count == 0)
         {
             var activeTokenCount = await _context.WorkflowTokens

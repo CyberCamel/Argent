@@ -6,4 +6,7 @@ public interface ITokenExecutionContext
     Guid TokenId { get; }
     Guid NodeId { get; }
     IVariableBag Variables { get; }
+    IReadOnlyList<CandidateTarget> CandidateTargets { get; }
+    Guid? TokenGroupId { get; }
+    int? TokenCount { get; }
 }

@@ -9,6 +9,8 @@ public class WorkflowToken
     public Guid NodeId { get; set; }
     public TokenState State { get; set; } = TokenState.Ready;
     public string? Payload { get; set; }
+    public Guid? GroupId { get; set; }
+    public int? TokenCount { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ConsumedAt { get; set; }
 }
