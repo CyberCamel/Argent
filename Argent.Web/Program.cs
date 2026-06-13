@@ -1,7 +1,9 @@
+using Argent.Contracts.DomainObjects;
 using Argent.Contracts.Forms;
 using Argent.Contracts.Workflows;
 using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
+using Argent.Runtime.DomainObjects;
 using Argent.Models.Forms.Components;
 using Argent.Models.Identity;
 using Argent.Runtime.Forms;
@@ -95,6 +97,9 @@ builder.Services.AddSingleton<IWorkflowNodeRegistry, ArgentWorkflowNodeRegistry>
 builder.Services.AddScoped<IWorkItemRepository, WorkItemRepository>();
 builder.Services.AddScoped<IWorkRouter, WorkRouter>();
 builder.Services.AddHostedService<WorkflowEngine>();
+
+builder.Services.AddScoped<IDomainObjectDefinitionService, DomainObjectDefinitionService>();
+builder.Services.AddScoped<IDomainObjectStore, DomainObjectStore>();
 
 builder.Services.AddLogging(config =>
 {

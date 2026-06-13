@@ -6,6 +6,7 @@ using Argent.Models.Identity;
 using Argent.Models.Workflows.Execution;
 using Argent.Models.Forms.Components;
 using Argent.Models.Workflows;
+using Argent.Models.DomainObjects;
 
 namespace Argent.Infrastructure.Data;
 
@@ -25,6 +26,14 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
     public DbSet<WorkflowVersion> WorkflowVersions { get; set; }
 
     public DbSet<WorkflowDraft> WorkflowDrafts { get; set; }
+
+    public DbSet<DomainObject> DomainObjects { get; set; }
+
+    public DbSet<DomainObjectVersion> DomainObjectVersions { get; set; }
+
+    public DbSet<DomainObjectDraft> DomainObjectDrafts { get; set; }
+
+    public DbSet<DomainObjectRecord> DomainObjectRecords { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -100,6 +109,73 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
                     v => JsonSerializer.Deserialize<FormDefinition>(v) ?? new FormDefinition())
                 .HasColumnType("nvarchar(max)");
         });
-        
+
+        // ----- Domain Objects (mirrors the workflow draft/version pattern above) -----
+
+        builder.Entity<DomainObject>(entity =>
+        {
+            entity.HasOne(d => d.CreatedBy).WithMany().HasForeignKey(d => d.CreatedById).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(d => d.UpdatedBy).WithMany().HasForeignKey(d => d.UpdatedById).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(d => d.Key).IsUnique();
+        });
+
+        builder.Entity<DomainObjectVersion>(entity =>
+        {
+            entity.Property(e => e.Definition)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v),
+                    v => JsonSerializer.Deserialize<DomainObjectDefinition>(v) ?? new DomainObjectDefinition())
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(e => e.Version)
+                .HasConversion(
+                    v => v.ToString(),
+                    v => Version.Parse(v));
+
+            entity.HasOne(e => e.DomainObject)
+                .WithMany()
+                .HasForeignKey(e => e.DomainObjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.DomainObjectId, e.Version }).IsUnique();
+        });
+
+        builder.Entity<DomainObjectDraft>(entity =>
+        {
+            entity.Property(e => e.Definition)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v),
+                    v => JsonSerializer.Deserialize<DomainObjectDefinition>(v) ?? new DomainObjectDefinition())
+                .HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.DomainObject)
+                .WithMany()
+                .HasForeignKey(e => e.DomainObjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.DomainObjectId).IsUnique();
+        });
+
+        builder.Entity<DomainObjectRecord>(entity =>
+        {
+            entity.Property(e => e.Values)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v),
+                    v => JsonSerializer.Deserialize<Dictionary<string, object?>>(v) ?? new Dictionary<string, object?>())
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(e => e.DefinitionVersion)
+                .HasConversion(
+                    v => v!.ToString(),
+                    v => Version.Parse(v));
+
+            entity.HasOne(e => e.DomainObject)
+                .WithMany()
+                .HasForeignKey(e => e.DomainObjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.DomainObjectId);
+        });
+
     }
 }

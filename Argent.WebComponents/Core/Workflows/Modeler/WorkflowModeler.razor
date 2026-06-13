@@ -1,7 +1,6 @@
 @using System.Security.Claims
 @using System.Globalization
 @using Argent.Contracts.Workflows
-@using Argent.Runtime.Workflows
 @using Argent.Runtime.Workflows.Modeling
 @using Argent.Runtime.Workflows.Modeling.Routing
 @using Argent.Models.Workflows
@@ -11,7 +10,7 @@
 @inject DesignerService State
 @inject IWorkflowNodeRegistry Registry
 @inject IJSRuntime JS
-@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+@inject NavigationManager Nav
 
 <div class="modeler2-layout">
     @if (EffectiveReadOnly)
@@ -37,7 +36,7 @@
                 @foreach (var desc in Registry.GetRegisteredTypes().OrderBy(d => d.Category).ThenBy(d => d.DisplayName))
                 {
                     <div class="modeler2-toolbox-item @desc.CssClass"
-                         @onpointerdown="(e) => OnToolboxPointerDown(e, desc)">
+                         @onpointerdown="e => OnToolboxPointerDown(e, desc)">
                         <span class="modeler2-toolbox-icon material-symbols-outlined">@desc.Icon</span>
                         <span class="modeler2-toolbox-label">@desc.DisplayName</span>
                     </div>
@@ -130,11 +129,11 @@
 
                         <g class="modeler2-conn @(isSel ? "modeler2-conn-selected" : "")"
                            @onpointerdown:stopPropagation
-                           @ondblclick="(e) => OnConnectionDoubleClick(e, conn)">
+                           @ondblclick="e => OnConnectionDoubleClick(e, conn)">
 
                             <path d="@path" stroke="transparent" stroke-width="14" fill="none"
                                   style="cursor: pointer;"
-                                  @onpointerdown="(e) => OnConnectionPointerDown(e, conn)" />
+                                  @onpointerdown="e => OnConnectionPointerDown(e, conn)" />
 
                             <path d="@path" class="modeler2-conn-path" fill="none"
                                   marker-end="url(#g2-arrowhead)" />
@@ -148,7 +147,7 @@
                                     <circle cx="@wps[idx].X" cy="@wps[idx].Y" r="5"
                                             class="modeler2-waypoint @(isEndpoint ? "modeler2-waypoint-endpoint" : "")"
                                             @onpointerdown:stopPropagation
-                                            @onpointerdown="(e) => OnWaypointPointerDown(e, conn, idx)" />
+                                            @onpointerdown="e => OnWaypointPointerDown(e, conn, idx)" />
                                 }
                             }
                         </g>
@@ -330,7 +329,7 @@
                                     <circle cx="@(a.X - node.X)" cy="@(a.Y - node.Y)" r="6"
                                             class="modeler2-anchor"
                                             @onpointerdown:stopPropagation
-                                            @onpointerdown="(e) => OnAnchorPointerDown(e, node, a.dir)" />
+                                            @onpointerdown="e => OnAnchorPointerDown(e, node, a.dir)" />
                                 }
                             }
 
@@ -340,36 +339,36 @@
                                 <rect x="0" y="-4" width="@node.Width" height="8" fill="transparent"
                                       style="cursor: ns-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="(e) => OnResizeStart(e, node, ResizeDir.Top)" />
+                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.Top)" />
                                 <rect x="@(node.Width - 4)" y="0" width="8" height="@node.Height" fill="transparent"
                                       style="cursor: ew-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="(e) => OnResizeStart(e, node, ResizeDir.Right)" />
+                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.Right)" />
                                 <rect x="0" y="@(node.Height - 4)" width="@node.Width" height="8" fill="transparent"
                                       style="cursor: ns-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="(e) => OnResizeStart(e, node, ResizeDir.Bottom)" />
+                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.Bottom)" />
                                 <rect x="-4" y="0" width="8" height="@node.Height" fill="transparent"
                                       style="cursor: ew-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="(e) => OnResizeStart(e, node, ResizeDir.Left)" />
+                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.Left)" />
 
                                 <rect x="-5" y="-5" width="10" height="10" fill="transparent"
                                       style="cursor: nwse-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="(e) => OnResizeStart(e, node, ResizeDir.TopLeft)" />
+                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.TopLeft)" />
                                 <rect x="@(node.Width - 5)" y="-5" width="10" height="10" fill="transparent"
                                       style="cursor: nesw-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="(e) => OnResizeStart(e, node, ResizeDir.TopRight)" />
+                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.TopRight)" />
                                 <rect x="-5" y="@(node.Height - 5)" width="10" height="10" fill="transparent"
                                       style="cursor: nesw-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="(e) => OnResizeStart(e, node, ResizeDir.BottomLeft)" />
+                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.BottomLeft)" />
                                 <rect x="@(node.Width - 5)" y="@(node.Height - 5)" width="10" height="10" fill="transparent"
                                       style="cursor: nwse-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="(e) => OnResizeStart(e, node, ResizeDir.BottomRight)" />
+                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.BottomRight)" />
                             }
                         </g>
                     }

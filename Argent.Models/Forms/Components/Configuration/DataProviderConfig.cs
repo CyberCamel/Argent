@@ -5,7 +5,7 @@ public class DataProviderConfig
     public string? DataSource { get; set; }
     public List<string> DependsOn { get; set; } = [];
 
-    /// <summary>ID of the DomainObjectDocument to populate items from.</summary>
+    /// <summary>System key of the DomainObject to populate items from (resolved via IDomainObjectStore).</summary>
     public string? DomainObjectId { get; set; }
 
     /// <summary>Index into the DomainObjectDefinition's DataSources list.</summary>
