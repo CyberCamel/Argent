@@ -36,8 +36,6 @@ Argent.Host ──→ Argent.Web
 
 ## 1. Argent.Models — Domain Models Layer
 
-**Status:** Substantial (79 files)  
-**Location:** `Argent.Models/`  
 **Dependencies:** None
 
 The leaf-node assembly. Contains no logic — only POCOs, enums, JSON-polymorphic types, serializable definitions, and metadata attributes. Every other project depends on it.
@@ -76,8 +74,6 @@ All three designer subsystems (workflows, forms, domain objects) store their def
 
 ## 2. Argent.Contracts — Service Abstractions
 
-**Status:** Substantial (26 files)  
-**Location:** `Argent.Contracts/`  
 **Dependencies:** `Argent.Models`
 
 Defines all public-facing interfaces and DTOs that decouple the runtime layer from consumers. No implementation lives here.
@@ -145,8 +141,6 @@ Defines all public-facing interfaces and DTOs that decouple the runtime layer fr
 
 ## 3. Argent.Infrastructure — Data Access & Persistence
 
-**Status:** Moderate (5 files, 4 real + 1 stub)  
-**Location:** `Argent.Infrastructure/`  
 **Dependencies:** `Argent.Models`, `Microsoft.AspNetCore.Identity.EntityFrameworkCore`, `Microsoft.EntityFrameworkCore.SqlServer`
 
 EF Core `DbContext` with entity configurations, persistence document types, and JSON serialization converters.
@@ -202,8 +196,6 @@ Both workflows and domain objects follow the identical pattern:
 
 ## 4. Argent.Runtime — Core Business Logic
 
-**Status:** Very Substantial (33 files)  
-**Location:** `Argent.Runtime/`  
 **Dependencies:** `Argent.Contracts`, `Argent.Models`, `Argent.Infrastructure`  
 **NuGet:** `CoreCLR-NCalc`, `Jint`, `Microsoft.Data.SqlClient`, `Microsoft.Extensions.Http`, `Microsoft.Extensions.Hosting.Abstractions`
 
@@ -549,8 +541,6 @@ Orthogonal auto-routing for workflow connections:
 
 ## 5. Argent.Web — ASP.NET Core Host
 
-**Status:** Substantial (35+ files)  
-**Location:** `Argent.Web/`  
 **Dependencies:** `Argent.Models`, `Argent.Infrastructure`, `Argent.Runtime`, `Argent.WebComponents`
 
 The composition root: configures DI, middleware, authentication, and hosts Blazor Interactive Server components.
@@ -630,8 +620,6 @@ Defined in `ServiceCollectionExtensions.AddArgentSecurity()`:
 
 ## 6. Argent.WebComponents — Blazor Component Library
 
-**Status:** Very Substantial (30+ files, .razor + .cs)  
-**Location:** `Argent.WebComponents/`  
 **Dependencies:** `Argent.Contracts`, `Argent.Models`, `Argent.Runtime`
 
 Reusable Blazor Interactive Server components for all designers and the live form renderer.
@@ -753,8 +741,6 @@ Configuration editor for data source connections:
 
 ## 7. Argent.Host — .NET Aspire Orchestration
 
-**Status:** Small (1 file)  
-**Location:** `Argent.Host/`  
 **Dependencies:** `Argent.Web`
 
 The .NET Aspire AppHost for distributed application orchestration:
@@ -819,19 +805,6 @@ builder.AddProject<Argent_Web>("Argent")
 - `DragSegment` — Segment dragging constraints
 - `DragWaypoint` — Waypoint movement constraints
 - `InsertWaypointAtMidpoint` — Midpoint waypoint insertion
-
----
-
-## Stubs (Not Documented)
-
-The following are empty stubs with no implementation and are excluded from this document:
-
-| Project/File | Reason |
-|---|---|
-| `Argent.Core/` | Empty directory, no csproj, not in solution |
-| `Argent.Logic/` | Empty directory, no csproj (broken reference from tests) |
-| `Argent.Infrastructure/Data/DatabaseManager.cs` | Empty class, no implementation |
-| `Argent.Runtime/Jint/JintExecutor.cs` | Empty class wrapping Jint `Engine`, no logic |
 
 ---
 
