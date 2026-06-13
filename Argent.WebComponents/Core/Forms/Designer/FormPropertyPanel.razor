@@ -1,5 +1,9 @@
 @using Argent.Models.Forms.Components.Base
+@using Argent.Models.Forms.Components.Configuration
+@using Argent.Models.DomainObjects
+@using Argent.Contracts.DomainObjects
 @using Argent.Runtime.Forms.Modeling
+@inject IDomainObjectDefinitionService Definitions
 
 @if (State.SelectedComponent == null)
 {
@@ -178,31 +182,78 @@ else if (State.SelectedComponent is FormField field)
 
         case "DropdownField":
             <div class="property-section">
-                <div class="property-label">Options</div>
-                @for (int i = 0; i < field.Items.Count; i++)
+                <div class="property-label">Items source</div>
+                <select class="form-select form-select-sm mb-2"
+                        @onchange="(e) => SetItemsSource(field, e.Value?.ToString())">
+                    <option value="static" selected="@(!IsDomainBound(field))">Static items</option>
+                    <option value="domain" selected="@IsDomainBound(field)">Domain object</option>
+                </select>
+
+                @if (!IsDomainBound(field))
                 {
-                    var idx = i;
-                    var option = field.Items[idx];
-                    <div class="d-flex gap-1 mb-1 align-items-center">
-                        <input type="text" class="form-control form-control-sm"
-                               value="@option.Label" placeholder="Label"
-                               @oninput="(e) => option.Label = e.Value?.ToString() ?? string.Empty"
-                               @onchange="() => State.MarkDirty()" />
-                        <input type="text" class="form-control form-control-sm"
-                               value="@option.Value?.ToString()" placeholder="Value"
-                               @oninput="(e) => option.Value = e.Value?.ToString()"
-                               @onchange="() => State.MarkDirty()" />
-                        <button class="btn btn-sm py-0 px-1" title="Remove option"
-                                @onclick="() => { field.Items.RemoveAt(idx); State.MarkDirty(); }">
-                            <i class="bi bi-x text-danger"></i>
-                        </button>
-                    </div>
+                    @for (int i = 0; i < field.Items.Count; i++)
+                    {
+                        var idx = i;
+                        var option = field.Items[idx];
+                        <div class="d-flex gap-1 mb-1 align-items-center">
+                            <input type="text" class="form-control form-control-sm"
+                                   value="@option.Label" placeholder="Label"
+                                   @oninput="(e) => option.Label = e.Value?.ToString() ?? string.Empty"
+                                   @onchange="() => State.MarkDirty()" />
+                            <input type="text" class="form-control form-control-sm"
+                                   value="@option.Value?.ToString()" placeholder="Value"
+                                   @oninput="(e) => option.Value = e.Value?.ToString()"
+                                   @onchange="() => State.MarkDirty()" />
+                            <button class="btn btn-sm py-0 px-1" title="Remove option"
+                                    @onclick="() => { field.Items.RemoveAt(idx); State.MarkDirty(); }">
+                                <i class="bi bi-x text-danger"></i>
+                            </button>
+                        </div>
+                    }
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-1 mb-2" style="font-size: 0.7rem;"
+                            @onclick="() => AddOption(field)">
+                        <i class="bi bi-plus"></i> Add option
+                    </button>
                 }
-                <button class="btn btn-sm btn-outline-secondary py-0 px-1 mb-2" style="font-size: 0.7rem;"
-                        @onclick="() => AddOption(field)">
-                    <i class="bi bi-plus"></i> Add option
-                </button>
-                <div class="row g-2">
+                else
+                {
+                    <label class="small text-muted mb-1">Domain object</label>
+                    <select class="form-select form-select-sm mb-2"
+                            @onchange="(e) => OnDomainObjectChanged(field, e.Value?.ToString())">
+                        <option value="">— select object —</option>
+                        @foreach (var summary in _catalog)
+                        {
+                            <option value="@summary.Key" selected="@(field.DataProvider!.DomainObjectId == summary.Key)">
+                                @summary.Name (@summary.Key)
+                            </option>
+                        }
+                    </select>
+
+                    @if (!string.IsNullOrEmpty(field.DataProvider!.DomainObjectId))
+                    {
+                        <label class="small text-muted mb-1">Value field</label>
+                        <select class="form-select form-select-sm mb-2"
+                                @onchange="(e) => { field.DataProvider!.ValueField = NullIfEmpty(e.Value); State.MarkDirty(); }">
+                            @foreach (var (key, label) in FieldOptions())
+                            {
+                                <option value="@key" selected="@(field.DataProvider!.ValueField == key)">@label</option>
+                            }
+                        </select>
+                        <label class="small text-muted mb-1">Label field</label>
+                        <select class="form-select form-select-sm mb-1"
+                                @onchange="(e) => { field.DataProvider!.LabelField = NullIfEmpty(e.Value); State.MarkDirty(); }">
+                            @foreach (var (key, label) in FieldOptions())
+                            {
+                                <option value="@key" selected="@(field.DataProvider!.LabelField == key)">@label</option>
+                            }
+                        </select>
+                        @if (_boundUnpublished)
+                        {
+                            <div class="text-warning small"><i class="bi bi-exclamation-triangle"></i> This object isn't published yet — it has no records to show.</div>
+                        }
+                    }
+                }
+                <div class="row g-2 mt-1">
                     <div class="col-6">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="pp-multi"
@@ -425,6 +476,79 @@ else if (State.SelectedComponent is FormLayout container)
     [Parameter] public required FormDesignerService State { get; set; }
 
     private string? _nameWarning;
+
+    // ── Domain-object data source binding ──────────────────────────
+    private IReadOnlyList<DomainObjectSummary> _catalog = [];
+    private string? _boundKey;
+    private List<DomainProperty> _boundProperties = [];
+    private bool _boundUnpublished;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _catalog = await Definitions.GetSummariesAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Keep the field pickers in sync when a domain-bound dropdown becomes selected.
+        if (State.SelectedComponent is FormField { Xtype: "DropdownField" } f
+            && f.DataProvider?.DomainObjectId is { Length: > 0 } key)
+        {
+            await EnsureDefinitionLoaded(key);
+        }
+    }
+
+    private static bool IsDomainBound(FormField field) => field.DataProvider != null;
+
+    private void SetItemsSource(FormField field, string? source)
+    {
+        if (source == "domain")
+            field.DataProvider ??= new DataProviderConfig();
+        else
+            field.DataProvider = null;
+        State.MarkDirty();
+    }
+
+    private async Task OnDomainObjectChanged(FormField field, string? key)
+    {
+        field.DataProvider!.DomainObjectId = NullIfEmpty(key);
+        await EnsureDefinitionLoaded(field.DataProvider.DomainObjectId);
+
+        if (!string.IsNullOrEmpty(field.DataProvider.DomainObjectId))
+        {
+            // Sensible defaults: value = record id, label = title (or first) property.
+            field.DataProvider.ValueField ??= "id";
+            field.DataProvider.LabelField ??= TitleOrFirstProperty();
+        }
+        State.MarkDirty();
+    }
+
+    private async Task EnsureDefinitionLoaded(string? key)
+    {
+        if (key == _boundKey) return;
+        _boundKey = key;
+        _boundProperties = [];
+        _boundUnpublished = false;
+
+        if (string.IsNullOrEmpty(key)) return;
+
+        var definition = await Definitions.GetPublishedDefinitionAsync(key);
+        _boundProperties = definition?.Properties ?? [];
+        _boundUnpublished = definition is null;
+    }
+
+    private string? TitleOrFirstProperty()
+    {
+        var first = _boundProperties.FirstOrDefault();
+        return first?.Key ?? "id";
+    }
+
+    private IEnumerable<(string key, string label)> FieldOptions()
+    {
+        yield return ("id", "Record Id");
+        foreach (var prop in _boundProperties)
+            yield return (prop.Key, $"{prop.DisplayName} ({prop.Key})");
+    }
 
     private void RenameField(FormField field, string? rawName)
     {

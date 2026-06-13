@@ -54,10 +54,16 @@ public class DomainObjectStore(
 
         return result.Records.Select(r => new DomainOption
         {
-            Value = r.Values.GetValueOrDefault(valueField),
-            Label = r.Values.GetValueOrDefault(labelField)?.ToString() ?? string.Empty
+            Value = ResolveOptionField(r, valueField),
+            Label = ResolveOptionField(r, labelField)?.ToString() ?? string.Empty
         }).ToList();
     }
+
+    /// <summary>Resolves a field for option projection, treating "id" as the record's identity (which is not stored in Values).</summary>
+    private static object? ResolveOptionField(DomainRecord record, string field) =>
+        string.Equals(field, "id", StringComparison.OrdinalIgnoreCase)
+            ? record.Id
+            : record.Values.GetValueOrDefault(field);
 
     public async Task<DomainQueryResult> QueryDataSourceAsync(string objectKey, int dataSourceIndex, DomainQuery? query = null)
     {

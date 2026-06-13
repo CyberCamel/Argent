@@ -100,6 +100,7 @@ builder.Services.AddHostedService<WorkflowEngine>();
 
 builder.Services.AddScoped<IDomainObjectDefinitionService, DomainObjectDefinitionService>();
 builder.Services.AddScoped<IDomainObjectStore, DomainObjectStore>();
+builder.Services.AddScoped<DomainObjectDesignerService, DomainObjectDesignerService>();
 
 builder.Services.AddLogging(config =>
 {

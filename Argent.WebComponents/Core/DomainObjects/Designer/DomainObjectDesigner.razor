@@ -1,0 +1,253 @@
+@using Argent.Models.DomainObjects
+@using Argent.Runtime.DomainObjects
+@implements IDisposable
+@inject DomainObjectDesignerService State
+@inject NavigationManager Navigation
+
+<style>
+    .do-row { cursor: pointer; }
+    .do-row.selected { background: rgba(13,110,253,0.08); }
+    .do-key { font-family: var(--bs-font-monospace); font-size: 0.8rem; }
+    .property-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; color: #6c757d; margin-bottom: 0.35rem; }
+    .property-section { border-bottom: 1px solid #dee2e6; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+</style>
+
+<div class="d-flex flex-column h-100">
+    @* ── Toolbar ─────────────────────────────────────────────── *@
+    <div class="d-flex align-items-center gap-2 p-2 border-bottom bg-white" style="min-height: 42px;">
+        <a href="/DomainObjects" class="btn btn-outline-secondary btn-sm me-1" title="Back to domain objects">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <input type="text" class="form-control form-control-sm" style="max-width: 220px;"
+               value="@State.Name"
+               @onchange="e => { State.Name = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }"
+               placeholder="Display name" />
+        <input type="text" class="form-control form-control-sm do-key" style="max-width: 180px;"
+               value="@State.Key"
+               disabled="@(!State.IsNew)"
+               @onchange="e => { State.Key = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }"
+               placeholder="system_key" title="Stable system key (immutable once saved)" />
+
+        <button class="btn btn-outline-primary btn-sm" @onclick="HandleSave" disabled="@_isBusy">
+            @if (_isBusy) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            <i class="bi bi-save-fill"></i> Save
+        </button>
+        <button class="btn btn-outline-success btn-sm" @onclick="HandlePublish" disabled="@_isBusy">
+            <i class="bi bi-cloud-arrow-up-fill"></i> Publish
+        </button>
+
+        <span title="@(State.HasUnsavedChanges ? "Unsaved changes" : "Saved")"
+              class="@(State.HasUnsavedChanges ? "text-warning" : "text-success")">
+            <i class="bi @(State.HasUnsavedChanges ? "bi-circle-fill" : "bi-check-circle-fill")"></i>
+        </span>
+        @if (!string.IsNullOrEmpty(State.PublishedVersion))
+        {
+            <span class="badge text-bg-light border" title="Latest published version">v@(State.PublishedVersion)</span>
+        }
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <span class="text-danger small ms-2"><i class="bi bi-exclamation-triangle-fill"></i> @_error</span>
+        }
+    </div>
+
+    <div class="d-flex flex-grow-1 overflow-hidden">
+        @* ── Property list ───────────────────────────────────── *@
+        <div class="flex-grow-1 overflow-auto p-3">
+            <div class="d-flex align-items-center mb-2">
+                <h6 class="text-muted mb-0"><i class="bi bi-list-columns-reverse"></i> Properties</h6>
+                <button class="btn btn-outline-primary btn-sm ms-auto" @onclick="() => State.AddProperty()">
+                    <i class="bi bi-plus-lg"></i> Add Property
+                </button>
+            </div>
+
+            @if (State.Definition.Properties.Count == 0)
+            {
+                <div class="text-muted border rounded p-4 text-center" style="border-style: dashed !important;">
+                    No properties yet. Click <strong>Add Property</strong> to model your first field.
+                </div>
+            }
+            else
+            {
+                <table class="table table-sm table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 28px;"></th>
+                            <th>Key</th>
+                            <th>Display Name</th>
+                            <th>Type</th>
+                            <th>Flags</th>
+                            <th class="text-end" style="width: 110px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in State.Definition.Properties)
+                        {
+                            <tr class="do-row @(ReferenceEquals(row, State.SelectedProperty) ? "selected" : "")"
+                                @onclick="() => State.SelectProperty(row)">
+                                <td class="text-muted">
+                                    @if (State.Definition.TitleProperty == row.Key)
+                                    {
+                                        <i class="bi bi-star-fill text-warning" title="Title property"></i>
+                                    }
+                                </td>
+                                <td class="do-key">@row.Key</td>
+                                <td>@row.DisplayName</td>
+                                <td><span class="badge text-bg-light border">@row.Type</span></td>
+                                <td class="small text-muted">
+                                    @if (row.Required) { <span class="me-1" title="Required">REQ</span> }
+                                    @if (row.Unique) { <span class="me-1" title="Unique">UNQ</span> }
+                                    @if (row.Indexed) { <span class="me-1" title="Indexed">IDX</span> }
+                                    @if (row.IsCollection) { <span title="Collection">[]</span> }
+                                </td>
+                                <td class="text-end" @onclick:stopPropagation>
+                                    <button class="btn btn-sm btn-link p-0 me-1" @onclick="() => State.MoveProperty(row, -1)" title="Move up"><i class="bi bi-arrow-up"></i></button>
+                                    <button class="btn btn-sm btn-link p-0 me-1" @onclick="() => State.MoveProperty(row, 1)" title="Move down"><i class="bi bi-arrow-down"></i></button>
+                                    <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => State.RemoveProperty(row)" title="Delete"><i class="bi bi-trash"></i></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        @* ── Property panel ──────────────────────────────────── *@
+        <div class="border-start bg-light p-3" style="width: 360px; min-width: 360px; overflow-y: auto;">
+            @if (State.SelectedProperty is { } prop)
+            {
+                <h6 class="text-muted mb-3"><i class="bi bi-sliders"></i> Property</h6>
+
+                <div class="property-section">
+                    <div class="property-label">Key</div>
+                    <input class="form-control form-control-sm do-key mb-2" value="@prop.Key"
+                           @onchange="e => { prop.Key = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }" />
+                    <div class="property-label">Display Name</div>
+                    <input class="form-control form-control-sm mb-2" @bind="prop.DisplayName" @bind:after="State.MarkDirty" />
+                    <div class="property-label">Description</div>
+                    <input class="form-control form-control-sm" @bind="prop.Description" @bind:after="State.MarkDirty" />
+                </div>
+
+                <div class="property-section">
+                    <div class="property-label">Type</div>
+                    <select class="form-select form-select-sm mb-2" @bind="prop.Type" @bind:after="State.MarkDirty">
+                        @foreach (var type in Enum.GetValues<DomainPropertyType>())
+                        {
+                            <option value="@type">@type</option>
+                        }
+                    </select>
+
+                    @if (prop.Type == DomainPropertyType.Reference)
+                    {
+                        <div class="property-label">References</div>
+                        <select class="form-select form-select-sm" @bind="prop.ReferenceTargetKey" @bind:after="State.MarkDirty">
+                            <option value="">— select object —</option>
+                            @foreach (var summary in State.Catalog.Where(s => s.Key != State.Key))
+                            {
+                                <option value="@summary.Key">@summary.Name (@summary.Key)</option>
+                            }
+                        </select>
+                    }
+                </div>
+
+                <div class="property-section">
+                    <div class="property-label">Constraints</div>
+                    <div class="form-check form-check-sm">
+                        <input class="form-check-input" type="checkbox" id="p-req" @bind="prop.Required" @bind:after="State.MarkDirty" />
+                        <label class="form-check-label" for="p-req">Required</label>
+                    </div>
+                    <div class="form-check form-check-sm">
+                        <input class="form-check-input" type="checkbox" id="p-unq" @bind="prop.Unique" @bind:after="State.MarkDirty" />
+                        <label class="form-check-label" for="p-unq">Unique</label>
+                    </div>
+                    <div class="form-check form-check-sm">
+                        <input class="form-check-input" type="checkbox" id="p-idx" @bind="prop.Indexed" @bind:after="State.MarkDirty" />
+                        <label class="form-check-label" for="p-idx">Indexed</label>
+                    </div>
+                    <div class="form-check form-check-sm">
+                        <input class="form-check-input" type="checkbox" id="p-col" @bind="prop.IsCollection" @bind:after="State.MarkDirty" />
+                        <label class="form-check-label" for="p-col">Collection (multi-value)</label>
+                    </div>
+                </div>
+
+                @if (prop.Type == DomainPropertyType.Choice)
+                {
+                    <div class="property-section">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="property-label mb-0">Choices</div>
+                            <button class="btn btn-sm btn-link p-0 ms-auto" @onclick="() => AddChoice(prop)"><i class="bi bi-plus-lg"></i> Add</button>
+                        </div>
+                        @foreach (var choice in prop.Choices)
+                        {
+                            <div class="input-group input-group-sm mb-1">
+                                <input class="form-control" placeholder="Label" @bind="choice.Label" @bind:after="State.MarkDirty" />
+                                <input class="form-control" placeholder="Value"
+                                       value="@choice.Value?.ToString()"
+                                       @onchange="e => { choice.Value = e.Value?.ToString(); State.MarkDirty(); }" />
+                                <button class="btn btn-outline-danger" @onclick="() => RemoveChoice(prop, choice)"><i class="bi bi-x"></i></button>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <button class="btn btn-outline-secondary btn-sm w-100"
+                        @onclick="() => SetTitleProperty(prop)"
+                        disabled="@(State.Definition.TitleProperty == prop.Key)">
+                    <i class="bi bi-star"></i> Use as title property
+                </button>
+            }
+            else
+            {
+                <div class="text-muted small">Select a property to edit its settings.</div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Guid? ObjectId { get; set; }
+
+    private bool _isBusy;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.OnChange += StateHasChanged;
+        await State.EnsureCatalogAsync();
+        if (ObjectId.HasValue)
+            await State.LoadAsync(ObjectId.Value);
+    }
+
+    public void Dispose() => State.OnChange -= StateHasChanged;
+
+    private async Task HandleSave()
+    {
+        _isBusy = true; _error = null;
+        try
+        {
+            var wasNew = State.IsNew;
+            await State.SaveAsync();
+            if (wasNew && State.StoredObjectId.HasValue)
+                Navigation.NavigateTo($"/DomainObjects/Edit/{State.StoredObjectId}", forceLoad: true);
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _isBusy = false; }
+    }
+
+    private async Task HandlePublish()
+    {
+        _isBusy = true; _error = null;
+        try
+        {
+            var wasNew = State.IsNew;
+            await State.PublishAsync();
+            if (wasNew && State.StoredObjectId.HasValue)
+                Navigation.NavigateTo($"/DomainObjects/Edit/{State.StoredObjectId}", forceLoad: true);
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _isBusy = false; }
+    }
+
+    private void AddChoice(DomainProperty prop) { prop.Choices.Add(new DomainChoiceOption()); State.MarkDirty(); }
+    private void RemoveChoice(DomainProperty prop, DomainChoiceOption choice) { prop.Choices.Remove(choice); State.MarkDirty(); }
+    private void SetTitleProperty(DomainProperty prop) { State.Definition.TitleProperty = prop.Key; State.MarkDirty(); }
+}

@@ -1,0 +1,76 @@
+@page "/DomainObjects"
+@model Argent.Web.Pages.DomainObjects.IndexModel
+@{
+    ViewData["Title"] = "Domain Objects";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Domain Objects</h4>
+        <p class="text-muted small mb-0">Model the data entities your forms and workflows operate on</p>
+    </div>
+    <a class="btn btn-primary" href="/DomainObjects/Create">
+        <i class="bi bi-plus-lg"></i> New Domain Object
+    </a>
+</div>
+
+@if (Model.Objects.Count == 0)
+{
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-diagram-3 fs-1 text-muted mb-3 d-block"></i>
+            <p class="text-muted mb-0">No domain objects yet. <a href="/DomainObjects/Create">Create your first one</a>!</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Key</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var obj in Model.Objects)
+                    {
+                        <tr>
+                            <td class="fw-medium">@obj.Name</td>
+                            <td><code>@obj.Key</code></td>
+                            <td class="small">
+                                @if (obj.PublishedVersion != null)
+                                {
+                                    <span class="badge text-bg-success">Published v@(obj.PublishedVersion)</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">Unpublished</span>
+                                }
+                                @if (obj.HasDraft)
+                                {
+                                    <span class="badge text-bg-warning ms-1">Draft</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <a class="btn btn-outline-secondary btn-sm" href="/DomainObjects/Edit/@obj.Id">
+                                    <i class="bi bi-pencil-fill"></i> Edit
+                                </a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@obj.Id" style="display:inline"
+                                      onsubmit="return confirm('Delete this domain object and all its records?')">
+                                    <button class="btn btn-outline-danger btn-sm">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

@@ -1,0 +1,9 @@
+@page "/DomainObjects/Create"
+@using Argent.WebComponents.Core.DomainObjects.Designer
+@model Argent.Web.Pages.DomainObjects.CreateModel
+@{
+    ViewData["Title"] = "Create Domain Object";
+    ViewData["IsFullWidth"] = true;
+}
+
+<component type="typeof(DomainObjectDesigner)" render-mode="ServerPrerendered" />

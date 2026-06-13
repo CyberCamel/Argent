@@ -1,6 +1,7 @@
 ﻿@using Argent.Contracts.DomainObjects
 @using Argent.Models.Forms.Components.Base
 @inherits FormInputComponentBase
+@inject IDomainObjectStore Store
 
 @if (IsVisible)
 {
@@ -58,10 +59,45 @@
 
 @code {
     private List<SelectOption> _resolvedItems = [];
+    private string? _resolvedKey;
     private bool IsVisible => Context.IsVisible(Metadata);
     private string? CurrentValue => Context.GetValue<string>(Metadata.Name ?? Metadata.Id);
     private IEnumerable<string> Errors => Context.GetErrors(Metadata);
-    
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var dp = Metadata.DataProvider;
+        // Re-resolve only when the source actually changed (selection/edits re-render frequently).
+        var key = $"{dp?.DomainObjectId}|{dp?.ValueField}|{dp?.LabelField}|{dp?.DataSourceIndex}|{Metadata.Items.Count}";
+        if (key == _resolvedKey) return;
+        _resolvedKey = key;
+        await ResolveItemsAsync();
+    }
+
+    private async Task ResolveItemsAsync()
+    {
+        var dp = Metadata.DataProvider;
+        if (dp is null || string.IsNullOrWhiteSpace(dp.DomainObjectId))
+        {
+            _resolvedItems = Metadata.Items;
+            return;
+        }
+
+        try
+        {
+            var options = await Store.GetOptionsAsync(
+                dp.DomainObjectId,
+                string.IsNullOrWhiteSpace(dp.ValueField) ? "id" : dp.ValueField,
+                string.IsNullOrWhiteSpace(dp.LabelField) ? (dp.ValueField ?? "id") : dp.LabelField,
+                dp.DataSourceIndex);
+            _resolvedItems = options.Select(o => new SelectOption { Label = o.Label, Value = o.Value }).ToList();
+        }
+        catch
+        {
+            // A misconfigured or unpublished binding shouldn't break form rendering.
+            _resolvedItems = [];
+        }
+    }
 
     private void OnValueChanged(object? val)
     {

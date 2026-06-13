@@ -1,0 +1,10 @@
+@page "/DomainObjects/Edit/{id:guid}"
+@using Argent.WebComponents.Core.DomainObjects.Designer
+@model Argent.Web.Pages.DomainObjects.EditModel
+@{
+    ViewData["Title"] = "Edit Domain Object";
+    ViewData["IsFullWidth"] = true;
+}
+
+<component type="typeof(DomainObjectDesigner)" render-mode="ServerPrerendered"
+           param-ObjectId="@Model.ObjectId" />
