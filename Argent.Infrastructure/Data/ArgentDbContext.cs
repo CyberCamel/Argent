@@ -27,6 +27,8 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
     public DbSet<WorkflowJournalEntry> WorkflowJournalEntries { get; set; }
 
+    public DbSet<UserTask> UserTasks { get; set; }
+
     public DbSet<Workflow> WorkflowDefinitions { get; set; }
 
     public DbSet<WorkflowVersion> WorkflowVersions { get; set; }
@@ -216,6 +218,21 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
             entity.HasIndex(e => new { e.InstanceId, e.TimeStamp })
                 .HasDatabaseName("IX_WorkflowJournalEntries_InstanceId_Timestamp");
+        });
+
+        builder.Entity<UserTask>(entity =>
+        {
+            entity.ToTable("UserTasks");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.ResultData)
+                .HasColumnType("nvarchar(max)");
+
+            entity.HasIndex(e => e.TokenId)
+                .HasDatabaseName("IX_UserTasks_TokenId");
+
+            entity.HasIndex(e => new { e.State, e.DueDate })
+                .HasDatabaseName("IX_UserTasks_State_DueDate");
         });
 
         // Additional indexes for WorkItem (base table config is inferred by conventions)

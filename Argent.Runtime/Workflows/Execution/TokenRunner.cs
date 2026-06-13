@@ -68,6 +68,15 @@ public class TokenRunner : ITokenRunner
             // Load the current token for correlation metadata
             var currentToken = await db.WorkflowTokens.FindAsync([claimed.TokenId], ct);
 
+            if (currentToken == null || currentToken.State == TokenState.Consumed)
+            {
+                _logger.LogWarning(
+                    "Token {TokenId} already consumed — completing work item {WorkItemId} without processing",
+                    claimed.TokenId, claimed.WorkItemId);
+                await SetWorkItemStateAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
+                return;
+            }
+
             // --- Gateway JOIN detection ---
             // InclusiveGateway with multiple inbound connections: wait for N sibling tokens
             // before evaluating outgoing paths. Each sibling carries a shared GroupId.

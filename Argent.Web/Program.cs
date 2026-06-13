@@ -110,6 +110,7 @@ builder.Services.AddSingleton<ITokenRunner, TokenRunner>();
 builder.Services.AddScoped<ITokenMovement, TokenMovement>();
 builder.Services.AddScoped<IWorkflowInstanceManager, WorkflowInstanceManager>();
 builder.Services.AddTransient<RecoveryPass>();
+builder.Services.AddSingleton<IUserTaskManager, UserTaskManager>();
 builder.Services.AddHostedService<WorkflowEngine>();
 
 // --- Workflow Handlers ---
@@ -163,6 +164,26 @@ app.MapRazorPages();
 
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
 
+// --- User Task API ---
+app.MapPost("/api/tasks/{taskId:guid}/complete", async (
+    Guid taskId,
+    IUserTaskManager taskManager,
+    HttpRequest request,
+    CancellationToken ct) =>
+{
+    var completedBy = request.Headers["X-Completed-By"].FirstOrDefault() ?? "system";
+    string? resultData = null;
+
+    if (request.HasJsonContentType())
+    {
+        var body = await request.ReadFromJsonAsync<CompleteTaskRequest>(ct);
+        resultData = body?.Result;
+    }
+
+    await taskManager.CompleteTaskAsync(taskId, completedBy, resultData, ct);
+    return Results.Ok(new { status = "completed" });
+});
+
 app.MapRazorComponents<Program>()
     .AddInteractiveServerRenderMode();
 
@@ -188,3 +209,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+record CompleteTaskRequest(string? Result);
