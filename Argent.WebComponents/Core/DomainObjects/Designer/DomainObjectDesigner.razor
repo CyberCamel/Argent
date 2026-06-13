@@ -1,4 +1,5 @@
 @using Argent.Models.DomainObjects
+@using Argent.Contracts.DataSources
 @using Argent.Runtime.DomainObjects
 @implements IDisposable
 @inject DomainObjectDesignerService State
@@ -108,6 +109,83 @@
                         }
                     </tbody>
                 </table>
+            }
+
+            @* ── External data source bindings ─────────────────── *@
+            <hr class="my-3" />
+            <div class="d-flex align-items-center mb-2">
+                <h6 class="text-muted mb-0"><i class="bi bi-hdd-network"></i> External Data Sources</h6>
+                <button class="btn btn-outline-primary btn-sm ms-auto" @onclick="() => State.AddDataSource()">
+                    <i class="bi bi-plus-lg"></i> Add Data Source
+                </button>
+            </div>
+            <p class="text-muted small">Optional. Bind records to an external query; otherwise records come from managed storage. Referenced by index from a form dropdown's data provider.</p>
+
+            @if (State.Definition.DataSources.Count == 0)
+            {
+                <div class="text-muted border rounded p-3 text-center small" style="border-style: dashed !important;">
+                    No external bindings.
+                </div>
+            }
+            else
+            {
+                @for (int dsI = 0; dsI < State.Definition.DataSources.Count; dsI++)
+                {
+                    var dsIndex = dsI;
+                    var ds = State.Definition.DataSources[dsIndex];
+                    <div class="card mb-2">
+                        <div class="card-header d-flex align-items-center gap-2 py-1">
+                            <span class="badge text-bg-secondary" title="DataSourceIndex">#@dsIndex</span>
+                            <input class="form-control form-control-sm" style="max-width: 220px;"
+                                   placeholder="Binding name" @bind="ds.Name" @bind:after="State.MarkDirty" />
+                            <button class="btn btn-sm btn-link text-danger p-0 ms-auto"
+                                    @onclick="() => State.RemoveDataSource(ds)" title="Remove binding">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <div class="card-body py-2">
+                            <label class="property-label">Connection</label>
+                            <select class="form-select form-select-sm mb-2" @bind="ds.DataSourceKey" @bind:after="State.MarkDirty">
+                                <option value="">— select connection —</option>
+                                @foreach (var conn in State.DataSourceCatalog)
+                                {
+                                    <option value="@conn.Key">@conn.Name (@conn.Kind)</option>
+                                }
+                            </select>
+                            @if (State.DataSourceCatalog.Count == 0)
+                            {
+                                <div class="text-muted small mb-2">No connections defined — create them under <a href="/DataSources" target="_blank">Data Sources</a>.</div>
+                            }
+
+                            <label class="property-label">Query</label>
+                            <textarea class="form-control form-control-sm font-monospace mb-2" rows="2"
+                                      placeholder="SELECT id, name FROM Customer" @bind="ds.Query" @bind:after="State.MarkDirty"></textarea>
+
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="property-label mb-0">Column mappings</span>
+                                <button class="btn btn-sm btn-link p-0 ms-auto" @onclick="() => State.AddColumnMapping(ds)">
+                                    <i class="bi bi-plus-lg"></i> Add
+                                </button>
+                            </div>
+                            @foreach (var mapping in ds.ColumnMappings)
+                            {
+                                <div class="input-group input-group-sm mb-1">
+                                    <input class="form-control" placeholder="result column" @bind="mapping.Column" @bind:after="State.MarkDirty" />
+                                    <span class="input-group-text">→</span>
+                                    <select class="form-select" @bind="mapping.Property" @bind:after="State.MarkDirty">
+                                        <option value="">— property —</option>
+                                        @foreach (var target in State.Definition.Properties)
+                                        {
+                                            <option value="@target.Key">@target.Key</option>
+                                        }
+                                    </select>
+                                    <button class="btn btn-outline-danger" @onclick="() => State.RemoveColumnMapping(ds, mapping)"><i class="bi bi-x"></i></button>
+                                </div>
+                            }
+                            <div class="form-text">Unmapped columns fall through to a property with the same name.</div>
+                        </div>
+                    </div>
+                }
             }
         </div>
 

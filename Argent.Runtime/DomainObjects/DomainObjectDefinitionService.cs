@@ -13,20 +13,21 @@ namespace Argent.Runtime.DomainObjects;
 /// immutable, semver-stamped version and clears the draft.
 /// </summary>
 public class DomainObjectDefinitionService(
-    ArgentDbContext _context,
+    IDbContextFactory<ArgentDbContext> _dbContextFactory,
     IHttpContextAccessor _httpContextAccessor) : IDomainObjectDefinitionService
 {
     private string CurrentUser => _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
 
     public async Task<List<DomainObjectSummary>> GetSummariesAsync()
     {
-        var objects = await _context.DomainObjects.AsNoTracking().ToListAsync();
-        var draftIds = await _context.DomainObjectDrafts.AsNoTracking()
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var objects = await dbContext.DomainObjects.AsNoTracking().ToListAsync();
+        var draftIds = await dbContext.DomainObjectDrafts.AsNoTracking()
             .Select(d => d.DomainObjectId).ToListAsync();
         var draftSet = draftIds.ToHashSet();
 
         // Version is stored as a string, so resolve "latest published" in memory where Version compares correctly.
-        var published = await _context.DomainObjectVersions.AsNoTracking()
+        var published = await dbContext.DomainObjectVersions.AsNoTracking()
             .Where(v => v.State == DomainObjectState.Published)
             .Select(v => new { v.DomainObjectId, v.Version })
             .ToListAsync();
@@ -45,12 +46,17 @@ public class DomainObjectDefinitionService(
         }).ToList();
     }
 
-    public async Task<DomainObject?> GetAsync(Guid id) =>
-        await _context.DomainObjects.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id);
+    public async Task<DomainObject?> GetAsync(Guid id)
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        return await dbContext.DomainObjects.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id);
+    }
+        
 
     public async Task<DomainObject> CreateAsync(string key, string name, string? description = null, string? createdBy = null)
     {
-        if (await _context.DomainObjects.AnyAsync(o => o.Key == key))
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        if (await dbContext.DomainObjects.AnyAsync(o => o.Key == key))
             throw new InvalidOperationException($"A domain object with key '{key}' already exists.");
 
         var now = DateTime.UtcNow;
@@ -64,9 +70,9 @@ public class DomainObjectDefinitionService(
             CreatedOn = now,
             UpdatedOn = now
         };
-        _context.DomainObjects.Add(domainObject);
+        dbContext.DomainObjects.Add(domainObject);
 
-        _context.DomainObjectDrafts.Add(new DomainObjectDraft
+        dbContext.DomainObjectDrafts.Add(new DomainObjectDraft
         {
             DomainObjectId = domainObject.Id,
             Name = name,
@@ -82,13 +88,14 @@ public class DomainObjectDefinitionService(
             CreatedBy = author
         });
 
-        await _context.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
         return domainObject;
     }
 
     public async Task<DomainObjectDefinition?> GetWorkingDefinitionAsync(Guid id)
     {
-        var draft = await _context.DomainObjectDrafts.AsNoTracking()
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var draft = await dbContext.DomainObjectDrafts.AsNoTracking()
             .FirstOrDefaultAsync(d => d.DomainObjectId == id);
         if (draft != null) return draft.Definition;
 
@@ -100,10 +107,11 @@ public class DomainObjectDefinitionService(
 
     public async Task SaveDraftAsync(Guid id, DomainObjectDefinition definition, string? updatedBy = null)
     {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var now = DateTime.UtcNow;
         var copy = Clone(definition);
 
-        var draft = await _context.DomainObjectDrafts.FirstOrDefaultAsync(d => d.DomainObjectId == id);
+        var draft = await dbContext.DomainObjectDrafts.FirstOrDefaultAsync(d => d.DomainObjectId == id);
         if (draft != null)
         {
             draft.Definition = copy;
@@ -113,7 +121,7 @@ public class DomainObjectDefinitionService(
         }
         else
         {
-            _context.DomainObjectDrafts.Add(new DomainObjectDraft
+            dbContext.DomainObjectDrafts.Add(new DomainObjectDraft
             {
                 DomainObjectId = id,
                 Name = definition.DisplayName,
@@ -125,18 +133,19 @@ public class DomainObjectDefinitionService(
             });
         }
 
-        var header = await _context.DomainObjects.FirstOrDefaultAsync(o => o.Id == id);
+        var header = await dbContext.DomainObjects.FirstOrDefaultAsync(o => o.Id == id);
         if (header != null) header.UpdatedOn = now;
 
-        await _context.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
     }
 
     public async Task<DomainObjectVersion> PublishAsync(Guid id, string? createdBy = null)
     {
-        var draft = await _context.DomainObjectDrafts.FirstOrDefaultAsync(d => d.DomainObjectId == id)
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var draft = await dbContext.DomainObjectDrafts.FirstOrDefaultAsync(d => d.DomainObjectId == id)
             ?? throw new InvalidOperationException("There is no draft to publish for this domain object.");
 
-        var existingVersions = await _context.DomainObjectVersions.AsNoTracking()
+        var existingVersions = await dbContext.DomainObjectVersions.AsNoTracking()
             .Where(v => v.DomainObjectId == id)
             .Select(v => v.Version)
             .ToListAsync();
@@ -155,16 +164,17 @@ public class DomainObjectDefinitionService(
             CreatedAt = DateTime.UtcNow,
             CreatedBy = createdBy ?? CurrentUser
         };
-        _context.DomainObjectVersions.Add(version);
-        _context.DomainObjectDrafts.Remove(draft);
+        dbContext.DomainObjectVersions.Add(version);
+        dbContext.DomainObjectDrafts.Remove(draft);
 
-        await _context.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
         return version;
     }
 
     public async Task<List<DomainObjectVersion>> GetVersionsAsync(Guid id)
     {
-        var versions = await _context.DomainObjectVersions.AsNoTracking()
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var versions = await dbContext.DomainObjectVersions.AsNoTracking()
             .Where(v => v.DomainObjectId == id)
             .ToListAsync();
         return versions.OrderByDescending(v => v.Version).ToList();
@@ -173,11 +183,12 @@ public class DomainObjectDefinitionService(
     private async Task<DomainObjectDefinition?> GetLatestPublishedDefinitionAsync(
         System.Linq.Expressions.Expression<Func<DomainObject, bool>> predicate)
     {
-        var objectId = await _context.DomainObjects.AsNoTracking()
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var objectId = await dbContext.DomainObjects.AsNoTracking()
             .Where(predicate).Select(o => (Guid?)o.Id).FirstOrDefaultAsync();
         if (objectId is null) return null;
 
-        var versions = await _context.DomainObjectVersions.AsNoTracking()
+        var versions = await dbContext.DomainObjectVersions.AsNoTracking()
             .Where(v => v.DomainObjectId == objectId && v.State == DomainObjectState.Published)
             .ToListAsync();
 

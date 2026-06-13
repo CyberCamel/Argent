@@ -17,6 +17,13 @@ public class DomainDataSource
     /// <summary>The SQL query that returns rows shaped like this object.</summary>
     public string Query { get; set; } = string.Empty;
 
-    /// <summary>Maps a result column name to a <see cref="DomainProperty.Key"/>. Unmapped columns fall through by matching name.</summary>
-    public Dictionary<string, string> ColumnMap { get; set; } = [];
+    /// <summary>Maps result columns to property keys. Unmapped columns fall through by matching name.</summary>
+    public List<DomainColumnMapping> ColumnMappings { get; set; } = [];
+}
+
+/// <summary>Maps one result column from a <see cref="DomainDataSource"/> query onto a property key.</summary>
+public class DomainColumnMapping
+{
+    public string Column { get; set; } = string.Empty;
+    public string Property { get; set; } = string.Empty;
 }

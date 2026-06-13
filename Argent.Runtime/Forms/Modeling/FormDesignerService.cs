@@ -24,7 +24,7 @@ public class ToolboxItem
 public readonly record struct DropTarget(string? ContainerId, int Index, int ColumnIndex = 0);
 
 public class FormDesignerService(
-    ArgentDbContext _dbContext,
+    IDbContextFactory<ArgentDbContext> _dbContextFactory,
     IHttpContextAccessor _httpContextAccessor)
 {
     public FormDefinition Definition { get; private set; } = NewDefinition();
@@ -352,7 +352,8 @@ public class FormDesignerService(
 
     public async Task LoadAsync(Guid id)
     {
-        var doc = await _dbContext.FormDocuments.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var doc = await dbContext.FormDocuments.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
         if (doc?.Definition == null) return;
 
         Definition = doc.Definition;
@@ -371,8 +372,9 @@ public class FormDesignerService(
         // Detach the stored copy from the live designer instance.
         var definitionCopy = CloneDefinition(Definition);
 
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var existing = StoredFormId.HasValue
-            ? await _dbContext.FormDocuments.FindAsync(StoredFormId.Value)
+            ? await dbContext.FormDocuments.FindAsync(StoredFormId.Value)
             : null;
 
         if (existing != null)
@@ -392,11 +394,11 @@ public class FormDesignerService(
                 Definition = definitionCopy,
                 CreatedBy = updatedBy
             };
-            _dbContext.FormDocuments.Add(doc);
+            dbContext.FormDocuments.Add(doc);
             StoredFormId = doc.Id;
         }
 
-        await _dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
         HasUnsavedChanges = false;
         Notify();
     }

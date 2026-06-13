@@ -13,14 +13,16 @@ namespace Argent.Runtime.DataSources;
 /// metadata columns stay in the clear for listing.
 /// </summary>
 public class DataSourceCatalog(
-    ArgentDbContext _context,
+    IDbContextFactory<ArgentDbContext> _dbContextFactory,
     IHttpContextAccessor _httpContextAccessor,
     ISecretProtector _protector) : IDataSourceCatalog
 {
     private string CurrentUser => _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
 
-    public async Task<List<DataSourceSummary>> GetSummariesAsync() =>
-        await _context.DataSources.AsNoTracking()
+    public async Task<List<DataSourceSummary>> GetSummariesAsync()
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        return await dbContext.DataSources.AsNoTracking()
             .OrderBy(d => d.Name)
             .Select(d => new DataSourceSummary
             {
@@ -30,16 +32,19 @@ public class DataSourceCatalog(
                 Description = d.Description,
                 Kind = d.Kind
             }).ToListAsync();
+    }
 
     public async Task<DataSource?> GetAsync(Guid id)
     {
-        var doc = await _context.DataSources.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var doc = await dbContext.DataSources.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
         return doc is null ? null : Decrypt(doc);
     }
 
     public async Task<DataSource?> GetByKeyAsync(string key)
     {
-        var doc = await _context.DataSources.AsNoTracking().FirstOrDefaultAsync(d => d.Key == key);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var doc = await dbContext.DataSources.AsNoTracking().FirstOrDefaultAsync(d => d.Key == key);
         return doc is null ? null : Decrypt(doc);
     }
 
@@ -47,8 +52,8 @@ public class DataSourceCatalog(
     {
         if (string.IsNullOrWhiteSpace(dataSource.Key))
             throw new InvalidOperationException("A data source key is required.");
-
-        var duplicate = await _context.DataSources
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var duplicate = await dbContext.DataSources
             .AnyAsync(d => d.Key == dataSource.Key && (id == null || d.Id != id));
         if (duplicate)
             throw new InvalidOperationException($"A data source with key '{dataSource.Key}' already exists.");
@@ -59,13 +64,13 @@ public class DataSourceCatalog(
         DataSourceDocument doc;
         if (id is { } existingId)
         {
-            doc = await _context.DataSources.FirstOrDefaultAsync(d => d.Id == existingId)
+            doc = await dbContext.DataSources.FirstOrDefaultAsync(d => d.Id == existingId)
                   ?? throw new InvalidOperationException("Data source not found.");
         }
         else
         {
             doc = new DataSourceDocument { CreatedAt = now, CreatedBy = user ?? CurrentUser };
-            _context.DataSources.Add(doc);
+            dbContext.DataSources.Add(doc);
         }
 
         doc.Key = dataSource.Key;
@@ -75,16 +80,17 @@ public class DataSourceCatalog(
         doc.Config = encrypted;
         doc.UpdatedAt = now;
 
-        await _context.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
         return doc.Id;
     }
 
     public async Task DeleteAsync(Guid id)
     {
-        var doc = await _context.DataSources.FindAsync(id);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var doc = await dbContext.DataSources.FindAsync(id);
         if (doc is null) return;
-        _context.DataSources.Remove(doc);
-        await _context.SaveChangesAsync();
+        dbContext.DataSources.Remove(doc);
+        await dbContext.SaveChangesAsync();
     }
 
     private DataSource Decrypt(DataSourceDocument doc) =>

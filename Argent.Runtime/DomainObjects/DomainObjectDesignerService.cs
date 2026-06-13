@@ -1,3 +1,4 @@
+using Argent.Contracts.DataSources;
 using Argent.Contracts.DomainObjects;
 using Argent.Models.DomainObjects;
 
@@ -9,7 +10,9 @@ namespace Argent.Runtime.DomainObjects;
 /// Blazor component re-renders, and wraps <see cref="IDomainObjectDefinitionService"/> for the
 /// draft/publish lifecycle.
 /// </summary>
-public class DomainObjectDesignerService(IDomainObjectDefinitionService _definitions)
+public class DomainObjectDesignerService(
+    IDomainObjectDefinitionService _definitions,
+    IDataSourceCatalog _dataSources)
 {
     public Guid? StoredObjectId { get; private set; }
     public DomainObjectDefinition Definition { get; private set; } = NewDefinition();
@@ -19,6 +22,9 @@ public class DomainObjectDesignerService(IDomainObjectDefinitionService _definit
 
     /// <summary>Other domain objects, for reference-target and title pickers. Loaded once.</summary>
     public IReadOnlyList<DomainObjectSummary> Catalog { get; private set; } = [];
+
+    /// <summary>Admin-defined data source connections, for external binding pickers. Loaded once.</summary>
+    public IReadOnlyList<DataSourceSummary> DataSourceCatalog { get; private set; } = [];
 
     public bool IsNew => StoredObjectId is null;
 
@@ -42,7 +48,11 @@ public class DomainObjectDesignerService(IDomainObjectDefinitionService _definit
         PublishedVersion = null;
     }
 
-    public async Task EnsureCatalogAsync() => Catalog = await _definitions.GetSummariesAsync();
+    public async Task EnsureCatalogAsync()
+    {
+        Catalog = await _definitions.GetSummariesAsync();
+        DataSourceCatalog = await _dataSources.GetSummariesAsync();
+    }
 
     public async Task LoadAsync(Guid id)
     {
@@ -136,5 +146,31 @@ public class DomainObjectDesignerService(IDomainObjectDefinitionService _definit
             var candidate = $"{baseKey}{i}";
             if (!keys.Contains(candidate)) return candidate;
         }
+    }
+
+    // ── Data source bindings ───────────────────────────────────────
+
+    public void AddDataSource()
+    {
+        Definition.DataSources.Add(new DomainDataSource { Name = "New Data Source" });
+        MarkDirty();
+    }
+
+    public void RemoveDataSource(DomainDataSource dataSource)
+    {
+        Definition.DataSources.Remove(dataSource);
+        MarkDirty();
+    }
+
+    public void AddColumnMapping(DomainDataSource dataSource)
+    {
+        dataSource.ColumnMappings.Add(new DomainColumnMapping());
+        MarkDirty();
+    }
+
+    public void RemoveColumnMapping(DomainDataSource dataSource, DomainColumnMapping mapping)
+    {
+        dataSource.ColumnMappings.Remove(mapping);
+        MarkDirty();
     }
 }

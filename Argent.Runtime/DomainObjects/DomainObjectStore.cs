@@ -20,7 +20,7 @@ namespace Argent.Runtime.DomainObjects;
 /// OPENJSON or a promoted-index table.
 /// </summary>
 public class DomainObjectStore(
-    ArgentDbContext _context,
+    IDbContextFactory<ArgentDbContext> _dbContextFactory,
     IHttpContextAccessor _httpContextAccessor,
     IDataSourceRunner _dataSourceRunner) : IDomainObjectStore
 {
@@ -30,16 +30,18 @@ public class DomainObjectStore(
 
     public async Task<DomainRecord?> GetAsync(string objectKey, Guid id)
     {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var (obj, version) = await ResolveAsync(objectKey);
-        var entity = await _context.DomainObjectRecords.AsNoTracking()
+        var entity = await dbContext.DomainObjectRecords.AsNoTracking()
             .FirstOrDefaultAsync(r => r.DomainObjectId == obj.Id && r.Id == id);
         return entity is null ? null : ToRecord(entity, objectKey, version?.Definition);
     }
 
     public async Task<DomainQueryResult> QueryAsync(string objectKey, DomainQuery? query = null)
     {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var (obj, version) = await ResolveAsync(objectKey);
-        var entities = await _context.DomainObjectRecords.AsNoTracking()
+        var entities = await dbContext.DomainObjectRecords.AsNoTracking()
             .Where(r => r.DomainObjectId == obj.Id).ToListAsync();
 
         var records = entities.Select(e => ToRecord(e, objectKey, version?.Definition));
@@ -90,6 +92,7 @@ public class DomainObjectStore(
 
     public async Task<DomainRecord> CreateAsync(string objectKey, IDictionary<string, object?> values, string? user = null)
     {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var (obj, version) = await ResolveAsync(objectKey);
         var def = version?.Definition;
         var coerced = DomainValueCoercion.Coerce(values, def);
@@ -109,17 +112,18 @@ public class DomainObjectStore(
             UpdatedAt = now,
             UpdatedBy = author
         };
-        _context.DomainObjectRecords.Add(entity);
-        await _context.SaveChangesAsync();
+        dbContext.DomainObjectRecords.Add(entity);
+        await dbContext.SaveChangesAsync();
 
         return ToRecord(entity, objectKey, def);
     }
 
     public async Task<DomainRecord> UpdateAsync(string objectKey, Guid id, IDictionary<string, object?> values, string? user = null)
     {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var (obj, version) = await ResolveAsync(objectKey);
         var def = version?.Definition;
-        var entity = await _context.DomainObjectRecords
+        var entity = await dbContext.DomainObjectRecords
             .FirstOrDefaultAsync(r => r.DomainObjectId == obj.Id && r.Id == id)
             ?? throw new InvalidOperationException($"Record '{id}' not found for domain object '{objectKey}'.");
 
@@ -131,14 +135,15 @@ public class DomainObjectStore(
         entity.DefinitionVersion = version?.Version;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = user ?? CurrentUser;
-        await _context.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
 
         return ToRecord(entity, objectKey, def);
     }
 
     public async Task<DomainRecord> UpsertAsync(string objectKey, DomainRecord record, string? user = null)
     {
-        var exists = await _context.DomainObjectRecords.AnyAsync(r => r.Id == record.Id);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var exists = await dbContext.DomainObjectRecords.AnyAsync(r => r.Id == record.Id);
         return exists
             ? await UpdateAsync(objectKey, record.Id, record.Values, user)
             : await CreateAsync(objectKey, record.Values, user);
@@ -146,23 +151,25 @@ public class DomainObjectStore(
 
     public async Task DeleteAsync(string objectKey, Guid id)
     {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var (obj, _) = await ResolveAsync(objectKey);
-        var entity = await _context.DomainObjectRecords
+        var entity = await dbContext.DomainObjectRecords
             .FirstOrDefaultAsync(r => r.DomainObjectId == obj.Id && r.Id == id);
         if (entity is null) return;
 
-        _context.DomainObjectRecords.Remove(entity);
-        await _context.SaveChangesAsync();
+        dbContext.DomainObjectRecords.Remove(entity);
+        await dbContext.SaveChangesAsync();
     }
 
     // ── Resolution & mapping ───────────────────────────────────────
 
     private async Task<(DomainObject obj, DomainObjectVersion? version)> ResolveAsync(string objectKey)
     {
-        var obj = await _context.DomainObjects.AsNoTracking().FirstOrDefaultAsync(o => o.Key == objectKey)
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var obj = await dbContext.DomainObjects.AsNoTracking().FirstOrDefaultAsync(o => o.Key == objectKey)
             ?? throw new InvalidOperationException($"Domain object '{objectKey}' not found.");
 
-        var versions = await _context.DomainObjectVersions.AsNoTracking()
+        var versions = await dbContext.DomainObjectVersions.AsNoTracking()
             .Where(v => v.DomainObjectId == obj.Id && v.State == DomainObjectState.Published)
             .ToListAsync();
         var latest = versions.OrderByDescending(v => v.Version).FirstOrDefault();
@@ -184,10 +191,14 @@ public class DomainObjectStore(
 
     private static DomainRecord MapRow(Dictionary<string, object?> row, DomainDataSource ds, string objectKey)
     {
+        var map = ds.ColumnMappings
+            .Where(m => !string.IsNullOrWhiteSpace(m.Column) && !string.IsNullOrWhiteSpace(m.Property))
+            .ToDictionary(m => m.Column, m => m.Property, StringComparer.OrdinalIgnoreCase);
+
         var values = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var (column, value) in row)
         {
-            var key = ds.ColumnMap.TryGetValue(column, out var mapped) ? mapped : column;
+            var key = map.TryGetValue(column, out var mapped) ? mapped : column;
             values[key] = value;
         }
 
@@ -204,11 +215,12 @@ public class DomainObjectStore(
 
     private async Task EnsureUniqueAsync(Guid objectId, DomainObjectDefinition? def, IDictionary<string, object?> values, Guid? excludeId)
     {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var uniqueProps = def?.Properties.Where(p => p.Unique).ToList();
         if (uniqueProps is not { Count: > 0 }) return;
 
         // v1: load and compare in memory, matching the in-memory filtering stance.
-        var all = await _context.DomainObjectRecords.AsNoTracking()
+        var all = await dbContext.DomainObjectRecords.AsNoTracking()
             .Where(r => r.DomainObjectId == objectId && r.Id != excludeId).ToListAsync();
 
         var errors = new List<DomainValidationError>();

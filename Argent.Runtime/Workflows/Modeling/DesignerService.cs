@@ -14,7 +14,7 @@ namespace Argent.Runtime.Workflows.Modeling;
 
 public class DesignerService(
     IHttpContextAccessor _httpContextAccessor,
-    ArgentDbContext _dbContext,
+    IDbContextFactory<ArgentDbContext> _dbContextFactory,
     IWorkflowNodeRegistry _registry)
 {
     public List<DesignerNode> Nodes { get; } = [];
@@ -121,11 +121,12 @@ public class DesignerService(
 
     public async Task LoadWorkflowAsync(Guid workflowId)
     {
+        await using var dbContext = await  _dbContextFactory.CreateDbContextAsync();
         ResetCanvas();
         LoadedDraftId = null;
         LoadedVersionId = null;
 
-        var workflow = await _dbContext.WorkflowDefinitions
+        var workflow = await dbContext.WorkflowDefinitions
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == workflowId);
 
@@ -136,7 +137,7 @@ public class DesignerService(
         CurrentWorkflowDescription = workflow.Description;
 
         // Prefer loading the draft (editable)
-        var draft = await _dbContext.WorkflowDrafts
+        var draft = await dbContext.WorkflowDrafts
             .AsNoTracking()
             .FirstOrDefaultAsync(d => d.WorkflowId == workflowId);
 
@@ -148,12 +149,12 @@ public class DesignerService(
         }
 
         // Fallback to deployed version, then latest
-        var version = await _dbContext.WorkflowVersions
+        var version = await dbContext.WorkflowVersions
             .AsNoTracking()
             .Where(v => v.WorkflowId == workflowId && v.State == WorkflowDefinitionState.Deployed)
             .OrderByDescending(v => v.CreatedAt)
             .FirstOrDefaultAsync()
-            ?? await _dbContext.WorkflowVersions
+            ?? await dbContext.WorkflowVersions
                 .AsNoTracking()
                 .Where(v => v.WorkflowId == workflowId)
                 .OrderByDescending(v => v.CreatedAt)
@@ -168,11 +169,12 @@ public class DesignerService(
 
     public async Task LoadVersionAsync(Guid versionId)
     {
+        await using var dbContext = await  _dbContextFactory.CreateDbContextAsync();
         ResetCanvas();
         LoadedDraftId = null;
         LoadedVersionId = null;
 
-        var version = await _dbContext.WorkflowVersions
+        var version = await dbContext.WorkflowVersions
             .AsNoTracking()
             .FirstOrDefaultAsync(v => v.Id == versionId);
 
@@ -227,6 +229,7 @@ public class DesignerService(
 
     public void SaveDraft()
     {
+        using var dbContext =  _dbContextFactory.CreateDbContext();
         if (LoadedVersionId.HasValue) return;
         if (CompiledDefinition == null) return;
 
@@ -249,12 +252,12 @@ public class DesignerService(
                 UpdatedOn = now,
                 Tags = []
             };
-            _dbContext.WorkflowDefinitions.Add(wf);
+            dbContext.WorkflowDefinitions.Add(wf);
             CurrentWorkflowId = wf.Id;
         }
         else
         {
-            var existing = _dbContext.WorkflowDefinitions.Find(CurrentWorkflowId.Value);
+            var existing = dbContext.WorkflowDefinitions.Find(CurrentWorkflowId.Value);
             if (existing != null)
             {
                 existing.Name = CurrentWorkflowName;
@@ -265,8 +268,8 @@ public class DesignerService(
 
         // Upsert the draft
         var draft = LoadedDraftId.HasValue
-            ? _dbContext.WorkflowDrafts.Find(LoadedDraftId.Value)
-            : _dbContext.WorkflowDrafts.FirstOrDefault(d => d.WorkflowId == CurrentWorkflowId.Value);
+            ? dbContext.WorkflowDrafts.Find(LoadedDraftId.Value)
+            : dbContext.WorkflowDrafts.FirstOrDefault(d => d.WorkflowId == CurrentWorkflowId.Value);
 
         if (draft != null)
         {
@@ -289,25 +292,26 @@ public class DesignerService(
                 UpdatedAt = now,
                 CreatedBy = userName
             };
-            _dbContext.WorkflowDrafts.Add(draft);
+            dbContext.WorkflowDrafts.Add(draft);
             LoadedDraftId = draft.Id;
         }
 
         LoadedVersionId = null;
-        _dbContext.SaveChanges();
+        dbContext.SaveChanges();
         HasUnsavedChanges = false;
     }
 
     public void PublishVersion(bool isMajor)
     {
+        using var dbContext =  _dbContextFactory.CreateDbContext();
         if (!LoadedDraftId.HasValue) return;
 
-        var draft = _dbContext.WorkflowDrafts.Find(LoadedDraftId.Value);
+        var draft = dbContext.WorkflowDrafts.Find(LoadedDraftId.Value);
         if (draft == null) return;
 
         // Find the highest published/deployed version to compute the bump.
         // System.Version doesn't translate to SQL, so order client-side.
-        var latestVersion = _dbContext.WorkflowVersions
+        var latestVersion = dbContext.WorkflowVersions
             .Where(v => v.WorkflowId == draft.WorkflowId && v.State != WorkflowDefinitionState.Draft)
             .AsEnumerable()
             .OrderByDescending(v => v.Version)
@@ -334,9 +338,9 @@ public class DesignerService(
             CreatedBy = draft.CreatedBy
         };
 
-        _dbContext.WorkflowVersions.Add(versionEntry);
-        _dbContext.WorkflowDrafts.Remove(draft);
-        _dbContext.SaveChanges();
+        dbContext.WorkflowVersions.Add(versionEntry);
+        dbContext.WorkflowDrafts.Remove(draft);
+        dbContext.SaveChanges();
 
         // Now viewing the published version (read-only)
         LoadedVersionId = versionEntry.Id;
@@ -347,11 +351,12 @@ public class DesignerService(
 
     public void DeployVersion(Guid versionId)
     {
-        var version = _dbContext.WorkflowVersions.Find(versionId);
+        using var dbContext =  _dbContextFactory.CreateDbContext();
+        var version = dbContext.WorkflowVersions.Find(versionId);
         if (version == null || version.State != WorkflowDefinitionState.Published) return;
 
         // Un-deploy any previously deployed version for this workflow
-        var previouslyDeployed = _dbContext.WorkflowVersions
+        var previouslyDeployed = dbContext.WorkflowVersions
             .Where(v => v.WorkflowId == version.WorkflowId && v.State == WorkflowDefinitionState.Deployed)
             .ToList();
         foreach (var v in previouslyDeployed)
@@ -360,7 +365,7 @@ public class DesignerService(
         }
 
         version.State = WorkflowDefinitionState.Deployed;
-        _dbContext.SaveChanges();
+        dbContext.SaveChanges();
 
         // Switch the modeler to view this deployed version (read-only)
         LoadedVersionId = versionId;
@@ -371,11 +376,12 @@ public class DesignerService(
 
     public void CreateDraftFromVersion(Guid versionId)
     {
-        var source = _dbContext.WorkflowVersions.Find(versionId);
+        using var dbContext =  _dbContextFactory.CreateDbContext();
+        var source = dbContext.WorkflowVersions.Find(versionId);
         if (source == null) return;
 
         // Don't create if a draft already exists — discard it first
-        if (_dbContext.WorkflowDrafts.Any(d => d.WorkflowId == source.WorkflowId))
+        if (dbContext.WorkflowDrafts.Any(d => d.WorkflowId == source.WorkflowId))
             return;
 
         var currentUser = _httpContextAccessor.HttpContext?.User;
@@ -393,8 +399,8 @@ public class DesignerService(
             UpdatedAt = now,
             CreatedBy = userName
         };
-        _dbContext.WorkflowDrafts.Add(draft);
-        _dbContext.SaveChanges();
+        dbContext.WorkflowDrafts.Add(draft);
+        dbContext.SaveChanges();
 
         // Load the new draft into the editor
         CurrentWorkflowId = source.WorkflowId;
@@ -408,22 +414,23 @@ public class DesignerService(
 
     public void DiscardDraft()
     {
+        using var dbContext =  _dbContextFactory.CreateDbContext();
         if (!LoadedDraftId.HasValue || !CurrentWorkflowId.HasValue) return;
 
-        var draft = _dbContext.WorkflowDrafts.Find(LoadedDraftId.Value);
+        var draft = dbContext.WorkflowDrafts.Find(LoadedDraftId.Value);
         if (draft != null)
-            _dbContext.WorkflowDrafts.Remove(draft);
-        _dbContext.SaveChanges();
+            dbContext.WorkflowDrafts.Remove(draft);
+        dbContext.SaveChanges();
 
         // Fallback to the latest deployed/published version
-        var version = _dbContext.WorkflowVersions
-            .Where(v => v.WorkflowId == CurrentWorkflowId.Value && v.State == WorkflowDefinitionState.Deployed)
-            .OrderByDescending(v => v.CreatedAt)
-            .FirstOrDefault()
-            ?? _dbContext.WorkflowVersions
-                .Where(v => v.WorkflowId == CurrentWorkflowId.Value)
-                .OrderByDescending(v => v.CreatedAt)
-                .FirstOrDefault();
+        var version = dbContext.WorkflowVersions
+                          .Where(v => v.WorkflowId == CurrentWorkflowId.Value && v.State == WorkflowDefinitionState.Deployed)
+                          .OrderByDescending(v => v.CreatedAt)
+                          .FirstOrDefault()
+                      ?? dbContext.WorkflowVersions
+                          .Where(v => v.WorkflowId == CurrentWorkflowId.Value)
+                          .OrderByDescending(v => v.CreatedAt)
+                          .FirstOrDefault();
 
         if (version != null)
         {
