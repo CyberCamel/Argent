@@ -6,6 +6,7 @@ using Argent.Models.Identity;
 using Argent.Models.Workflows.Execution;
 using Argent.Models.Forms.Components;
 using Argent.Models.Workflows;
+using Argent.Models.Workflows.Auditing;
 using Argent.Models.DomainObjects;
 using Argent.Models.DataSources;
 
@@ -20,7 +21,11 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
     public DbSet<WorkItem> WorkItems { get; set; }
 
+    public DbSet<WorkflowToken> WorkflowTokens { get; set; }
+
     public DbSet<WorkflowInstance> WorkflowInstances { get; set; }
+
+    public DbSet<WorkflowJournalEntry> WorkflowJournalEntries { get; set; }
 
     public DbSet<Workflow> WorkflowDefinitions { get; set; }
 
@@ -184,6 +189,51 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
         {
             entity.Property(e => e.Config).HasColumnType("nvarchar(max)");
             entity.HasIndex(e => e.Key).IsUnique();
+        });
+
+        // ----- Workflow Execution Engine -----
+
+        builder.Entity<WorkflowToken>(entity =>
+        {
+            entity.ToTable("WorkflowTokens");
+
+            entity.Property(e => e.Payload)
+                .HasColumnType("nvarchar(max)");
+
+            entity.HasIndex(e => new { e.InstanceId, e.State })
+                .HasDatabaseName("IX_WorkflowTokens_InstanceId_State");
+
+            entity.HasIndex(e => e.State)
+                .HasDatabaseName("IX_WorkflowTokens_State");
+        });
+
+        builder.Entity<WorkflowJournalEntry>(entity =>
+        {
+            entity.ToTable("WorkflowJournalEntries");
+
+            entity.Property(e => e.Details)
+                .HasColumnType("nvarchar(max)");
+
+            entity.HasIndex(e => new { e.InstanceId, e.TimeStamp })
+                .HasDatabaseName("IX_WorkflowJournalEntries_InstanceId_Timestamp");
+        });
+
+        // Additional indexes for WorkItem (base table config is inferred by conventions)
+        builder.Entity<WorkItem>(entity =>
+        {
+            entity.HasIndex(e => e.TokenId)
+                .HasDatabaseName("IX_WorkItems_TokenId");
+
+            entity.HasIndex(e => new { e.State, e.Priority, e.CreatedAt })
+                .HasDatabaseName("IX_WorkItems_Claim")
+                .HasFilter("[State] = 0 AND ([ScheduledAt] IS NULL OR [ScheduledAt] <= GETUTCDATE())");
+        });
+
+        // Recovery query support on WorkflowInstance
+        builder.Entity<WorkflowInstance>(entity =>
+        {
+            entity.HasIndex(e => e.State)
+                .HasDatabaseName("IX_WorkflowInstances_State");
         });
 
     }

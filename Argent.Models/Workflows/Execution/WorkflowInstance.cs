@@ -14,7 +14,8 @@ public record WorkflowInstance
     public Guid WorkflowId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public InstanceState State { get; set; } = InstanceState.Running;
+    public int CurrentTokenCount { get; set; }
     public DateTime StartTime { get; set; } = DateTime.Now;
     public DateTime? EndTime { get; set; }
-
 }
