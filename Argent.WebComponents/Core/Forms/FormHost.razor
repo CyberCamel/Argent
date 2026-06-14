@@ -16,10 +16,15 @@ else
 
     [Parameter] public Dictionary<string, object?>? InitialValues { get; set; }
 
+    [Parameter] public string? UserId { get; set; }
+
     [Parameter] public EventCallback<Dictionary<string, object?>> OnSubmit { get; set; }
 
     protected override void OnInitialized()
     {
+        if (!string.IsNullOrEmpty(UserId))
+            Context.UserId = UserId;
+
         if (InitialValues is { Count: > 0 })
         {
             Context.SetInitialValues(InitialValues);

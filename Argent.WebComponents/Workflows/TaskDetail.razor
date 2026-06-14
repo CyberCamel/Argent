@@ -37,7 +37,7 @@ else
         {
             <div class="alert alert-danger">@_error</div>
         }
-        <FormHost FormId="@_task.FormId" OnSubmit="CompleteTask" />
+        <FormHost FormId="@_task.FormId" UserId="@UserId" OnSubmit="CompleteTask" />
     }
 }
 
