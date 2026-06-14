@@ -14,7 +14,7 @@ public class LiveModel(ArgentDbContext _ctx) : PageModel
 
     public async Task<IActionResult> OnGet()
     {
-        var doc = await _ctx.FormDocuments
+        var doc = await _ctx.FormDesigns
             .AsNoTracking()
             .FirstOrDefaultAsync(f => f.Id == Id);
 

@@ -11,6 +11,7 @@ using Argent.Models.DomainObjects;
 using Argent.Models.Authorization;
 using Argent.Models.DataSources;
 using Argent.Models.Forms.Components.Configuration;
+using Argent.Models.Forms;
 using Argent.Infrastructure.Serialization;
 
 namespace Argent.Infrastructure.Data;
@@ -20,7 +21,9 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
     public DbSet<Position> Positions { get; set; }
 
-    public DbSet<FormDocument> FormDocuments { get; set; }
+    public DbSet<FormDesign> FormDesigns { get; set; }
+
+    public DbSet<FormCustomData> FormCustomData { get; set; }
 
     public DbSet<WorkItem> WorkItems { get; set; }
 
@@ -122,13 +125,27 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
             entity.HasIndex(e => e.WorkflowId).IsUnique();
         });
 
-        builder.Entity<FormDocument>(entity =>
+        builder.Entity<FormDesign>(entity =>
         {
+            entity.ToTable("FormDesigns");
             entity.Property(e => e.Definition)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, FormSerializer.Options),
                     v => JsonSerializer.Deserialize<FormDefinition>(v) ?? new FormDefinition())
                 .HasColumnType("nvarchar(max)");
+            entity.Property(e => e.ObjectKey).HasMaxLength(128);
+            entity.HasIndex(e => e.ObjectKey);
+        });
+
+        builder.Entity<FormCustomData>(entity =>
+        {
+            entity.ToTable("FormCustomData");
+            entity.Property(e => e.Values)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v),
+                    v => JsonSerializer.Deserialize<Dictionary<string, object?>>(v) ?? new())
+                .HasColumnType("nvarchar(max)");
+            entity.HasIndex(e => e.RecordId);
         });
 
         // ----- Domain Objects (mirrors the workflow draft/version pattern above) -----
@@ -310,8 +327,7 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
                 .HasMaxLength(16);
 
             entity.Property(e => e.ResourceType)
-                .HasConversion<string>()
-                .HasMaxLength(32);
+                .HasMaxLength(64);
 
             entity.Property(e => e.ResourceSelectorJson)
                 .HasColumnType("nvarchar(max)");

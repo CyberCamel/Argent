@@ -1,4 +1,6 @@
-﻿using Argent.Web.Authorization;
+﻿using Argent.Contracts.Authorization;
+using Argent.Runtime.Authorization;
+using Argent.Web.Authorization;
 using Microsoft.AspNetCore.Authorization;
 
 namespace Argent.Web.Extensions;
@@ -26,10 +28,6 @@ public static class ServiceCollectionExtensions
                 policy.RequireRole("SuperAdmin");
             });
 
-            options.AddPolicy("PbacAdmin", policy =>
-            {
-                policy.Requirements.Add(new PbacRequirement("AdminPage", "View"));
-            });
             options.AddPolicy("PbacTaskView", policy =>
             {
                 policy.Requirements.Add(new PbacRequirement("Task", "View"));
@@ -41,6 +39,7 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddScoped<IAuthorizationHandler, PbacAuthorizationHandler>();
+        services.AddSingleton<IPbacResourceRegistry, PbacResourceRegistry>();
 
         return services;
     }

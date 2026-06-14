@@ -354,7 +354,7 @@ public class FormDesignerService(
     public async Task LoadAsync(Guid id)
     {
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-        var doc = await dbContext.FormDocuments.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
+        var doc = await dbContext.FormDesigns.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
         if (doc?.Definition == null) return;
 
         Definition = doc.Definition;
@@ -375,7 +375,7 @@ public class FormDesignerService(
 
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var existing = StoredFormId.HasValue
-            ? await dbContext.FormDocuments.FindAsync(StoredFormId.Value)
+            ? await dbContext.FormDesigns.FindAsync(StoredFormId.Value)
             : null;
 
         if (existing != null)
@@ -387,7 +387,7 @@ public class FormDesignerService(
         }
         else
         {
-            var doc = new FormDocument
+            var doc = new FormDesign
             {
                 Id = Guid.NewGuid(),
                 Name = Name,
@@ -395,7 +395,7 @@ public class FormDesignerService(
                 Definition = definitionCopy,
                 CreatedBy = updatedBy
             };
-            dbContext.FormDocuments.Add(doc);
+            dbContext.FormDesigns.Add(doc);
             StoredFormId = doc.Id;
         }
 

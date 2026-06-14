@@ -28,8 +28,8 @@ public class IndexModel : PageModel
             .Select(w => new WorkflowItem { Id = w.Id, Name = w.Name, Description = w.Description })
             .ToListAsync();
 
-        FormCount = await _ctx.FormDocuments.CountAsync();
-        RecentForms = await _ctx.FormDocuments
+        FormCount = await _ctx.FormDesigns.CountAsync();
+        RecentForms = await _ctx.FormDesigns
             .OrderByDescending(f => f.UpdatedAt)
             .Take(5)
             .Select(f => new FormItem { Id = f.Id, Name = f.Name, Description = f.Description })

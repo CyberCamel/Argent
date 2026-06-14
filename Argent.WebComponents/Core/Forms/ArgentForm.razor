@@ -82,7 +82,7 @@ else
         else if (FormId.HasValue)
         {
             await using var db = await DbFactory.CreateDbContextAsync();
-            var doc = await db.FormDocuments.AsNoTracking().FirstOrDefaultAsync(f => f.Id == FormId.Value);
+            var doc = await db.FormDesigns.AsNoTracking().FirstOrDefaultAsync(f => f.Id == FormId.Value);
             _definition = doc?.Definition;
         }
     }

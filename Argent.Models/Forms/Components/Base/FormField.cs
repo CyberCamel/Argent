@@ -1,13 +1,18 @@
+using Argent.Models.Authorization;
 using Argent.Models.Forms.Components.Configuration;
 using System.Text.Json.Serialization;
+using Argent.Models.Attributes;
 
 namespace Argent.Models.Forms.Components.Base;
 
+[PbacResource]
 public class FormField : FormComponent
 {
+    [PbacProperty]
     [JsonPropertyName("name")]
     public required string Name { get; set; }
 
+    [PbacProperty]
     [JsonPropertyName("fieldLabel")]
     public string? FieldLabel { get; set; }
 

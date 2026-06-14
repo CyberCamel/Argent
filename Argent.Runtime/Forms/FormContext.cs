@@ -102,7 +102,7 @@ public class ArgentFormContext(
         var resourceTypeStr = parts.Length > 0 ? parts[0] : "";
         var action = parts.Length > 1 ? parts[1] : "read";
 
-        if (!Enum.TryParse<ResourceType>(resourceTypeStr, ignoreCase: true, out var resourceType))
+        if (string.IsNullOrWhiteSpace(resourceTypeStr))
             return false;
 
         var userId = UserId ?? "unknown";
@@ -111,7 +111,7 @@ public class ArgentFormContext(
             ["action"] = action
         };
 
-        var result = await _policyService.EvaluateAsync(userId, UserRoles, resourceType, resourceAttrs, action);
+        var result = await _policyService.EvaluateAsync(userId, UserRoles, resourceTypeStr, resourceAttrs, action);
         return result == PolicyDecision.Allow;
     }
 }

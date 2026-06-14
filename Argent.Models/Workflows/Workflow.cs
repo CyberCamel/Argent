@@ -1,22 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Argent.Models.Attributes;
 using Argent.Models.Identity;
 
-namespace Argent.Models.Workflows
-{
-    public class Workflow
-    {
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public string Name { get; set; } = "New Workflow";
-        public string Description { get; set; } = string.Empty;
-        public Guid? CreatedById { get; set; }
-        public InternalUser? CreatedBy { get; set; }
+namespace Argent.Models.Workflows;
 
-        public Guid? UpdatedById { get; set; }
-        public InternalUser? UpdatedBy { get; set; }
-        public DateTime CreatedOn { get; set; }
-        public DateTime UpdatedOn { get; set; }
-        public List<string> Tags { get; set; }
-    }
+[PbacResource]
+public class Workflow
+{
+    [PbacProperty]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    [PbacProperty]
+    public string Name { get; set; } = "New Workflow";
+    [PbacProperty]
+    public string Description { get; set; } = string.Empty;
+    [PbacProperty]
+    public Guid? CreatedById { get; set; }
+    public InternalUser? CreatedBy { get; set; }
+
+    public Guid? UpdatedById { get; set; }
+    public InternalUser? UpdatedBy { get; set; }
+    [PbacProperty]
+    public DateTime CreatedOn { get; set; }
+    public DateTime UpdatedOn { get; set; }
+    [PbacProperty]
+    public List<string> Tags { get; set; }
 }
+
