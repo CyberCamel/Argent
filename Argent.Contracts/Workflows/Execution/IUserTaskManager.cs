@@ -4,7 +4,35 @@ namespace Argent.Contracts.Workflows.Execution;
 
 public interface IUserTaskManager
 {
-    Task<UserTask> CreateTaskAsync(Guid instanceId, Guid tokenId, Guid nodeId, DateTime? dueDate, CancellationToken ct);
+    Task<UserTask> CreateTaskAsync(
+        Guid instanceId,
+        Guid tokenId,
+        Guid nodeId,
+        DateTime? dueDate,
+        string? title = null,
+        string? description = null,
+        short priority = 0,
+        string? assigneeExpression = null,
+        string? candidateRoles = null,
+        Guid? formId = null,
+        string? formData = null,
+        CancellationToken ct = default);
+
     Task<UserTask?> GetTaskByTokenAsync(Guid tokenId, CancellationToken ct);
+
+    Task<UserTask?> GetAsync(Guid taskId, CancellationToken ct);
+
+    Task<List<UserTask>> GetTasksForUserAsync(
+        string userId,
+        List<string> roles,
+        UserTaskState? stateFilter = null,
+        CancellationToken ct = default);
+
+    Task ClaimAsync(Guid taskId, string userId, CancellationToken ct = default);
+
+    Task ReleaseAsync(Guid taskId, CancellationToken ct = default);
+
+    Task ReassignAsync(Guid taskId, string toUser, CancellationToken ct = default);
+
     Task CompleteTaskAsync(Guid taskId, string completedBy, string? resultData, CancellationToken ct);
 }

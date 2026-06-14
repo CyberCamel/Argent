@@ -1,0 +1,34 @@
+@using Argent.Contracts.Forms
+@using Argent.WebComponents.Core.Forms
+@inject IFormContext Context
+
+@if (FormId.HasValue)
+{
+    <ArgentForm FormId="@FormId.Value" OnValidSubmit="HandleSubmit" />
+}
+else
+{
+    <div class="alert alert-warning">No form is bound to this task.</div>
+}
+
+@code {
+    [Parameter] public Guid? FormId { get; set; }
+
+    [Parameter] public Dictionary<string, object?>? InitialValues { get; set; }
+
+    [Parameter] public EventCallback<Dictionary<string, object?>> OnSubmit { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (InitialValues is { Count: > 0 })
+        {
+            Context.SetInitialValues(InitialValues);
+        }
+    }
+
+    private async Task HandleSubmit(Dictionary<string, object?> data)
+    {
+        if (OnSubmit.HasDelegate)
+            await OnSubmit.InvokeAsync(data);
+    }
+}

@@ -1,0 +1,14 @@
+@page "/Tasks/Detail/{id:guid}"
+@using System.Security.Claims
+@using Argent.WebComponents.Workflows
+@model Argent.Web.Pages.Tasks.DetailModel
+@{
+    ViewData["Title"] = "Task";
+}
+
+<div class="container py-4" style="max-width: 720px;">
+    <a href="/Tasks" class="btn btn-outline-secondary btn-sm mb-3">&larr; Back to Inbox</a>
+    <component type="typeof(TaskDetail)" render-mode="ServerPrerendered"
+               param-TaskId="@Model.Id"
+               param-UserId="@Model.CurrentUserId" />
+</div>

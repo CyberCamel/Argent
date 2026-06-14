@@ -29,6 +29,15 @@ public class ArgentFormContext(
         return value;
     }
 
+    public void SetInitialValues(Dictionary<string, object?> values)
+    {
+        foreach (var kvp in values)
+        {
+            if (!_data.ContainsKey(kvp.Key))
+                _data[kvp.Key] = kvp.Value;
+        }
+    }
+
     public void SetValue(string key, object? value)
     {
         if (_data.TryGetValue(key, out var existing) && Equals(existing, value))

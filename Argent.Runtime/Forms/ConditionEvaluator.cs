@@ -1,3 +1,4 @@
+using Argent.Contracts.Authorization;
 using Argent.Contracts.Forms;
 using Argent.Models.Forms.Components.Base;
 using Argent.Models.Forms.Components.Configuration;
@@ -6,7 +7,7 @@ namespace Argent.Runtime.Forms;
 
 public class ConditionEvaluator : IConditionEvaluator
 {
-    public bool Evaluate(Condition? condition, IFormContext context)
+    public bool Evaluate(Condition? condition, IAttributeBag context)
     {
         if (condition == null) return true;
 
@@ -46,7 +47,7 @@ public class ConditionEvaluator : IConditionEvaluator
         return field.ReadOnlyWhen != null && Evaluate(field.ReadOnlyWhen, context);
     }
 
-    private bool EvaluateCompare(CompareCondition comp, IFormContext context)
+    private bool EvaluateCompare(CompareCondition comp, IAttributeBag context)
     {
         var fieldValue = context.GetValue(comp.Field);
         var compareValue = comp.ValueField != null
@@ -55,7 +56,7 @@ public class ConditionEvaluator : IConditionEvaluator
         return Compare(fieldValue, comp.Operator, compareValue);
     }
 
-    private static bool EvaluateRole(RoleCondition role, IFormContext context)
+    private static bool EvaluateRole(RoleCondition role, IAttributeBag context)
     {
         var userRoles = context.UserRoles ?? [];
         if (role.Roles.Count > 0 && !role.Roles.Any(r => userRoles.Contains(r)))
@@ -65,7 +66,7 @@ public class ConditionEvaluator : IConditionEvaluator
         return true;
     }
 
-    private bool EvaluateExpression(ExpressionCondition expr, IFormContext context)
+    private bool EvaluateExpression(ExpressionCondition expr, IAttributeBag context)
     {
         try
         {

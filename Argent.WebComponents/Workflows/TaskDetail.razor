@@ -1,0 +1,61 @@
+@using Argent.Contracts.Workflows.Execution
+@using Argent.WebComponents.Core.Forms
+@inject IUserTaskManager TaskManager
+
+@if (_task == null)
+{
+    <div class="alert alert-warning">Task not found.</div>
+}
+else
+{
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="fw-bold mb-3">@(_task.Title ?? "Task")</h5>
+            @if (!string.IsNullOrEmpty(_task.Description))
+            {
+                <p class="text-muted">@_task.Description</p>
+            }
+            <div class="small text-muted mb-3">
+                <div>Priority: @_task.Priority</div>
+                @if (_task.DueDate.HasValue)
+                {
+                    <div>Due: @_task.DueDate.Value.ToLocalTime().ToString("g")</div>
+                }
+                <div>State: @_task.State</div>
+            </div>
+        </div>
+    </div>
+
+    @if (_completed)
+    {
+        <div class="alert alert-success">Task completed successfully.</div>
+        <a href="/Tasks" class="btn btn-outline-primary">Back to Inbox</a>
+    }
+    else if (_task.State == Argent.Models.Workflows.Execution.UserTaskState.Pending)
+    {
+        <FormHost FormId="@_task.FormId" OnSubmit="CompleteTask" />
+    }
+}
+
+@code {
+    [Parameter] public Guid TaskId { get; set; }
+
+    [Parameter] public string? UserId { get; set; }
+
+    private Argent.Models.Workflows.Execution.UserTask? _task;
+    private bool _completed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _task = await TaskManager.GetAsync(TaskId, default);
+    }
+
+    private async Task CompleteTask(Dictionary<string, object?> formData)
+    {
+        if (_task == null) return;
+
+        var json = System.Text.Json.JsonSerializer.Serialize(formData);
+        await TaskManager.CompleteTaskAsync(TaskId, UserId ?? "unknown", json, default);
+        _completed = true;
+    }
+}

@@ -12,4 +12,17 @@ public class UserTask
     public string? CompletedBy { get; set; }
     public string? ResultData { get; set; }
     public DateTime? DueDate { get; set; }
+
+    public string? AssignedTo { get; set; }
+    public DateTime? ClaimedAt { get; set; }
+    public string? CandidateUsers { get; set; }
+    public string? CandidateRoles { get; set; }
+    public string? Title { get; set; }
+    public string? Description { get; set; }
+    public short Priority { get; set; }
+
+    /// <summary>Optional form definition bound to this task.</summary>
+    public Guid? FormId { get; set; }
+    /// <summary>Seeded form values (pre-populated from workflow variables).</summary>
+    public string? FormData { get; set; }
 }

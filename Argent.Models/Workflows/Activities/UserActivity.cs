@@ -1,7 +1,5 @@
 ﻿using Argent.Models.Attributes;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using Argent.Models.Workflows.Modeler.Enums;
 
 namespace Argent.Models.Workflows.Activities;
 
@@ -10,4 +8,18 @@ public class UserActivity : Activity
 {
     public UserExperience UX { get; set; } = new RedirectExperience("https://example.com");
 
+    [NodeProperty("Task Title", "Display title for the task", false, PropertyDataType.Text)]
+    public string? TaskTitle { get; set; }
+
+    [NodeProperty("Task Description", "Description shown to the assignee", false, PropertyDataType.MultiLineText)]
+    public string? TaskDescription { get; set; }
+
+    [NodeProperty("Task Priority", "Higher values mean higher priority", false, PropertyDataType.Number)]
+    public short TaskPriority { get; set; }
+
+    [NodeProperty("Assignee Expression", "NCalc expression returning the assigned user ID", false, PropertyDataType.Text)]
+    public string? AssigneeExpression { get; set; }
+
+    [NodeProperty("Candidate Roles", "Comma-separated role names that may claim the task", false, PropertyDataType.Text)]
+    public string? CandidateRoles { get; set; }
 }

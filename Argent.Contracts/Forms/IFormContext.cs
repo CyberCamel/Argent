@@ -1,4 +1,5 @@
-﻿using Argent.Models.Forms.Components.Base;
+﻿using Argent.Contracts.Authorization;
+using Argent.Models.Forms.Components.Base;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -6,14 +7,15 @@ using System.Text;
 namespace Argent.Contracts.Forms;
 
 
-public interface IFormContext
+public interface IFormContext : IAttributeBag
 {
     // Data Management
     T? GetValue<T>(string key);
-    object? GetValue(string key);
+    new object? GetValue(string key);
     void SetValue(string key, object? value);
+    void SetInitialValues(Dictionary<string, object?> values);
     Dictionary<string, object?> GetAllData();
-    Dictionary<string, object?> GetAllValues();
+    new Dictionary<string, object?> GetAllValues();
 
     // Logic & Environment
     bool IsVisible(FormComponent component);
@@ -22,7 +24,7 @@ public interface IFormContext
 
     // Identity/Process Context (For the HTML Templates)
     Dictionary<string, object?> Environment { get; }
-    List<string> UserRoles { get; }
+    new List<string> UserRoles { get; }
 
     // Reactivity
     event Action OnStateChanged;

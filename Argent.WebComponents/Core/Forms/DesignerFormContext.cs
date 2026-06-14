@@ -13,6 +13,7 @@ public class DesignerFormContext(IConditionEvaluator conditionEvaluator) : IForm
     public T? GetValue<T>(string key) => default;
     public object? GetValue(string key) => null;
     public void SetValue(string key, object? value) { }
+    public void SetInitialValues(Dictionary<string, object?> values) { }
     public void NotifyStateChanged() => OnStateChanged?.Invoke();
     public Dictionary<string, object?> GetAllData() => new();
     public Dictionary<string, object?> GetAllValues() => new();

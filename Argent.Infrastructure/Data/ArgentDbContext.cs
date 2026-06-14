@@ -8,7 +8,9 @@ using Argent.Models.Forms.Components;
 using Argent.Models.Workflows;
 using Argent.Models.Workflows.Auditing;
 using Argent.Models.DomainObjects;
+using Argent.Models.Authorization;
 using Argent.Models.DataSources;
+using Argent.Models.Forms.Components.Configuration;
 using Argent.Infrastructure.Serialization;
 
 namespace Argent.Infrastructure.Data;
@@ -45,6 +47,8 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
     public DbSet<DomainObjectRecord> DomainObjectRecords { get; set; }
 
     public DbSet<DataSourceDocument> DataSources { get; set; }
+
+    public DbSet<PolicyDocument> PolicyDocuments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -241,11 +245,23 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
             entity.Property(e => e.ResultData)
                 .HasColumnType("nvarchar(max)");
 
+            entity.Property(e => e.FormData)
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(e => e.CandidateUsers)
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(e => e.CandidateRoles)
+                .HasColumnType("nvarchar(max)");
+
             entity.HasIndex(e => e.TokenId)
                 .HasDatabaseName("IX_UserTasks_TokenId");
 
             entity.HasIndex(e => new { e.State, e.DueDate })
                 .HasDatabaseName("IX_UserTasks_State_DueDate");
+
+            entity.HasIndex(e => new { e.AssignedTo, e.State })
+                .HasDatabaseName("IX_UserTasks_AssignedTo_State");
         });
 
         // Additional indexes for WorkItem (base table config is inferred by conventions)
@@ -272,5 +288,31 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
                 .HasDatabaseName("IX_WorkflowInstances_State");
         });
 
+        builder.Entity<PolicyDocument>(entity =>
+        {
+            entity.ToTable("PolicyDocuments");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(256);
+
+            entity.Property(e => e.ResourceSelectorJson)
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(e => e.ActionsJson)
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(e => e.SubjectJson)
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(e => e.Condition)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<Condition>(v, (JsonSerializerOptions?)null))
+                .HasColumnType("nvarchar(max)");
+
+            entity.HasIndex(e => new { e.ResourceType, e.IsEnabled })
+                .HasDatabaseName("IX_PolicyDocuments_ResourceType_IsEnabled");
+        });
     }
 }
