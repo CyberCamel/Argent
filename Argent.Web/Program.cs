@@ -187,7 +187,8 @@ using (var scope = app.Services.CreateScope())
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<InternalUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-    await DbInitializer.SeedUsers(userManager, roleManager);
+    var dbContext = scope.ServiceProvider.GetRequiredService<ArgentDbContext>();
+    await DbInitializer.SeedUsers(userManager, roleManager, dbContext);
 
     var serializer = new JSchemaGenerator();
     var formSchema = serializer.Generate(typeof(FormDefinition));
