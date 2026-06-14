@@ -42,19 +42,39 @@ public class TokenRunner : ITokenRunner
 
         try
         {
-            // Load the latest deployed workflow version
-            var version = await db.WorkflowVersions
+            // Resolve the workflow version this INSTANCE is pinned to. A running instance must
+            // keep executing the definition it started on, even after a newer version is deployed
+            // (deploying un-deploys the previous version). Resolving "latest deployed" here would
+            // silently swap the definition mid-flight — different node ids, different routing —
+            // corrupting in-flight instances. The version is loaded by id regardless of its
+            // current deploy state.
+            var instance = await db.WorkflowInstances
                 .AsNoTracking()
-                .Where(v => v.WorkflowId == claimed.DefinitionId
-                         && v.State == WorkflowDefinitionState.Deployed)
-                .OrderByDescending(v => v.CreatedAt)
-                .FirstOrDefaultAsync(ct);
+                .FirstOrDefaultAsync(i => i.InstanceId == claimed.InstanceId, ct);
+
+            WorkflowVersion? version;
+            if (instance != null && instance.VersionId != Guid.Empty)
+            {
+                version = await db.WorkflowVersions
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(v => v.Id == instance.VersionId, ct);
+            }
+            else
+            {
+                // No pinned version (no instance row / legacy data) — best-effort latest deployed.
+                version = await db.WorkflowVersions
+                    .AsNoTracking()
+                    .Where(v => v.WorkflowId == claimed.DefinitionId
+                             && v.State == WorkflowDefinitionState.Deployed)
+                    .OrderByDescending(v => v.CreatedAt)
+                    .FirstOrDefaultAsync(ct);
+            }
 
             if (version?.Definition == null)
             {
                     _logger.LogWarning(
-                        "WorkItem {Id}: no deployed definition found for workflow {DefId}",
-                        claimed.WorkItemId, claimed.DefinitionId);
+                        "WorkItem {Id}: no definition resolved for instance {InstanceId} (pinned version {VersionId})",
+                        claimed.WorkItemId, claimed.InstanceId, instance?.VersionId);
                     await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
                     return;
             }

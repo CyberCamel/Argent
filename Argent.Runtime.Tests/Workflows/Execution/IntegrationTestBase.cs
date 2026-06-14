@@ -91,6 +91,7 @@ public abstract class IntegrationTestBase : IDisposable
         {
             InstanceId = instanceId,
             WorkflowId = workflowId,
+            VersionId = versionId,
             State = InstanceState.Running,
             StartTime = DateTime.UtcNow,
         };

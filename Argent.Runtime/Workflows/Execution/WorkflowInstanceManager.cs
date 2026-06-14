@@ -59,6 +59,7 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
         {
             InstanceId = instanceId,
             WorkflowId = definitionId,
+            VersionId = version.Id,
             Name = version.Name,
             Description = version.Description,
             State = InstanceState.Running,

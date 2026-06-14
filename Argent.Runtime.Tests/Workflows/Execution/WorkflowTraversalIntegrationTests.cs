@@ -1,4 +1,5 @@
 using Argent.Infrastructure.Data;
+using Argent.Models.Enums;
 using Argent.Models.Workflows;
 using Argent.Models.Workflows.Activities;
 using Argent.Models.Workflows.Execution;
@@ -79,6 +80,89 @@ public class WorkflowTraversalIntegrationTests : IntegrationTestBase
 
         var state = await GetInstanceStateAsync(seed.InstanceId);
         Assert.Equal(InstanceState.Completed, state);
+    }
+
+    [Fact]
+    public async Task Instance_stays_pinned_to_its_start_version_after_newer_deploy()
+    {
+        var workflowId = Guid.NewGuid();
+        var instanceId = Guid.NewGuid();
+        var versionId1 = Guid.NewGuid();
+        var versionId2 = Guid.NewGuid();
+
+        // v1 — the version the instance starts on.
+        var s1 = new StartEvent { Id = Guid.NewGuid(), Name = "Start v1" };
+        var e1 = new EndEvent { Id = Guid.NewGuid(), Name = "End v1" };
+        var def1 = new WorkflowDefinition
+        {
+            Metadata = new WorkflowMetadata { CreatedAt = DateTime.UtcNow, CreatedBy = "test", Version = new Version(1, 0) },
+            Nodes = [s1, e1],
+            Connections = [new Connection { From = s1, To = e1 }],
+        };
+
+        // v2 — a newer deploy with entirely different node ids. If the engine resolved
+        // "latest deployed" it would load this and fail to find the instance's current node.
+        var s2 = new StartEvent { Id = Guid.NewGuid(), Name = "Start v2" };
+        var e2 = new EndEvent { Id = Guid.NewGuid(), Name = "End v2" };
+        var def2 = new WorkflowDefinition
+        {
+            Metadata = new WorkflowMetadata { CreatedAt = DateTime.UtcNow, CreatedBy = "test", Version = new Version(2, 0) },
+            Nodes = [s2, e2],
+            Connections = [new Connection { From = s2, To = e2 }],
+        };
+
+        var tokenId = Guid.NewGuid();
+        var workItemId = Guid.NewGuid();
+
+        await using (var db = CreateContext())
+        {
+            var workflow = new Workflow
+            {
+                Id = workflowId, Name = "Versioned", Description = "",
+                CreatedOn = DateTime.UtcNow, UpdatedOn = DateTime.UtcNow, Tags = [],
+            };
+            db.WorkflowDefinitions.Add(workflow);
+
+            // v1 has since been un-deployed by the v2 deploy.
+            db.WorkflowVersions.Add(new WorkflowVersion
+            {
+                Id = versionId1, WorkflowId = workflowId, Workflow = workflow, Definition = def1,
+                State = WorkflowDefinitionState.Published, Version = new Version(1, 0),
+                CreatedAt = DateTime.UtcNow.AddMinutes(-10),
+            });
+            db.WorkflowVersions.Add(new WorkflowVersion
+            {
+                Id = versionId2, WorkflowId = workflowId, Definition = def2,
+                State = WorkflowDefinitionState.Deployed, Version = new Version(2, 0),
+                CreatedAt = DateTime.UtcNow,
+            });
+            db.WorkflowInstances.Add(new WorkflowInstance
+            {
+                InstanceId = instanceId, WorkflowId = workflowId, VersionId = versionId1,
+                State = InstanceState.Running, StartTime = DateTime.UtcNow,
+            });
+            db.WorkflowTokens.Add(new WorkflowToken
+            {
+                Id = tokenId, InstanceId = instanceId, NodeId = s1.Id,
+                State = TokenState.Ready, Payload = "{}", CreatedAt = DateTime.UtcNow,
+            });
+            db.WorkItems.Add(new WorkItem
+            {
+                Id = workItemId, TokenId = tokenId, WorkflowInstanceId = instanceId,
+                DefinitionId = workflowId, NodeId = s1.Id, NodeType = nameof(StartEvent),
+                State = WorkItemState.Pending, TokenPayload = "{}", CreatedAt = DateTime.UtcNow,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var runner = CreateRunner();
+        var (_, wi, created) = await AdvanceAsync(runner, instanceId, workflowId);
+
+        // The node was found and processed — i.e. v1 was used, not the newer v2.
+        Assert.NotNull(wi);
+        Assert.Equal(WorkItemState.Completed, wi!.State);
+        Assert.Contains(created, w => w.NodeId == e1.Id);       // routed along v1's edge
+        Assert.DoesNotContain(created, w => w.NodeId == e2.Id); // never touched v2
     }
 
     [Fact]

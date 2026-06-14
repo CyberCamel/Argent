@@ -55,6 +55,7 @@ public class ParallelJoinConcurrencyTests
 
         var workflowId = Guid.NewGuid();
         var instanceId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
         var groupId = Guid.NewGuid();
 
         var token1Id = Guid.NewGuid();
@@ -76,7 +77,7 @@ public class ParallelJoinConcurrencyTests
             db.WorkflowDefinitions.Add(workflow);
             db.WorkflowVersions.Add(new WorkflowVersion
             {
-                Id = Guid.NewGuid(),
+                Id = versionId,
                 WorkflowId = workflowId,
                 Workflow = workflow,
                 Definition = definition,
@@ -88,6 +89,7 @@ public class ParallelJoinConcurrencyTests
             {
                 InstanceId = instanceId,
                 WorkflowId = workflowId,
+                VersionId = versionId,
                 State = InstanceState.Running,
                 StartTime = DateTime.UtcNow,
             });
