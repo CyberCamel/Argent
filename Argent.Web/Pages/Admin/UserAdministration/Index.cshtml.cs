@@ -8,11 +8,16 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Argent.Web.Pages.UserAdministration;
 
 [Authorize(Policy = "UserAdminOnly")]
-public class ListModel(UserManager<InternalUser> userManager) : PageModel
+public class IndexModel(UserManager<InternalUser> userManager, RoleManager<IdentityRole<Guid>> roleManager) : PageModel
 {
     public List<UserViewModel> Users { get; set; } = [];
 
-    public async Task<IActionResult> OnGetAsync()
+    public async Task OnGetAsync()
+    {
+        Users = await BuildUserListAsync();
+    }
+
+    private async Task<List<UserViewModel>> BuildUserListAsync()
     {
         var users = userManager.Users.ToList();
         var list = new List<UserViewModel>();
@@ -20,6 +25,7 @@ public class ListModel(UserManager<InternalUser> userManager) : PageModel
         {
             list.Add(new UserViewModel
             {
+                Id = u.Id,
                 UserName = u.UserName,
                 Email = u.Email,
                 FirstName = u.FirstName,
@@ -27,7 +33,6 @@ public class ListModel(UserManager<InternalUser> userManager) : PageModel
                 Roles = [.. await userManager.GetRolesAsync(u)]
             });
         }
-        Users = list;
-        return Partial("~/Pages/UserAdministration/_UserTablePartial.cshtml", Users);
+        return list;
     }
 }

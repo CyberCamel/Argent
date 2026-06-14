@@ -175,16 +175,16 @@ app.MapRazorComponents<Program>()
 
 
 
+Debug.WriteLine("Applying migrations...");
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ArgentDbContext>();
+    await context.Database.MigrateAsync();
+}
+
 Debug.WriteLine("Seeding data...");
 using (var scope = app.Services.CreateScope())
 {
-    // Resolve the factory instead of the raw context to guarantee isolation
-    var contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ArgentDbContext>>();
-    await using var context = contextFactory.CreateDbContext();
-
-    context.Database.EnsureDeleted();
-    context.Database.EnsureCreated();
-
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<InternalUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<ArgentDbContext>();

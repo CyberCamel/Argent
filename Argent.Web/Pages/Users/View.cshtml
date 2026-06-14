@@ -1,0 +1,65 @@
+@page "/Users/View/{id:guid}"
+@model Argent.Web.Pages.Users.ViewModel
+@{
+    ViewData["Title"] = "User Details";
+}
+
+<div class="container py-4" style="max-width: 720px;">
+    <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm mb-3">&larr; Back</a>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex align-items-center mb-4">
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                     style="width: 56px; height: 56px; font-size: 1.5rem; font-weight: 600;">
+                    @Model.Detail.FirstName[0]@Model.Detail.LastName[0]
+                </div>
+                <div>
+                    <h4 class="fw-bold mb-0">@Model.Detail.FirstName @Model.Detail.LastName</h4>
+                    <span class="text-muted small">@@@Model.Detail.UserName</span>
+                </div>
+            </div>
+
+            <dl class="row mb-0">
+                <dt class="col-sm-3 small fw-medium">Email</dt>
+                <dd class="col-sm-9">@Model.Detail.Email</dd>
+
+                <dt class="col-sm-3 small fw-medium">Department</dt>
+                <dd class="col-sm-9">@(Model.Detail.Department ?? "—")</dd>
+
+                <dt class="col-sm-3 small fw-medium">Manager</dt>
+                <dd class="col-sm-9">@(Model.Detail.IsManager ? "Yes" : "No")</dd>
+
+                <dt class="col-sm-3 small fw-medium">Roles</dt>
+                <dd class="col-sm-9">
+                    @if (Model.Detail.Roles.Count == 0)
+                    {
+                        <span class="text-muted">None</span>
+                    }
+                    else
+                    {
+                        @foreach (var role in Model.Detail.Roles)
+                        {
+                            <span class="badge bg-secondary me-1">@role</span>
+                        }
+                    }
+                </dd>
+
+                <dt class="col-sm-3 small fw-medium">Groups</dt>
+                <dd class="col-sm-9">
+                    @if (Model.Detail.Groups.Count == 0)
+                    {
+                        <span class="text-muted">Not a member of any group</span>
+                    }
+                    else
+                    {
+                        @foreach (var group in Model.Detail.Groups)
+                        {
+                            <span class="badge bg-info me-1">@group</span>
+                        }
+                    }
+                </dd>
+            </dl>
+        </div>
+    </div>
+</div>

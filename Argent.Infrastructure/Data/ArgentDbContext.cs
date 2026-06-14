@@ -54,6 +54,8 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
     public DbSet<GroupMembership> GroupMemberships { get; set; }
 
+    public DbSet<GroupGroupMembership> GroupGroupMemberships { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         // 1. Setup Identity tables (MUST BE FIRST)
@@ -350,6 +352,16 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
             entity.HasIndex(e => e.UserId)
                 .HasDatabaseName("IX_GroupMemberships_UserId");
+        });
+
+        builder.Entity<GroupGroupMembership>(entity =>
+        {
+            entity.ToTable("GroupGroupMemberships");
+            entity.HasKey(e => new { e.GroupId, e.MemberGroupId });
+
+            // Index for the child→parent walk used to resolve transitive membership.
+            entity.HasIndex(e => e.MemberGroupId)
+                .HasDatabaseName("IX_GroupGroupMemberships_MemberGroupId");
         });
     }
 }

@@ -24,24 +24,12 @@
             <textarea class="form-control" @bind="Description" rows="2"></textarea>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label small fw-medium">Members</label>
-            <div class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
-                @if (_allUsers.Count == 0)
-                {
-                    <div class="small text-muted">No users.</div>
-                }
-                @foreach (var u in _allUsers)
-                {
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="m_@u.Id"
-                               checked="@_selectedUsers.Contains(u.Id)"
-                               @onchange="e => Toggle(u.Id, e)" />
-                        <label class="form-check-label small" for="m_@u.Id">@u.Label</label>
-                    </div>
-                }
-            </div>
-        </div>
+        <MemberSelector Label="Members" EmptyText="No members yet."
+                        Options="_userOptions" Selected="_selectedUsers"
+                        Searchable="true" ItemUrl="@UserViewUrl" />
+
+        <MemberSelector Label="Member groups" EmptyText="No nested groups."
+                        Options="_groupOptions" Selected="_selectedGroups" />
 
         <div class="d-flex gap-2">
             <button class="btn btn-primary" @onclick="Save" disabled="@_saving">
@@ -60,18 +48,28 @@
     private bool _saving;
     private string? _error;
 
-    private record UserOption(string Id, string Label);
-
-    private List<UserOption> _allUsers = [];
+    private List<MemberSelector.MemberOption> _userOptions = [];
+    private List<MemberSelector.MemberOption> _groupOptions = [];
     private readonly HashSet<string> _selectedUsers = [];
+    private readonly HashSet<string> _selectedGroups = [];
 
     protected override async Task OnInitializedAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
 
-        _allUsers = await db.Users
+        _userOptions = await db.Users
             .OrderBy(u => u.UserName)
-            .Select(u => new UserOption(u.Id.ToString(), u.UserName ?? u.Email ?? u.Id.ToString()))
+            .Select(u => new MemberSelector.MemberOption(
+                u.Id.ToString(),
+                u.FirstName + " " + u.LastName + " (" + u.UserName + ")",
+                "bi-person"))
+            .ToListAsync();
+
+        // A group cannot be a member of itself.
+        _groupOptions = await db.Groups
+            .Where(g => GroupId == null || g.Id != GroupId.Value)
+            .OrderBy(g => g.Name)
+            .Select(g => new MemberSelector.MemberOption(g.Id.ToString(), g.Name, "bi-people"))
             .ToListAsync();
 
         if (GroupId != null)
@@ -83,19 +81,21 @@
                 Description = group.Description;
             }
 
-            var members = await db.GroupMemberships
+            var userMembers = await db.GroupMemberships
                 .Where(m => m.GroupId == GroupId.Value)
                 .Select(m => m.UserId.ToString())
                 .ToListAsync();
-            foreach (var m in members) _selectedUsers.Add(m);
+            foreach (var m in userMembers) _selectedUsers.Add(m);
+
+            var groupMembers = await db.GroupGroupMemberships
+                .Where(m => m.GroupId == GroupId.Value)
+                .Select(m => m.MemberGroupId.ToString())
+                .ToListAsync();
+            foreach (var m in groupMembers) _selectedGroups.Add(m);
         }
     }
 
-    private void Toggle(string userId, ChangeEventArgs e)
-    {
-        if (e.Value is true) _selectedUsers.Add(userId);
-        else _selectedUsers.Remove(userId);
-    }
+    private static string? UserViewUrl(string id) => "/Users/View/" + id;
 
     private async Task Save()
     {
@@ -130,16 +130,22 @@
                 existing.Description = Description;
                 group = existing;
 
-                var current = await db.GroupMemberships
-                    .Where(m => m.GroupId == group.Id)
-                    .ToListAsync();
-                db.GroupMemberships.RemoveRange(current);
+                db.GroupMemberships.RemoveRange(
+                    await db.GroupMemberships.Where(m => m.GroupId == group.Id).ToListAsync());
+                db.GroupGroupMemberships.RemoveRange(
+                    await db.GroupGroupMemberships.Where(m => m.GroupId == group.Id).ToListAsync());
             }
 
             foreach (var uid in _selectedUsers)
             {
                 if (Guid.TryParse(uid, out var userGuid))
                     db.GroupMemberships.Add(new GroupMembership { GroupId = group.Id, UserId = userGuid });
+            }
+
+            foreach (var gid in _selectedGroups)
+            {
+                if (Guid.TryParse(gid, out var childGuid) && childGuid != group.Id)
+                    db.GroupGroupMemberships.Add(new GroupGroupMembership { GroupId = group.Id, MemberGroupId = childGuid });
             }
 
             await db.SaveChangesAsync();

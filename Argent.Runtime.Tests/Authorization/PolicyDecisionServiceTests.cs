@@ -304,6 +304,34 @@ public class PolicyDecisionServiceTests
     }
 
     [Fact]
+    public async Task Nested_group_membership_is_transitive()
+    {
+        var userId = Guid.NewGuid();
+        var childGroup = Guid.NewGuid();
+        var parentGroup = Guid.NewGuid();
+
+        var svc = CreateService(ctx =>
+        {
+            // user ∈ child, child ∈ parent  ⇒ user is effectively in parent.
+            ctx.GroupMemberships.Add(new Argent.Models.Identity.GroupMembership { GroupId = childGroup, UserId = userId });
+            ctx.GroupGroupMemberships.Add(new Argent.Models.Identity.GroupGroupMembership { GroupId = parentGroup, MemberGroupId = childGroup });
+            ctx.PolicyDocuments.Add(new PolicyDocument
+            {
+                Name = "Parent group access",
+                Effect = PolicyEffect.Allow,
+                ResourceType = ResourceType.DomainRecord,
+                ActionsJson = """["read"]""",
+                SubjectJson = $$"""{"groups":["{{parentGroup}}"]}""",
+                IsEnabled = true
+            });
+            ctx.SaveChanges();
+        });
+
+        var result = await svc.EvaluateAsync(userId.ToString(), [], ResourceType.DomainRecord, [], "read");
+        Assert.Equal(PolicyDecision.Allow, result);
+    }
+
+    [Fact]
     public async Task Subject_matches_any_dimension_OR_semantics()
     {
         // Policy lists a different user but also role "Admin". Under ANY/OR, a user who has the

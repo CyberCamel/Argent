@@ -39,6 +39,25 @@
     <_ContentIncludedByDefault Remove="Pages\DomainObjects\_PropertiesTable.cshtml" />
     <_ContentIncludedByDefault Remove="Pages\Workflows\Model2\Create.cshtml" />
     <_ContentIncludedByDefault Remove="Pages\Workflows\Model2\Edit.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\Create.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\Delete.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\Edit.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\Index.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\List.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\_CreateUserPartial.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\_EditUserPartial.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\_UserTablePartial.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="Pages\Admin\UserAdministration\Create.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\UserAdministration\Delete.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\UserAdministration\Edit.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\UserAdministration\Index.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\UserAdministration\List.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\UserAdministration\_CreateUserPartial.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\UserAdministration\_EditUserPartial.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\UserAdministration\_UserTablePartial.cshtml" />
   </ItemGroup>
 
 </Project>

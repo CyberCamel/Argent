@@ -99,7 +99,9 @@ public static class DbInitializer
             .ToList()!;
 
         var savedGroups = dbContext.Groups.ToList();
-        var existingMemberships = dbContext.GroupMemberships.ToHashSet();
+        var existingMembershipKeys = dbContext.GroupMemberships
+            .Select(m => new { m.GroupId, m.UserId })
+            .ToHashSet();
 
         foreach (var user in allMockUsers)
         {
@@ -108,14 +110,13 @@ public static class DbInitializer
 
             foreach (var group in shuffled)
             {
-                var membership = new GroupMembership
+                if (existingMembershipKeys.Contains(new { GroupId = group.Id, UserId = user!.Id })) continue;
+
+                dbContext.GroupMemberships.Add(new GroupMembership
                 {
                     GroupId = group.Id,
-                    UserId = user!.Id
-                };
-
-                if (!existingMemberships.Contains(membership))
-                    dbContext.GroupMemberships.Add(membership);
+                    UserId = user.Id
+                });
             }
         }
 

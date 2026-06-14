@@ -4,7 +4,11 @@
 @foreach (var user in Model)
 {
     <tr>
-        <td><strong>@user.FirstName @user.LastName</strong></td>
+        <td>
+            <a href="/Users/View/@user.Id" class="text-decoration-none">
+                <strong>@user.FirstName @user.LastName</strong>
+            </a>
+        </td>
         <td>@user.Email</td>
         <td>
             @foreach (var role in user.Roles)
@@ -13,6 +17,9 @@
             }
         </td>
         <td>
+            <a class="btn btn-sm btn-outline-info" href="/Users/View/@user.Id">
+                View
+            </a>
             <button 
                 hx-get="/UserAdministration/Edit/@user.UserName"
                 hx-target="#modalBody" 

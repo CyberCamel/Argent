@@ -55,67 +55,21 @@
             <small class="text-muted">Comma-separated. Use * for all actions.</small>
         </div>
 
-        <p class="small text-muted mb-1">
+        <p class="small text-muted mb-2">
             Subject — a policy applies to a user who matches <strong>any</strong> selected user,
             role, or group. Leave all three empty to apply to everyone.
         </p>
 
         <div class="row">
-            <div class="col-md-4 mb-3">
-                <label class="form-label small fw-medium">Users</label>
-                <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
-                    @if (_allUsers.Count == 0)
-                    {
-                        <div class="small text-muted">No users.</div>
-                    }
-                    @foreach (var u in _allUsers)
-                    {
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="u_@u.Id"
-                                   checked="@_selectedUsers.Contains(u.Id)"
-                                   @onchange="e => Toggle(_selectedUsers, u.Id, e)" />
-                            <label class="form-check-label small" for="u_@u.Id">@u.Label</label>
-                        </div>
-                    }
-                </div>
+            <div class="col-md-4">
+                <MemberSelector Label="Users" EmptyText="No users." Options="_userOptions" Selected="_selectedUsers"
+                                ItemUrl="@UserViewUrl" Searchable="true" />
             </div>
-
-            <div class="col-md-4 mb-3">
-                <label class="form-label small fw-medium">Roles</label>
-                <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
-                    @if (_allRoles.Count == 0)
-                    {
-                        <div class="small text-muted">No roles.</div>
-                    }
-                    @foreach (var r in _allRoles)
-                    {
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="r_@r"
-                                   checked="@_selectedRoles.Contains(r)"
-                                   @onchange="e => Toggle(_selectedRoles, r, e)" />
-                            <label class="form-check-label small" for="r_@r">@r</label>
-                        </div>
-                    }
-                </div>
+            <div class="col-md-4">
+                <MemberSelector Label="Roles" EmptyText="No roles." Options="_roleOptions" Selected="_selectedRoles" Searchable="true" />
             </div>
-
-            <div class="col-md-4 mb-3">
-                <label class="form-label small fw-medium">Groups</label>
-                <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
-                    @if (_allGroups.Count == 0)
-                    {
-                        <div class="small text-muted">No groups. <a href="/Admin/Groups">Create one</a>.</div>
-                    }
-                    @foreach (var g in _allGroups)
-                    {
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="g_@g.Id"
-                                   checked="@_selectedGroups.Contains(g.Id)"
-                                   @onchange="e => Toggle(_selectedGroups, g.Id, e)" />
-                            <label class="form-check-label small" for="g_@g.Id">@g.Name</label>
-                        </div>
-                    }
-                </div>
+            <div class="col-md-4">
+                <MemberSelector Label="Groups" EmptyText="No groups." Options="_groupOptions" Selected="_selectedGroups" Searchable="true" />
             </div>
         </div>
 
@@ -154,12 +108,9 @@
     private bool _saving;
     private string? _error;
 
-    private record UserOption(string Id, string Label);
-    private record GroupOption(string Id, string Name);
-
-    private List<UserOption> _allUsers = [];
-    private List<string> _allRoles = [];
-    private List<GroupOption> _allGroups = [];
+    private List<MemberSelector.MemberOption> _userOptions = [];
+    private List<MemberSelector.MemberOption> _roleOptions = [];
+    private List<MemberSelector.MemberOption> _groupOptions = [];
 
     private readonly HashSet<string> _selectedUsers = [];
     private readonly HashSet<string> _selectedRoles = [];
@@ -169,18 +120,21 @@
     {
         await using var db = await DbFactory.CreateDbContextAsync();
 
-        _allUsers = await db.Users
+        _userOptions = await db.Users
             .OrderBy(u => u.UserName)
-            .Select(u => new UserOption(u.Id.ToString(), u.UserName ?? u.Email ?? u.Id.ToString()))
+            .Select(u => new MemberSelector.MemberOption(
+                u.Id.ToString(),
+                u.FirstName + " " + u.LastName + " (" + u.UserName + ")",
+                "bi-person"))
             .ToListAsync();
-        _allRoles = await db.Roles
+        _roleOptions = await db.Roles
             .Where(r => r.Name != null)
-            .Select(r => r.Name!)
-            .OrderBy(n => n)
+            .OrderBy(r => r.Name)
+            .Select(r => new MemberSelector.MemberOption(r.Name!, r.Name!, "bi-shield"))
             .ToListAsync();
-        _allGroups = await db.Groups
+        _groupOptions = await db.Groups
             .OrderBy(g => g.Name)
-            .Select(g => new GroupOption(g.Id.ToString(), g.Name))
+            .Select(g => new MemberSelector.MemberOption(g.Id.ToString(), g.Name, "bi-people"))
             .ToListAsync();
 
         if (Policy != null)
@@ -202,11 +156,7 @@
         }
     }
 
-    private void Toggle(HashSet<string> set, string value, ChangeEventArgs e)
-    {
-        if (e.Value is true) set.Add(value);
-        else set.Remove(value);
-    }
+    private static string? UserViewUrl(string id) => "/Users/View/" + id;
 
     private async Task Save()
     {

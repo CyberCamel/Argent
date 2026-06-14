@@ -1,0 +1,308 @@
+@*
+    Reusable subject/member picker: shows the selected items and adds new ones.
+
+    When Searchable=false (default): shows selected items as a flat removable list with
+    a dropdown + plus button to add. Suitable for small option sets.
+
+    When Searchable=true: shows selected items in a paginated removable list with a page
+    size selector, plus a search box to find and add items (results only appear when a
+    search term is entered, paginated with page size selector).
+
+    When ItemUrl is set, each selected item becomes a link (e.g. "/Users/View/{id}").
+    Return null from ItemUrl to skip the link for a specific ID.
+*@
+
+<div class="mb-3">
+    <label class="form-label small fw-medium">@Label</label>
+    <div class="border rounded p-2">
+
+        @* === SELECTED ITEMS === *@
+        @if (Selected.Count == 0)
+        {
+            <div class="small text-muted mb-2">@EmptyText</div>
+        }
+        else if (!Searchable)
+        {
+            <ul class="list-group list-group-flush mb-2">
+                @foreach (var id in Selected.ToList())
+                {
+                    var opt = Options.FirstOrDefault(o => o.Id == id);
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
+                        <span class="small">
+                            @if (!string.IsNullOrEmpty(opt?.Icon))
+                            {
+                                <i class="bi @opt!.Icon me-2"></i>
+                            }
+                            @if (ItemUrl != null)
+                            {
+                                var url = ItemUrl(id);
+                                if (url != null)
+                                {
+                                    <a href="@url" class="text-decoration-none">@(opt?.Label ?? id)</a>
+                                }
+                                else
+                                {
+                                    @(opt?.Label ?? id)
+                                }
+                            }
+                            else
+                            {
+                                @(opt?.Label ?? id)
+                            }
+                        </span>
+                        <button type="button" class="btn btn-sm btn-link text-danger p-0" title="Remove"
+                                @onclick="() => Remove(id)">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <ul class="list-group list-group-flush mb-2">
+                @foreach (var id in SelectedPageItems)
+                {
+                    var opt = Options.FirstOrDefault(o => o.Id == id);
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
+                        <span class="small">
+                            @if (!string.IsNullOrEmpty(opt?.Icon))
+                            {
+                                <i class="bi @opt!.Icon me-2"></i>
+                            }
+                            @if (ItemUrl != null)
+                            {
+                                var url = ItemUrl(id);
+                                if (url != null)
+                                {
+                                    <a href="@url" class="text-decoration-none">@(opt?.Label ?? id)</a>
+                                }
+                                else
+                                {
+                                    @(opt?.Label ?? id)
+                                }
+                            }
+                            else
+                            {
+                                @(opt?.Label ?? id)
+                            }
+                        </span>
+                        <button type="button" class="btn btn-sm btn-link text-danger p-0" title="Remove"
+                                @onclick="() => Remove(id)">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </li>
+                }
+            </ul>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <small class="text-muted">@Selected.Count members</small>
+                    <select class="form-select form-select-xs" style="width: auto;"
+                            @bind="_selectedPageSize" @bind:after="ResetSelectedPage">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                @if (_selectedTotalPages > 1)
+                {
+                    <div class="d-flex align-items-center gap-1">
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                @onclick="PrevSelectedPage"
+                                disabled="@(_selectedPage <= 1)">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <small class="text-muted px-1">@_selectedPage / @_selectedTotalPages</small>
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                @onclick="NextSelectedPage"
+                                disabled="@(_selectedPage >= _selectedTotalPages)">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                }
+            </div>
+        }
+
+        @* === ADD SECTION === *@
+        @if (!Searchable)
+        {
+            <div class="d-flex gap-2">
+                <select class="form-select form-select-sm" @bind="_toAdd">
+                    <option value="">Add @Label.ToLowerInvariant()…</option>
+                    @foreach (var o in Available)
+                    {
+                        <option value="@o.Id">@o.Label</option>
+                    }
+                </select>
+                <button type="button" class="btn btn-sm btn-primary" @onclick="Add"
+                        disabled="@string.IsNullOrEmpty(_toAdd)">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </div>
+        }
+        else
+        {
+            <hr class="my-2" />
+            <div class="mb-2">
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Search @Label.ToLowerInvariant()…"
+                       @bind="_searchTerm" @bind:event="oninput" @bind:after="OnSearchAfter" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(_searchTerm) && SearchResults.Any())
+            {
+                <ul class="list-group list-group-flush mb-2" style="max-height: 240px; overflow-y: auto;">
+                    @foreach (var o in SearchResults)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
+                            <span class="small">
+                                @if (!string.IsNullOrEmpty(o.Icon))
+                                {
+                                    <i class="bi @o.Icon me-2"></i>
+                                }
+                                @o.Label
+                            </span>
+                            @if (Selected.Contains(o.Id))
+                            {
+                                <span class="badge bg-success-subtle text-success small">Added</span>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0"
+                                        @onclick="() => AddSearchResult(o.Id)">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            }
+                        </li>
+                    }
+                </ul>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <small class="text-muted">@_totalItems found</small>
+                        <select class="form-select form-select-xs" style="width: auto;"
+                                @bind="_pageSize" @bind:after="RefreshSearch">
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                    @if (_totalPages > 1)
+                    {
+                        <div class="d-flex align-items-center gap-1">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PrevPage"
+                                    disabled="@(_currentPage <= 1)">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <small class="text-muted px-1">@_currentPage / @_totalPages</small>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPage"
+                                    disabled="@(_currentPage >= _totalPages)">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(_searchTerm))
+            {
+                <div class="small text-muted">No matches found.</div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "Items";
+    [Parameter] public string EmptyText { get; set; } = "None selected.";
+    [Parameter] public List<MemberOption> Options { get; set; } = [];
+    [Parameter] public HashSet<string> Selected { get; set; } = [];
+    [Parameter] public bool Searchable { get; set; }
+    [Parameter] public Func<string, string?>? ItemUrl { get; set; }
+
+    private string _toAdd = "";
+    private string _searchTerm = "";
+    private int _currentPage = 1;
+    private int _pageSize = 10;
+    private int _selectedPage = 1;
+    private int _selectedPageSize = 10;
+
+    private IEnumerable<MemberOption> Available => Options.Where(o => !Selected.Contains(o.Id));
+    private IEnumerable<MemberOption> Filtered =>
+        string.IsNullOrWhiteSpace(_searchTerm)
+            ? Available
+            : Available.Where(o => o.Label.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase));
+    private IEnumerable<MemberOption> SearchResults =>
+        Filtered.Skip((_currentPage - 1) * _pageSize).Take(_pageSize);
+    private int _totalItems => Filtered.Count();
+    private int _totalPages => Math.Max(1, (int)Math.Ceiling((double)_totalItems / _pageSize));
+
+    private List<string> SelectedPageItems =>
+        Selected.ToList()
+            .Skip((_selectedPage - 1) * _selectedPageSize)
+            .Take(_selectedPageSize)
+            .ToList();
+    private int _selectedTotalPages =>
+        Math.Max(1, (int)Math.Ceiling((double)Selected.Count / _selectedPageSize));
+
+    private void Add()
+    {
+        if (!string.IsNullOrEmpty(_toAdd))
+        {
+            Selected.Add(_toAdd);
+            _toAdd = "";
+        }
+    }
+
+    private void Remove(string id)
+    {
+        Selected.Remove(id);
+        if (_selectedPage > _selectedTotalPages && _selectedPage > 1)
+            _selectedPage = _selectedTotalPages;
+    }
+
+    private void AddSearchResult(string id)
+    {
+        Selected.Add(id);
+        _searchTerm = "";
+        _currentPage = 1;
+    }
+
+    private void ResetSelectedPage()
+    {
+        _selectedPage = 1;
+    }
+
+    private void PrevSelectedPage()
+    {
+        if (_selectedPage > 1) _selectedPage--;
+    }
+
+    private void NextSelectedPage()
+    {
+        if (_selectedPage < _selectedTotalPages) _selectedPage++;
+    }
+
+    private void OnSearchAfter()
+    {
+        _currentPage = 1;
+    }
+
+    private void RefreshSearch()
+    {
+        _currentPage = 1;
+    }
+
+    private void PrevPage()
+    {
+        if (_currentPage > 1) _currentPage--;
+    }
+
+    private void NextPage()
+    {
+        if (_currentPage < _totalPages) _currentPage++;
+    }
+
+    public record MemberOption(string Id, string Label, string? Icon = null);
+}

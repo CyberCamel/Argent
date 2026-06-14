@@ -199,11 +199,36 @@ public class PolicyDecisionService : IPolicyDecisionService
             return [];
 
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        var groups = await context.GroupMemberships
+
+        // Groups the user is a direct member of.
+        var direct = await context.GroupMemberships
             .Where(m => m.UserId == uid)
-            .Select(m => m.GroupId.ToString())
+            .Select(m => m.GroupId)
             .ToListAsync(ct);
 
+        // Nested-group edges (child → its parent containers). The graph is small, so load it
+        // once and walk in memory.
+        var edges = await context.GroupGroupMemberships
+            .Select(e => new { e.GroupId, e.MemberGroupId })
+            .ToListAsync(ct);
+        var parentsByChild = edges
+            .GroupBy(e => e.MemberGroupId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.GroupId).ToList());
+
+        // Transitive closure of "is a member of", cycle-safe via the visited set.
+        var effective = new HashSet<Guid>();
+        var queue = new Queue<Guid>(direct);
+        while (queue.Count > 0)
+        {
+            var g = queue.Dequeue();
+            if (!effective.Add(g))
+                continue;
+            if (parentsByChild.TryGetValue(g, out var parents))
+                foreach (var p in parents)
+                    queue.Enqueue(p);
+        }
+
+        var groups = effective.Select(g => g.ToString()).ToList();
         _groupCache[userId] = groups;
         return groups;
     }
