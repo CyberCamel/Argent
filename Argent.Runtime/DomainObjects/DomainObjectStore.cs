@@ -47,7 +47,7 @@ public class DomainObjectStore(
             ["action"] = action
         };
 
-        var result = await _policyService.EvaluateAsync(userId, roles, ResourceType.DomainRecord, resourceAttrs, action, ct: ct);
+        var result = await _policyService.EvaluateAsync(userId, roles, "DomainRecord", resourceAttrs, action, ct: ct);
         if (result != PolicyDecision.Allow)
             throw new InvalidOperationException($"User {userId} is not authorized to {action} records for domain object '{objectKey}'.");
     }

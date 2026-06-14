@@ -40,7 +40,7 @@ public class PolicyDecisionServiceTests
     public async Task No_policies_returns_Deny()
     {
         var svc = CreateService();
-        var result = await svc.EvaluateAsync("user1", [], ResourceType.DomainRecord, [], "read");
+        var result = await svc.EvaluateAsync("user1", [], "DomainRecord", [], "read");
         Assert.Equal(PolicyDecision.Deny, result);
     }
 
@@ -53,7 +53,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Allow read",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["read"]""",
                 SubjectJson = """{"users":["user1"]}""",
                 IsEnabled = true
@@ -61,7 +61,7 @@ public class PolicyDecisionServiceTests
             ctx.SaveChanges();
         });
 
-        var result = await svc.EvaluateAsync("user1", [], ResourceType.DomainRecord, [], "read");
+        var result = await svc.EvaluateAsync("user1", [], "DomainRecord", [], "read");
         Assert.Equal(PolicyDecision.Allow, result);
     }
 
@@ -74,7 +74,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Allow read",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["read"]""",
                 SubjectJson = """{"users":["user1"]}""",
                 Priority = 100,
@@ -84,7 +84,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Deny read",
                 Effect = PolicyEffect.Deny,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["read"]""",
                 SubjectJson = """{"users":["user1"]}""",
                 Priority = 0,
@@ -93,7 +93,7 @@ public class PolicyDecisionServiceTests
             ctx.SaveChanges();
         });
 
-        var result = await svc.EvaluateAsync("user1", [], ResourceType.DomainRecord, [], "read");
+        var result = await svc.EvaluateAsync("user1", [], "DomainRecord", [], "read");
         Assert.Equal(PolicyDecision.Deny, result);
     }
 
@@ -106,7 +106,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Allow high",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["read"]""",
                 SubjectJson = """{"users":["user1"]}""",
                 Priority = 100,
@@ -116,7 +116,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Allow low",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["read"]""",
                 SubjectJson = """{"users":["user1"]}""",
                 Priority = 10,
@@ -125,7 +125,7 @@ public class PolicyDecisionServiceTests
             ctx.SaveChanges();
         });
 
-        var result = await svc.EvaluateAsync("user1", [], ResourceType.DomainRecord, [], "read");
+        var result = await svc.EvaluateAsync("user1", [], "DomainRecord", [], "read");
         Assert.Equal(PolicyDecision.Allow, result);
     }
 
@@ -138,7 +138,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Admin access",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.AdminArea,
+                ResourceType = "AdminArea",
                 ActionsJson = """["*"]""",
                 SubjectJson = """{"roles":["SuperAdmin"]}""",
                 IsEnabled = true
@@ -146,7 +146,7 @@ public class PolicyDecisionServiceTests
             ctx.SaveChanges();
         });
 
-        var result = await svc.EvaluateAsync("user1", ["SuperAdmin"], ResourceType.AdminArea, [], "delete");
+        var result = await svc.EvaluateAsync("user1", ["SuperAdmin"], "AdminArea", [], "delete");
         Assert.Equal(PolicyDecision.Allow, result);
     }
 
@@ -159,7 +159,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Admin access",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.AdminArea,
+                ResourceType = "AdminArea",
                 ActionsJson = """["*"]""",
                 SubjectJson = """{"roles":["SuperAdmin"]}""",
                 IsEnabled = true
@@ -167,7 +167,7 @@ public class PolicyDecisionServiceTests
             ctx.SaveChanges();
         });
 
-        var result = await svc.EvaluateAsync("user1", ["User"], ResourceType.AdminArea, [], "delete");
+        var result = await svc.EvaluateAsync("user1", ["User"], "AdminArea", [], "delete");
         Assert.Equal(PolicyDecision.Deny, result);
     }
 
@@ -180,7 +180,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Self-service edit",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["edit"]""",
                 SubjectJson = "{}",
                 Condition = new CompareCondition
@@ -195,7 +195,7 @@ public class PolicyDecisionServiceTests
         });
 
         var result = await svc.EvaluateAsync(
-            "user1", [], ResourceType.DomainRecord,
+            "user1", [], "DomainRecord",
             new Dictionary<string, object?> { ["ownerId"] = "user1" },
             "edit");
 
@@ -211,7 +211,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Self-service edit",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["edit"]""",
                 SubjectJson = "{}",
                 Condition = new CompareCondition
@@ -226,7 +226,7 @@ public class PolicyDecisionServiceTests
         });
 
         var result = await svc.EvaluateAsync(
-            "user2", [], ResourceType.DomainRecord,
+            "user2", [], "DomainRecord",
             new Dictionary<string, object?> { ["ownerId"] = "user1" },
             "edit");
 
@@ -242,7 +242,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Allow read",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["read"]""",
                 SubjectJson = """{"users":["user1"]}""",
                 IsEnabled = false
@@ -250,7 +250,7 @@ public class PolicyDecisionServiceTests
             ctx.SaveChanges();
         });
 
-        var result = await svc.EvaluateAsync("user1", [], ResourceType.DomainRecord, [], "read");
+        var result = await svc.EvaluateAsync("user1", [], "DomainRecord", [], "read");
         Assert.Equal(PolicyDecision.Deny, result);
     }
 
@@ -267,7 +267,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Group access",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["read"]""",
                 SubjectJson = $$"""{"groups":["{{groupId}}"]}""",
                 IsEnabled = true
@@ -275,7 +275,7 @@ public class PolicyDecisionServiceTests
             ctx.SaveChanges();
         });
 
-        var result = await svc.EvaluateAsync(userId.ToString(), [], ResourceType.DomainRecord, [], "read");
+        var result = await svc.EvaluateAsync(userId.ToString(), [], "DomainRecord", [], "read");
         Assert.Equal(PolicyDecision.Allow, result);
     }
 
@@ -290,7 +290,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Group access",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["read"]""",
                 SubjectJson = $$"""{"groups":["{{groupId}}"]}""",
                 IsEnabled = true
@@ -299,7 +299,7 @@ public class PolicyDecisionServiceTests
         });
 
         // A user with no membership in the policy's group.
-        var result = await svc.EvaluateAsync(Guid.NewGuid().ToString(), [], ResourceType.DomainRecord, [], "read");
+        var result = await svc.EvaluateAsync(Guid.NewGuid().ToString(), [], "DomainRecord", [], "read");
         Assert.Equal(PolicyDecision.Deny, result);
     }
 
@@ -319,7 +319,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "Parent group access",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["read"]""",
                 SubjectJson = $$"""{"groups":["{{parentGroup}}"]}""",
                 IsEnabled = true
@@ -327,7 +327,7 @@ public class PolicyDecisionServiceTests
             ctx.SaveChanges();
         });
 
-        var result = await svc.EvaluateAsync(userId.ToString(), [], ResourceType.DomainRecord, [], "read");
+        var result = await svc.EvaluateAsync(userId.ToString(), [], "DomainRecord", [], "read");
         Assert.Equal(PolicyDecision.Allow, result);
     }
 
@@ -342,7 +342,7 @@ public class PolicyDecisionServiceTests
             {
                 Name = "User or role",
                 Effect = PolicyEffect.Allow,
-                ResourceType = ResourceType.DomainRecord,
+                ResourceType = "DomainRecord",
                 ActionsJson = """["read"]""",
                 SubjectJson = """{"users":["someone-else"],"roles":["Admin"]}""",
                 IsEnabled = true
@@ -350,7 +350,7 @@ public class PolicyDecisionServiceTests
             ctx.SaveChanges();
         });
 
-        var result = await svc.EvaluateAsync("user1", ["Admin"], ResourceType.DomainRecord, [], "read");
+        var result = await svc.EvaluateAsync("user1", ["Admin"], "DomainRecord", [], "read");
         Assert.Equal(PolicyDecision.Allow, result);
     }
 }

@@ -19,7 +19,7 @@ public class IndexModel(ArgentDbContext _ctx) : PageModel
 
     public async Task<IActionResult> OnGet()
     {
-        Forms = await _ctx.FormDocuments
+        Forms = await _ctx.FormDesigns
             .OrderByDescending(f => f.UpdatedAt)
             .Select(f => new FormListItem
             {
@@ -35,10 +35,10 @@ public class IndexModel(ArgentDbContext _ctx) : PageModel
 
     public async Task<IActionResult> OnPostDelete(Guid id)
     {
-        var doc = await _ctx.FormDocuments.FindAsync(id);
+        var doc = await _ctx.FormDesigns.FindAsync(id);
         if (doc != null)
         {
-            _ctx.FormDocuments.Remove(doc);
+            _ctx.FormDesigns.Remove(doc);
             await _ctx.SaveChangesAsync();
         }
 

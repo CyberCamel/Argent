@@ -2,10 +2,9 @@ using Argent.Models.Identity;
 using Argent.Web.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Argent.Web.Pages.UserAdministration;
+namespace Argent.Web.Pages.Admin.UserAdministration;
 
 [Authorize(Policy = "UserAdminOnly")]
 public class IndexModel(UserManager<InternalUser> userManager, RoleManager<IdentityRole<Guid>> roleManager) : PageModel

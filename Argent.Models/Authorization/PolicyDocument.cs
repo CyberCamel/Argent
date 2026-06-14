@@ -10,7 +10,7 @@ public class PolicyDocument
 
     public PolicyEffect Effect { get; set; } = PolicyEffect.Allow;
 
-    public ResourceType ResourceType { get; set; }
+    public string ResourceType { get; set; } = string.Empty;
     public string ResourceSelectorJson { get; set; } = "{}";
 
     public string ActionsJson { get; set; } = "[]";

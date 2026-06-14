@@ -34,7 +34,7 @@ public class PolicyDecisionService : IPolicyDecisionService
     public async Task<PolicyDecision> EvaluateAsync(
         string userId,
         List<string> roles,
-        ResourceType resourceType,
+        string resourceType,
         Dictionary<string, object?> resourceAttributes,
         string action,
         Dictionary<string, object?>? environment = null,
@@ -78,7 +78,7 @@ public class PolicyDecisionService : IPolicyDecisionService
                 await _auditService.RecordAsync(
                     "Authorization", "Deny",
                     actor: userId,
-                    details: new { policyId = policy.Id, policyName = policy.Name, resourceType = resourceType.ToString(), action },
+                    details: new { policyId = policy.Id, policyName = policy.Name, resourceType = resourceType, action },
                     ct: ct);
 
                 return PolicyDecision.Deny;
@@ -97,7 +97,7 @@ public class PolicyDecisionService : IPolicyDecisionService
             await _auditService.RecordAsync(
                 "Authorization", "Deny (default)",
                 actor: userId,
-                details: new { resourceType = resourceType.ToString(), action, reason = "No matching policy" },
+                details: new { resourceType = resourceType, action, reason = "No matching policy" },
                 ct: ct);
         }
 
@@ -105,7 +105,7 @@ public class PolicyDecisionService : IPolicyDecisionService
     }
 
     public async Task<List<PolicyDocument>> GetApplicablePoliciesAsync(
-        ResourceType resourceType,
+        string resourceType,
         string action,
         CancellationToken ct = default)
     {

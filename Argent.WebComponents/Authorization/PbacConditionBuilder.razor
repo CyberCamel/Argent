@@ -1,0 +1,162 @@
+@using Argent.Models.Forms.Components.Configuration
+@using Argent.WebComponents.Core.Forms.Designer
+@using Argent.Contracts.Authorization
+@inject IPbacResourceRegistry ResourceRegistry
+
+<div class="pbac-condition-builder mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+        <label class="form-label small fw-medium mb-0">Condition</label>
+        <button class="btn btn-sm btn-link py-0 text-decoration-none" @onclick="() => _showHelp = !_showHelp" style="font-size: 0.75rem;">
+            <i class="bi bi-question-circle"></i> @(_showHelp ? "Hide" : "Show") available attributes
+        </button>
+    </div>
+
+    @if (_showHelp)
+    {
+        <div class="small bg-light border rounded p-2 mb-2" style="font-size: 0.75rem; line-height: 1.6;">
+            <div class="fw-medium mb-1">Available attributes for conditions:</div>
+            <table class="table table-sm mb-0" style="font-size: 0.7rem;">
+                <thead>
+                    <tr>
+                        <th style="width: 35%;">Attribute</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="3" class="fw-medium text-primary small p-1">Subject (who is requesting)</td></tr>
+                    <tr><td><code>subject.userId</code></td><td>string</td><td>User's unique identifier</td></tr>
+                    <tr><td><code>subject.roles</code></td><td>list</td><td>Roles assigned to the user</td></tr>
+                    <tr><td><code>subject.groups</code></td><td>list</td><td>Groups the user belongs to</td></tr>
+                    <tr><td colspan="3" class="fw-medium text-success small p-1">
+                        Resource &mdash; @ResourceType
+                        <span class="fw-normal text-muted">(always: <code>resource.type</code>, <code>resource.action</code>)</span>
+                    </td></tr>
+                    @foreach (var attr in _resourceFields)
+                    {
+                        var parts = attr.Split('.');
+                        var name = parts.Length > 1 ? parts[1] : attr;
+                        <tr><td><code>@attr</code></td><td>@GetFieldType(name)</td><td>@GetDescription(name)</td></tr>
+                    }
+                    <tr><td colspan="3" class="fw-medium text-warning small p-1">Environment (request context)</td></tr>
+                    <tr><td><code>env.time</code></td><td>string</td><td>Current time (HH:mm)</td></tr>
+                    <tr><td><code>env.date</code></td><td>string</td><td>Current date (yyyy-MM-dd)</td></tr>
+                    <tr><td><code>env.dayOfWeek</code></td><td>string</td><td>Day of week (e.g., Monday)</td></tr>
+                    <tr><td><code>env.dayOfMonth</code></td><td>number</td><td>Day of month (1&ndash;31)</td></tr>
+                    <tr><td><code>env.month</code></td><td>string</td><td>Month (e.g., January)</td></tr>
+                </tbody>
+            </table>
+            <div class="mt-1 text-muted fst-italic">
+                Use <strong>in</strong> / <strong>notIn</strong> to check list membership (e.g., <code>subject.roles in</code> <code>"admin, manager"</code>).
+            </div>
+        </div>
+    }
+
+    @if (Condition != null)
+    {
+        <div class="d-flex justify-content-end mb-1">
+            <button class="btn btn-sm btn-outline-danger py-0 px-1" @onclick="RemoveCondition" style="font-size: 0.65rem;">
+                <i class="bi bi-trash"></i> Remove condition
+            </button>
+        </div>
+    }
+
+    <ConditionBuilder Condition="@Condition"
+                      ConditionChanged="@(async (c) => await ConditionChanged.InvokeAsync(c))"
+                      OnChanged="@(async () => await OnChanged.InvokeAsync())"
+                      Fields="@CurrentFields" />
+</div>
+
+@code {
+    [Parameter] public Condition? Condition { get; set; }
+    [Parameter] public EventCallback<Condition?> ConditionChanged { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+    [Parameter] public string ResourceType { get; set; } = string.Empty;
+
+    private bool _showHelp;
+    private List<string> _resourceFields = [];
+
+    private List<string> CurrentFields =>
+    [
+        // Subject
+        "subject.userId",
+        "subject.roles",
+        "subject.groups",
+        // Resource (common)
+        "resource.type",
+        "resource.action",
+        .. _resourceFields,
+        // Environment
+        "env.time",
+        "env.date",
+        "env.dayOfWeek",
+        "env.dayOfMonth",
+        "env.month",
+    ];
+
+    protected override void OnParametersSet()
+    {
+        _resourceFields = [.. ResourceRegistry.GetProperties(ResourceType)];
+    }
+
+    private async Task RemoveCondition()
+    {
+        Condition = null;
+        await ConditionChanged.InvokeAsync(null);
+        await OnChanged.InvokeAsync();
+    }
+
+    private static string GetFieldType(string name) => _fieldDescriptions.TryGetValue(name, out var fd) ? fd.type : "string";
+    private static string GetDescription(string name) => _fieldDescriptions.TryGetValue(name, out var fd) ? fd.desc : "";
+
+    private static readonly Dictionary<string, (string type, string desc)> _fieldDescriptions = new()
+    {
+        ["id"] = ("guid", "Unique identifier"),
+        ["key"] = ("string", "System key"),
+        ["name"] = ("string", "Name"),
+        ["title"] = ("string", "Title"),
+        ["description"] = ("string", "Description"),
+        ["formId"] = ("string", "Form identifier"),
+        ["version"] = ("number", "Version number"),
+        ["state"] = ("enum", "Current state"),
+        ["status"] = ("string", "Current status"),
+        ["priority"] = ("number", "Priority"),
+        ["assignedTo"] = ("string", "Assigned user ID"),
+        ["dueDate"] = ("date", "Due date"),
+        ["ownerId"] = ("string", "Owner user ID"),
+        ["createdBy"] = ("string", "Created by user ID"),
+        ["createdAt"] = ("date", "Created at timestamp"),
+        ["createdOn"] = ("date", "Created on date"),
+        ["createdById"] = ("guid", "Creator user ID"),
+        ["updatedBy"] = ("string", "Updated by user ID"),
+        ["updatedAt"] = ("date", "Updated at timestamp"),
+        ["updatedOn"] = ("date", "Updated on date"),
+        ["completedBy"] = ("string", "Completed by user ID"),
+        ["completedAt"] = ("date", "Completed at timestamp"),
+        ["startTime"] = ("date", "Start time"),
+        ["endTime"] = ("date", "End time"),
+        ["instanceId"] = ("guid", "Instance identifier"),
+        ["workflowId"] = ("guid", "Workflow identifier"),
+        ["objectKey"] = ("string", "Domain object key"),
+        ["tags"] = ("list", "Tags"),
+        ["kind"] = ("enum", "Kind/type discriminator"),
+        ["fieldLabel"] = ("string", "Field label"),
+        ["placeholder"] = ("string", "Placeholder text"),
+        ["allowBlank"] = ("bool", "Whether blank is allowed"),
+        ["span"] = ("number", "Column span"),
+        ["order"] = ("number", "Display order"),
+        ["xtype"] = ("string", "Component type"),
+        ["cssClass"] = ("string", "CSS class"),
+        ["style"] = ("string", "Inline style"),
+        ["columnIndex"] = ("number", "Column index"),
+        ["rowVersion"] = ("guid", "Row version (concurrency)"),
+        ["nodeId"] = ("guid", "Node identifier"),
+        ["tokenId"] = ("guid", "Token identifier"),
+        ["resultData"] = ("string", "Result data"),
+        ["claimedAt"] = ("date", "Claimed at timestamp"),
+        ["candidateUsers"] = ("string", "Candidate users"),
+        ["candidateRoles"] = ("string", "Candidate roles"),
+        ["formData"] = ("string", "Form data"),
+    };
+
+}

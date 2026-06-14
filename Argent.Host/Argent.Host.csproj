@@ -9,11 +9,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.4.3" />
     <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.2.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Argent.Web\Argent.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MessagePack" Version="2.5.302" />
   </ItemGroup>
 
 </Project>

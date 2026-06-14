@@ -20,16 +20,13 @@ public class PbacAuthorizationHandler(IPolicyDecisionService _policyService)
             .Select(c => c.Value)
             .ToList();
 
-        if (!Enum.TryParse<ResourceType>(requirement.ResourceType, ignoreCase: true, out var resourceType))
-            return;
-
         var resourceAttrs = new Dictionary<string, object?>
         {
             ["type"] = requirement.ResourceType,
             ["action"] = requirement.Action
         };
 
-        var result = await _policyService.EvaluateAsync(userId, roles, resourceType, resourceAttrs, requirement.Action);
+        var result = await _policyService.EvaluateAsync(userId, roles, requirement.ResourceType, resourceAttrs, requirement.Action);
 
         if (result == PolicyDecision.Allow)
             context.Succeed(requirement);

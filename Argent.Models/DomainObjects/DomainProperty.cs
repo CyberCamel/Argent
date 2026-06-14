@@ -1,11 +1,11 @@
-using Argent.Models.Forms.Components.Configuration;
-
 namespace Argent.Models.DomainObjects;
 
 /// <summary>
 /// A single field on a <see cref="DomainObjectDefinition"/>. Pure data: the same
 /// definition drives the designer, form binding, validation, and the JSON record store.
 /// </summary>
+
+
 public class DomainProperty
 {
     /// <summary>Stable, code-facing identifier (e.g. "firstName"). Used as the key in a record's value map.</summary>
@@ -37,7 +37,4 @@ public class DomainProperty
 
     /// <summary>For references: which property on the target to show as the label (defaults to the target's title property).</summary>
     public string? ReferenceDisplayProperty { get; set; }
-
-    /// <summary>Reuses the Forms validator model so designer/form/server share one rule definition.</summary>
-    public List<FieldValidator> Validators { get; set; } = [];
 }

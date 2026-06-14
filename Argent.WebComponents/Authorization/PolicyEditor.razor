@@ -5,6 +5,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
 @inject IPolicyDecisionService PolicyService
+@inject IPbacResourceRegistry ResourceRegistry
 @inject Microsoft.AspNetCore.Components.NavigationManager NavManager
 
 <div class="card">
@@ -37,7 +38,7 @@
             <div class="col">
                 <label class="form-label small fw-medium">Resource Type</label>
                 <select class="form-select" @bind="ResourceType">
-                    @foreach (var rt in Enum.GetValues<ResourceType>())
+                    @foreach (var rt in ResourceRegistry.ResourceTypeNames)
                     {
                         <option value="@rt">@rt</option>
                     }
@@ -73,14 +74,15 @@
             </div>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label small fw-medium">Condition</label>
-            <ConditionBuilder Condition="@Condition" ConditionChanged="@((c) => Condition = c)" />
+        <PbacConditionBuilder Condition="@Condition"
+                               ConditionChanged="@((c) => Condition = c)"
+                               OnChanged="@(() => StateHasChanged())"
+                               ResourceType="@ResourceType"
+                               />
 
-            <div class="form-check mt-2">
-                <input class="form-check-input" type="checkbox" @bind="IsEnabled" id="enabledCheck" />
-                <label class="form-check-label small" for="enabledCheck">Enabled</label>
-            </div>
+        <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" @bind="IsEnabled" id="enabledCheck" />
+            <label class="form-check-label small" for="enabledCheck">Enabled</label>
         </div>
 
         <div class="d-flex gap-2">
@@ -100,7 +102,7 @@
     private string Name = "";
     private string? Description;
     private PolicyEffect Effect = PolicyEffect.Allow;
-    private ResourceType ResourceType = ResourceType.DomainRecord;
+    private string ResourceType = "DomainRecord";
     private int Priority;
     private string ActionsText = "";
     private Condition? Condition;

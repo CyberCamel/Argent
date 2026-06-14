@@ -11,7 +11,7 @@ namespace Argent.Web.Pages.Workflows;
 [Authorize(Policy = "FlowAdminOnly")]
 public class IndexModel(ArgentDbContext _ctx) : PageModel
 {
-    public List<WorkflowListItemDto> Defs { get; set; }
+    public List<WorkflowListItemDto> Defs { get; set; } = [];
 
     public async Task<IActionResult> OnGet()
     {
