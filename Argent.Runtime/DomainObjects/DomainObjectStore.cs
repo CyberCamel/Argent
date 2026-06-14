@@ -1,9 +1,12 @@
 using System.Collections;
 using System.Globalization;
+using System.Security.Claims;
 using System.Text.Json;
+using Argent.Contracts.Authorization;
 using Argent.Contracts.DataSources;
 using Argent.Contracts.DomainObjects;
 using Argent.Infrastructure.Data;
+using Argent.Models.Authorization;
 using Argent.Models.DataSources;
 using Argent.Models.DomainObjects;
 using Argent.Models.DomainObjects.Querying;
@@ -22,14 +25,38 @@ namespace Argent.Runtime.DomainObjects;
 public class DomainObjectStore(
     IDbContextFactory<ArgentDbContext> _dbContextFactory,
     IHttpContextAccessor _httpContextAccessor,
-    IDataSourceRunner _dataSourceRunner) : IDomainObjectStore
+    IDataSourceRunner _dataSourceRunner,
+    IPolicyDecisionService _policyService) : IDomainObjectStore
 {
     private string CurrentUser => _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
+
+    private string CurrentUserId =>
+        _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Unknown";
+
+    private List<string> CurrentRoles =>
+        _httpContextAccessor.HttpContext?.User?.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList() ?? [];
+
+    private async Task AuthorizeAsync(string objectKey, string action, CancellationToken ct = default)
+    {
+        var userId = CurrentUserId;
+        var roles = CurrentRoles;
+
+        var resourceAttrs = new Dictionary<string, object?>
+        {
+            ["objectKey"] = objectKey,
+            ["action"] = action
+        };
+
+        var result = await _policyService.EvaluateAsync(userId, roles, ResourceType.DomainRecord, resourceAttrs, action, ct: ct);
+        if (result != PolicyDecision.Allow)
+            throw new InvalidOperationException($"User {userId} is not authorized to {action} records for domain object '{objectKey}'.");
+    }
 
     // ── Reads ──────────────────────────────────────────────────────
 
     public async Task<DomainRecord?> GetAsync(string objectKey, Guid id)
     {
+        await AuthorizeAsync(objectKey, "read");
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var (obj, version) = await ResolveAsync(objectKey);
         var entity = await dbContext.DomainObjectRecords.AsNoTracking()
@@ -39,6 +66,7 @@ public class DomainObjectStore(
 
     public async Task<DomainQueryResult> QueryAsync(string objectKey, DomainQuery? query = null)
     {
+        await AuthorizeAsync(objectKey, "read");
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var (obj, version) = await ResolveAsync(objectKey);
         var entities = await dbContext.DomainObjectRecords.AsNoTracking()
@@ -51,6 +79,7 @@ public class DomainObjectStore(
     public async Task<List<DomainOption>> GetOptionsAsync(
         string objectKey, string valueField, string labelField, int? dataSourceIndex = null, DomainQuery? query = null)
     {
+        await AuthorizeAsync(objectKey, "read");
         var result = dataSourceIndex.HasValue
             ? await QueryDataSourceAsync(objectKey, dataSourceIndex.Value, query)
             : await QueryAsync(objectKey, query);
@@ -70,6 +99,7 @@ public class DomainObjectStore(
 
     public async Task<DomainQueryResult> QueryDataSourceAsync(string objectKey, int dataSourceIndex, DomainQuery? query = null)
     {
+        await AuthorizeAsync(objectKey, "read");
         var (_, version) = await ResolveAsync(objectKey);
         var def = version?.Definition
             ?? throw new InvalidOperationException($"Domain object '{objectKey}' has no published definition.");
@@ -92,6 +122,7 @@ public class DomainObjectStore(
 
     public async Task<DomainRecord> CreateAsync(string objectKey, IDictionary<string, object?> values, string? user = null)
     {
+        await AuthorizeAsync(objectKey, "create");
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var (obj, version) = await ResolveAsync(objectKey);
         var def = version?.Definition;
@@ -120,6 +151,7 @@ public class DomainObjectStore(
 
     public async Task<DomainRecord> UpdateAsync(string objectKey, Guid id, IDictionary<string, object?> values, string? user = null)
     {
+        await AuthorizeAsync(objectKey, "update");
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var (obj, version) = await ResolveAsync(objectKey);
         var def = version?.Definition;
@@ -151,6 +183,7 @@ public class DomainObjectStore(
 
     public async Task DeleteAsync(string objectKey, Guid id)
     {
+        await AuthorizeAsync(objectKey, "delete");
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var (obj, _) = await ResolveAsync(objectKey);
         var entity = await dbContext.DomainObjectRecords
