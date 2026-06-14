@@ -175,7 +175,7 @@ public class UserTaskManager : IUserTaskManager
         await context.SaveChangesAsync(ct);
     }
 
-    public async Task CompleteTaskAsync(Guid taskId, string completedBy, List<string> roles, string? resultData, CancellationToken ct)
+    public async Task CompleteTaskAsync(Guid taskId, string completedBy, List<string> roles, CancellationToken ct)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
@@ -192,7 +192,6 @@ public class UserTaskManager : IUserTaskManager
         task.State = UserTaskState.Completed;
         task.CompletedAt = DateTime.UtcNow;
         task.CompletedBy = completedBy;
-        task.ResultData = resultData;
         task.RowVersion = Guid.NewGuid();
 
         var instance = await context.WorkflowInstances

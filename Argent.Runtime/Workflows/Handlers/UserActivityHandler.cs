@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Argent.Contracts.Workflows.Execution;
 using Argent.Models.Workflows;
 using Argent.Models.Workflows.Activities;
@@ -65,21 +64,7 @@ public class UserActivityHandler : INodeHandler
 
         if (existingTask.State == UserTaskState.Completed)
         {
-            Dictionary<string, object?>? outputVars = null;
-
-            if (!string.IsNullOrEmpty(existingTask.ResultData))
-            {
-                try
-                {
-                    outputVars = JsonSerializer.Deserialize<Dictionary<string, object?>>(existingTask.ResultData);
-                }
-                catch
-                {
-                    outputVars = new Dictionary<string, object?> { ["resultData"] = existingTask.ResultData };
-                }
-            }
-
-            return new NodeResult(true, OutputVariables: outputVars?.AsReadOnly());
+            return new NodeResult(true);
         }
 
         if (existingTask.DueDate != null && existingTask.DueDate <= DateTime.UtcNow)

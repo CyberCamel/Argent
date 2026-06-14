@@ -1,5 +1,6 @@
 using Argent.Contracts.Workflows;
 using Argent.Infrastructure.Data;
+using Argent.Models.Enums;
 using Argent.Models.Workflows;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,11 +13,19 @@ namespace Argent.Web.Pages.Workflows;
 public class IndexModel(ArgentDbContext _ctx) : PageModel
 {
     public List<WorkflowListItemDto> Defs { get; set; } = [];
+    public HashSet<Guid> DeployedWorkflowIds { get; set; } = [];
 
     public async Task<IActionResult> OnGet()
     {
         Defs = await _ctx.WorkflowDefinitions.Select(workflow => new WorkflowListItemDto()
             { Id=workflow.Id, Name = workflow.Name, Description = workflow.Description }).ToListAsync();
+
+        DeployedWorkflowIds = (await _ctx.WorkflowVersions
+            .Where(v => v.State == WorkflowDefinitionState.Deployed)
+            .Select(v => v.WorkflowId)
+            .ToListAsync())
+            .ToHashSet();
+
         return Page();
     }
 

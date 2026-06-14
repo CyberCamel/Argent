@@ -26,6 +26,7 @@ public interface IFormContext : IAttributeBag
     Dictionary<string, object?> Environment { get; }
     new List<string> UserRoles { get; }
     string? UserId { get; set; }
+    Guid? RecordId { get; set; }
 
     // Reactivity
     event Action OnStateChanged;

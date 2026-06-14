@@ -58,6 +58,12 @@
         "null"
       ]
     },
+    "ObjectKey": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "Version": {
       "type": "integer"
     },
@@ -79,6 +85,7 @@
   },
   "required": [
     "FormId",
+    "ObjectKey",
     "Version",
     "Title",
     "Components"

@@ -1,10 +1,15 @@
 @using Argent.Contracts.Forms
+@using Argent.Contracts.DomainObjects
 @using Argent.Models.Forms.Components
+@using Argent.Models.Forms
+@using Argent.Models.DomainObjects
 @using Argent.Runtime.Forms
 @using Microsoft.EntityFrameworkCore
 @implements IDisposable
 @inject IFormContext Context
 @inject IFormValidator Validator
+@inject IDomainObjectStore DomainObjectStore
+@inject IDomainObjectDefinitionService DomainObjectDefinitionService
 @inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
 
 @if (_definition == null)
@@ -54,18 +59,23 @@ else
 }
 
 @code {
-    /// <summary>Load the form definition from the database by document id…</summary>
+    /// <summary>Load the form blueprint from the database by design id.</summary>
     [Parameter] public Guid? FormId { get; set; }
 
-    /// <summary>…or supply a definition directly (e.g. from a workflow user activity).</summary>
+    /// <summary>Supply a definition directly (e.g. designer preview).</summary>
     [Parameter] public FormDefinition? Definition { get; set; }
+
+    /// <summary>
+    /// The existing record to seed and update. When null the form creates a new record on submit.
+    /// </summary>
+    [Parameter] public Guid? RecordId { get; set; }
 
     [Parameter] public string? SubmitLabel { get; set; }
     [Parameter] public string? SuccessMessage { get; set; }
     [Parameter] public string? CssClass { get; set; }
 
-    /// <summary>Raised with the submitted values after validation passes.</summary>
-    [Parameter] public EventCallback<Dictionary<string, object?>> OnValidSubmit { get; set; }
+    /// <summary>Raised with the saved <see cref="DomainRecord"/> after a valid submission.</summary>
+    [Parameter] public EventCallback<DomainRecord> OnValidSubmit { get; set; }
 
     private FormDefinition? _definition;
     private Dictionary<string, List<string>>? _errors;
@@ -74,6 +84,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         Context.OnStateChanged += StateHasChanged;
+        Context.RecordId = RecordId;
 
         if (Definition != null)
         {
@@ -85,25 +96,97 @@ else
             var doc = await db.FormDesigns.AsNoTracking().FirstOrDefaultAsync(f => f.Id == FormId.Value);
             _definition = doc?.Definition;
         }
+
+        if (RecordId.HasValue && _definition != null)
+            await SeedFromRecordAsync(RecordId.Value);
     }
 
-    public void Dispose()
+    private async Task SeedFromRecordAsync(Guid recordId)
     {
-        Context.OnStateChanged -= StateHasChanged;
+        var record = await DomainObjectStore.GetAsync(_definition!.ObjectKey, recordId);
+        if (record == null) return;
+
+        var values = new Dictionary<string, object?>(record.Values);
+
+        // Merge any custom (non-domain) field values saved alongside this record.
+        if (FormId.HasValue)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var custom = await db.FormCustomData
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.RecordId == recordId && c.FormId == FormId.Value);
+            if (custom != null)
+                foreach (var kvp in custom.Values)
+                    values[kvp.Key] = kvp.Value;
+        }
+
+        Context.SetInitialValues(values);
     }
+
+    public void Dispose() => Context.OnStateChanged -= StateHasChanged;
 
     private async Task Submit()
     {
         if (_definition == null) return;
 
-        // From here on, untouched fields show their errors too.
         (Context as ArgentFormContext)?.RevealAllErrors();
-
         _errors = Validator.ValidateForm(_definition, Context);
         if (_errors.Count > 0) return;
 
+        var allValues = Context.GetAllData();
+
+        // Resolve which field names are bound to DomainProperties vs custom.
+        var domainDef = await DomainObjectDefinitionService.GetPublishedDefinitionAsync(_definition.ObjectKey);
+        var boundKeys = domainDef?.Properties
+            .Select(p => p.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+
+        var boundValues = allValues
+            .Where(kvp => boundKeys.Contains(kvp.Key))
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+        var customValues = allValues
+            .Where(kvp => !boundKeys.Contains(kvp.Key))
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+        // Persist the DomainRecord.
+        var user = Context.UserId;
+        DomainRecord record;
+        if (Context.RecordId.HasValue)
+        {
+            record = await DomainObjectStore.UpdateAsync(_definition.ObjectKey, Context.RecordId.Value, boundValues, user);
+        }
+        else
+        {
+            record = await DomainObjectStore.CreateAsync(_definition.ObjectKey, boundValues, user);
+            Context.RecordId = record.Id;
+        }
+
+        // Persist custom fields if present.
+        if (customValues.Count > 0 && FormId.HasValue)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var existing = await db.FormCustomData
+                .FirstOrDefaultAsync(c => c.RecordId == record.Id && c.FormId == FormId.Value);
+            if (existing != null)
+            {
+                existing.Values = customValues;
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                db.FormCustomData.Add(new FormCustomData
+                {
+                    RecordId = record.Id,
+                    FormId = FormId.Value,
+                    Values = customValues
+                });
+            }
+            await db.SaveChangesAsync();
+        }
+
         _submitted = true;
         if (OnValidSubmit.HasDelegate)
-            await OnValidSubmit.InvokeAsync(Context.GetAllData());
+            await OnValidSubmit.InvokeAsync(record);
     }
 }

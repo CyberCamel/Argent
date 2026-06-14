@@ -1,7 +1,9 @@
 ﻿using System.Text;
 using Argent.Infrastructure.Data;
+using Argent.Models.DomainObjects;
 using Argent.Models.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Argent.Web;
 
@@ -145,6 +147,99 @@ public static class DbInitializer
             foreach (var role in roles)
                 await userManager.AddToRoleAsync(user, role);
         }
+    }
+
+    public static async Task SeedDomainObjects(ArgentDbContext dbContext)
+    {
+        await SeedDomainObject(dbContext,
+            key: "invoice",
+            name: "Invoice",
+            description: "Supplier invoice submitted for approval and payment",
+            definition: new DomainObjectDefinition
+            {
+                Key = "invoice",
+                DisplayName = "Invoice",
+                PluralName = "Invoices",
+                TitleProperty = "invoiceNumber",
+                Properties =
+                [
+                    new() { Key = "invoiceNumber", DisplayName = "Invoice Number", Type = DomainPropertyType.Text,     Required = true,  Unique = true },
+                    new() { Key = "vendor",         DisplayName = "Vendor",         Type = DomainPropertyType.Text,     Required = true  },
+                    new() { Key = "amount",         DisplayName = "Amount",         Type = DomainPropertyType.Number,   Required = true  },
+                    new() { Key = "currency",       DisplayName = "Currency",       Type = DomainPropertyType.Choice,   Required = true,
+                        Choices = [new() { Label = "USD", Value = "USD" }, new() { Label = "EUR", Value = "EUR" }, new() { Label = "GBP", Value = "GBP" }, new() { Label = "NOK", Value = "NOK" }] },
+                    new() { Key = "issueDate",      DisplayName = "Issue Date",     Type = DomainPropertyType.Date,     Required = true  },
+                    new() { Key = "dueDate",        DisplayName = "Due Date",       Type = DomainPropertyType.Date  },
+                    new() { Key = "status",         DisplayName = "Status",         Type = DomainPropertyType.Choice,   Required = true,
+                        Choices = [new() { Label = "Draft", Value = "draft" }, new() { Label = "Submitted", Value = "submitted" }, new() { Label = "Approved", Value = "approved" }, new() { Label = "Rejected", Value = "rejected" }, new() { Label = "Paid", Value = "paid" }] },
+                    new() { Key = "description",    DisplayName = "Description",    Type = DomainPropertyType.MultiLineText },
+                    new() { Key = "approvedBy",     DisplayName = "Approved By",    Type = DomainPropertyType.Text  },
+                    new() { Key = "notes",          DisplayName = "Notes",          Type = DomainPropertyType.MultiLineText },
+                ]
+            });
+
+        await SeedDomainObject(dbContext,
+            key: "leaveRequest",
+            name: "Leave Request",
+            description: "Employee leave request submitted for manager approval",
+            definition: new DomainObjectDefinition
+            {
+                Key = "leaveRequest",
+                DisplayName = "Leave Request",
+                PluralName = "Leave Requests",
+                TitleProperty = "employeeId",
+                Properties =
+                [
+                    new() { Key = "employeeId",  DisplayName = "Employee",     Type = DomainPropertyType.Text,   Required = true },
+                    new() { Key = "leaveType",   DisplayName = "Leave Type",   Type = DomainPropertyType.Choice, Required = true,
+                        Choices = [new() { Label = "Annual", Value = "annual" }, new() { Label = "Sick", Value = "sick" }, new() { Label = "Personal", Value = "personal" }, new() { Label = "Maternity", Value = "maternity" }, new() { Label = "Paternity", Value = "paternity" }] },
+                    new() { Key = "startDate",   DisplayName = "Start Date",   Type = DomainPropertyType.Date,   Required = true },
+                    new() { Key = "endDate",     DisplayName = "End Date",     Type = DomainPropertyType.Date,   Required = true },
+                    new() { Key = "reason",      DisplayName = "Reason",       Type = DomainPropertyType.MultiLineText, Required = true },
+                    new() { Key = "status",      DisplayName = "Status",       Type = DomainPropertyType.Choice, Required = true,
+                        Choices = [new() { Label = "Pending", Value = "pending" }, new() { Label = "Approved", Value = "approved" }, new() { Label = "Rejected", Value = "rejected" }, new() { Label = "Cancelled", Value = "cancelled" }] },
+                    new() { Key = "approvedBy",  DisplayName = "Approved By",  Type = DomainPropertyType.Text },
+                    new() { Key = "approvedOn",  DisplayName = "Approved On",  Type = DomainPropertyType.DateTime },
+                    new() { Key = "handover",    DisplayName = "Handover Notes", Type = DomainPropertyType.MultiLineText },
+                ]
+            });
+
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task SeedDomainObject(
+        ArgentDbContext dbContext,
+        string key,
+        string name,
+        string description,
+        DomainObjectDefinition definition)
+    {
+        if (await dbContext.DomainObjects.AnyAsync(o => o.Key == key)) return;
+
+        var obj = new DomainObject
+        {
+            Id = Guid.NewGuid(),
+            Key = key,
+            Name = name,
+            Description = description,
+            CreatedOn = DateTime.UtcNow,
+            UpdatedOn = DateTime.UtcNow
+        };
+        dbContext.DomainObjects.Add(obj);
+
+        var version = new DomainObjectVersion
+        {
+            Id = Guid.NewGuid(),
+            DomainObjectId = obj.Id,
+            Version = new Version(1, 0),
+            Name = name,
+            Description = description,
+            Definition = definition,
+            State = DomainObjectState.Published,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "system"
+        };
+        dbContext.DomainObjectVersions.Add(version);
     }
 
     private static List<string> ParseCsvLine(string line)

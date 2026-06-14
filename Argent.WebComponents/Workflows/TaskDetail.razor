@@ -1,6 +1,8 @@
 @using Argent.Contracts.Workflows.Execution
+@using Argent.Models.DomainObjects
 @using Argent.WebComponents.Core.Forms
 @inject IUserTaskManager TaskManager
+@inject IWorkflowInstanceManager InstanceManager
 
 @if (_task == null)
 {
@@ -37,36 +39,38 @@ else
         {
             <div class="alert alert-danger">@_error</div>
         }
-        <FormHost FormId="@_task.FormId" UserId="@UserId" OnSubmit="CompleteTask" />
+        <FormHost FormId="@_task.FormId" RecordId="@_instanceRecordId" UserId="@UserId" OnSubmit="CompleteTask" />
     }
 }
 
 @code {
     [Parameter] public Guid TaskId { get; set; }
-
     [Parameter] public string? UserId { get; set; }
-
     [Parameter] public List<string>? Roles { get; set; }
 
     private Argent.Models.Workflows.Execution.UserTask? _task;
+    private Guid? _instanceRecordId;
     private bool _completed;
     private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
         _task = await TaskManager.GetAsync(TaskId, default);
+        if (_task != null)
+        {
+            var snapshot = await InstanceManager.GetStateAsync(_task.InstanceId, default);
+            if (snapshot.RecordId != Guid.Empty)
+                _instanceRecordId = snapshot.RecordId;
+        }
     }
 
-    private async Task CompleteTask(Dictionary<string, object?> formData)
+    private async Task CompleteTask(DomainRecord record)
     {
         if (_task == null) return;
-
         _error = null;
-
         try
         {
-            var json = System.Text.Json.JsonSerializer.Serialize(formData);
-            await TaskManager.CompleteTaskAsync(TaskId, UserId ?? "unknown", Roles ?? [], json, default);
+            await TaskManager.CompleteTaskAsync(TaskId, UserId ?? "unknown", Roles ?? [], default);
             _completed = true;
         }
         catch (Exception ex)

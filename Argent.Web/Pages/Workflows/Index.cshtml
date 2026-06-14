@@ -42,6 +42,12 @@ else
                             <td class="fw-medium">@wf.Name</td>
                             <td class="text-muted">@wf.Description</td>
                             <td class="text-end">
+                                @if (Model.DeployedWorkflowIds.Contains(wf.Id))
+                                {
+                                    <a class="btn btn-success btn-sm" href="/Workflows/Start?workflowId=@wf.Id">
+                                        <i class="bi bi-play-fill"></i> Start
+                                    </a>
+                                }
                                 <a class="btn btn-outline-primary btn-sm" href="/Workflows/View/@wf.Id">
                                     <i class="bi bi-eye-fill"></i> View
                                 </a>

@@ -1,10 +1,11 @@
 @using Argent.Contracts.Forms
+@using Argent.Models.DomainObjects
 @using Argent.WebComponents.Core.Forms
 @inject IFormContext Context
 
 @if (FormId.HasValue)
 {
-    <ArgentForm FormId="@FormId.Value" OnValidSubmit="HandleSubmit" />
+    <ArgentForm FormId="@FormId.Value" RecordId="@RecordId" OnValidSubmit="HandleSubmit" />
 }
 else
 {
@@ -13,27 +14,20 @@ else
 
 @code {
     [Parameter] public Guid? FormId { get; set; }
-
-    [Parameter] public Dictionary<string, object?>? InitialValues { get; set; }
-
+    [Parameter] public Guid? RecordId { get; set; }
     [Parameter] public string? UserId { get; set; }
 
-    [Parameter] public EventCallback<Dictionary<string, object?>> OnSubmit { get; set; }
+    [Parameter] public EventCallback<DomainRecord> OnSubmit { get; set; }
 
     protected override void OnInitialized()
     {
         if (!string.IsNullOrEmpty(UserId))
             Context.UserId = UserId;
-
-        if (InitialValues is { Count: > 0 })
-        {
-            Context.SetInitialValues(InitialValues);
-        }
     }
 
-    private async Task HandleSubmit(Dictionary<string, object?> data)
+    private async Task HandleSubmit(DomainRecord record)
     {
         if (OnSubmit.HasDelegate)
-            await OnSubmit.InvokeAsync(data);
+            await OnSubmit.InvokeAsync(record);
     }
 }

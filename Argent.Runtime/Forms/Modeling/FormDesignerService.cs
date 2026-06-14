@@ -383,6 +383,7 @@ public class FormDesignerService(
             existing.Definition = definitionCopy;
             existing.Name = Name;
             existing.Description = Description;
+            existing.ObjectKey = definitionCopy.ObjectKey;
             existing.UpdatedAt = DateTime.UtcNow;
         }
         else
@@ -392,6 +393,7 @@ public class FormDesignerService(
                 Id = Guid.NewGuid(),
                 Name = Name,
                 Description = Description,
+                ObjectKey = definitionCopy.ObjectKey,
                 Definition = definitionCopy,
                 CreatedBy = updatedBy
             };

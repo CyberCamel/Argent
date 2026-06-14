@@ -25,6 +25,7 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
 
     public async Task<Guid> StartAsync(
         Guid definitionId,
+        Guid recordId,
         IReadOnlyDictionary<string, object?>? variables,
         CancellationToken ct)
     {
@@ -63,7 +64,8 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
             Name = version.Name,
             Description = version.Description,
             State = InstanceState.Running,
-            StartTime = DateTime.UtcNow
+            StartTime = DateTime.UtcNow,
+            RecordId = recordId
         };
         _context.WorkflowInstances.Add(instance);
 
@@ -183,6 +185,7 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
             instance.State,
             activeTokenCount,
             instance.StartTime,
-            instance.EndTime);
+            instance.EndTime,
+            instance.RecordId);
     }
 }

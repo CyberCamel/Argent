@@ -11,10 +11,30 @@ namespace Argent.Web.Pages.Workflows;
 [Authorize]
 public class StartModel(ArgentDbContext _ctx) : PageModel
 {
+    [BindProperty(SupportsGet = true)]
+    public Guid? WorkflowId { get; set; }
+
+    // List mode
     public List<StartableWorkflowDto> Workflows { get; set; } = [];
 
-    public async Task OnGetAsync()
+    // Form mode
+    public string WorkflowName { get; set; } = string.Empty;
+
+    public async Task<IActionResult> OnGetAsync()
     {
+        if (WorkflowId.HasValue)
+        {
+            var workflow = await _ctx.WorkflowDefinitions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(w => w.Id == WorkflowId.Value);
+
+            if (workflow == null)
+                return NotFound();
+
+            WorkflowName = workflow.Name;
+            return Page();
+        }
+
         var deployedVersions = await _ctx.WorkflowVersions
             .Where(v => v.State == WorkflowDefinitionState.Deployed)
             .Join(_ctx.WorkflowDefinitions,
@@ -28,17 +48,11 @@ public class StartModel(ArgentDbContext _ctx) : PageModel
             {
                 Id = x.Id,
                 Name = x.Name,
-                Description = x.Description,
-                FormId = ExtractFormId(x.Definition)
+                Description = x.Description
             })
-            .Where(d => d.FormId.HasValue)
             .ToList();
-    }
 
-    private static Guid? ExtractFormId(WorkflowDefinition? def)
-    {
-        var startNode = def?.Nodes?.OfType<StartEvent>().FirstOrDefault();
-        return startNode?.FormId;
+        return Page();
     }
 
     public class StartableWorkflowDto
@@ -46,6 +60,5 @@ public class StartModel(ArgentDbContext _ctx) : PageModel
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public Guid? FormId { get; set; }
     }
 }

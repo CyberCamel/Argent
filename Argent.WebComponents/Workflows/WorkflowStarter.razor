@@ -1,0 +1,86 @@
+@using Argent.Contracts.Workflows.Execution
+@using Argent.Contracts.DomainObjects
+@using Argent.Models.DomainObjects
+@using Argent.Models.Enums
+@using Argent.Models.Workflows
+@using Argent.WebComponents.Core.Forms
+@using Microsoft.EntityFrameworkCore
+@inject IWorkflowInstanceManager InstanceManager
+@inject IDomainObjectStore DomainObjectStore
+@inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
+@inject NavigationManager Nav
+
+@if (_loading)
+{
+    <div class="text-muted small">Loading workflow...</div>
+}
+else if (!string.IsNullOrEmpty(_error))
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else if (_formId == null)
+{
+    <div class="alert alert-warning">This workflow has no start form configured.</div>
+}
+else
+{
+    <FormHost FormId="@_formId" UserId="@UserId" OnSubmit="HandleSubmit" />
+}
+
+@code {
+    [Parameter] public Guid WorkflowId { get; set; }
+    [Parameter] public string? UserId { get; set; }
+
+    private Guid? _formId;
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+
+            var version = await db.WorkflowVersions
+                .AsNoTracking()
+                .Where(v => v.WorkflowId == WorkflowId && v.State == WorkflowDefinitionState.Deployed)
+                .OrderByDescending(v => v.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (version?.Definition == null)
+            {
+                _error = "No deployed version found for this workflow.";
+                return;
+            }
+
+            var startNode = version.Definition.Nodes.OfType<StartEvent>().FirstOrDefault();
+            if (startNode?.FormId == null)
+            {
+                _error = "This workflow's start event has no form configured.";
+                return;
+            }
+
+            _formId = startNode.FormId;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task HandleSubmit(DomainRecord record)
+    {
+        _error = null;
+        try
+        {
+            await InstanceManager.StartAsync(WorkflowId, record.Id, null, default);
+            Nav.NavigateTo("/Tasks");
+        }
+        catch (Exception ex)
+        {
+            try { await DomainObjectStore.DeleteAsync(record.ObjectKey, record.Id); }
+            catch { /* compensating delete best-effort */ }
+            _error = $"Failed to start workflow: {ex.Message}";
+        }
+    }
+}

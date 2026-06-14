@@ -17,6 +17,7 @@ public class ArgentFormContext(
     public Dictionary<string, object?> Environment { get; } = new();
     public List<string> UserRoles { get; set; } = [];
     public string? UserId { get; set; }
+    public Guid? RecordId { get; set; }
 
     public event Action? OnStateChanged;
 

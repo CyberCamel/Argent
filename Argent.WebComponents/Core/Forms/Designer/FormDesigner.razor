@@ -1,10 +1,13 @@
 @using Argent.Models.Forms.Components.Base
+@using Argent.Models.DomainObjects
+@using Argent.Contracts.DomainObjects
 @using Argent.Runtime.Forms
 @using Argent.Runtime.Forms.Modeling
 @using Argent.WebComponents.Core.Forms
 @implements IDisposable
 @inject FormDesignerService State
 @inject NavigationManager Navigation
+@inject IDomainObjectDefinitionService DomainObjectDefinitions
 
 <style>
     .fd-dropzone { height: 0; overflow: hidden; border-radius: 4px; transition: height 0.1s, background 0.1s; }
@@ -50,6 +53,16 @@
         <a href="/Forms" class="btn btn-outline-secondary btn-sm me-1" title="Back to forms">
             <i class="bi bi-arrow-left"></i>
         </a>
+        <select class="form-select form-select-sm @(string.IsNullOrEmpty(State.Definition.ObjectKey) ? "border-warning" : "")"
+                style="max-width: 200px;"
+                @onchange="OnObjectKeyChanged"
+                title="Domain object this form is bound to (required)">
+            <option value="">— domain object —</option>
+            @foreach (var obj in _objectCatalog)
+            {
+                <option value="@obj.Key" selected="@(State.Definition.ObjectKey == obj.Key)">@obj.Name</option>
+            }
+        </select>
         <input type="text" class="form-control form-control-sm" style="max-width: 200px;"
                value="@State.Name"
                @onchange="(e) => { State.Name = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }"
@@ -165,14 +178,22 @@
     private bool _isSaving;
     private string? _saveError;
     private readonly DesignerFormContext _designContext = new(new ConditionEvaluator());
+    private IReadOnlyList<DomainObjectSummary> _objectCatalog = [];
 
     private static DropTarget RootEnd => new(null, int.MaxValue);
 
     protected override async Task OnInitializedAsync()
     {
         State.OnChange += StateHasChanged;
+        _objectCatalog = await DomainObjectDefinitions.GetSummariesAsync();
         if (FormId.HasValue)
             await State.LoadAsync(FormId.Value);
+    }
+
+    private void OnObjectKeyChanged(ChangeEventArgs e)
+    {
+        State.Definition.ObjectKey = e.Value?.ToString() ?? string.Empty;
+        State.MarkDirty();
     }
 
     public void Dispose()

@@ -1,7 +1,14 @@
 @using System.Reflection
 @using Argent.Contracts.Workflows
+@using Argent.Contracts.DomainObjects
+@using Argent.Models.DomainObjects
+@using Argent.Models.Workflows
+@using Argent.Models.Workflows.Activities
 @using Argent.Runtime.Workflows
 @using Argent.Runtime.Workflows.Modeling
+@using Microsoft.EntityFrameworkCore
+@inject IDomainObjectDefinitionService DomainObjectDefinitions
+@inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
 
 @if (Node != null)
 {
@@ -84,6 +91,77 @@
                     }
                 </div>
             }
+
+            @* ── StartEvent: ObjectKey + FormId ─────────────────── *@
+            @if (Node.NodeData is StartEvent startEvent)
+            {
+                <div class="modeler2-properties-section modeler2-properties-section-dyn">
+                    <div class="modeler2-properties-field">
+                        <label class="modeler2-properties-label">Domain Object</label>
+                        <select class="modeler2-properties-input"
+                                @onchange="(e) => OnStartEventObjectKeyChanged(startEvent, e.Value?.ToString())">
+                            <option value="">— select object —</option>
+                            @foreach (var obj in _domainSummaries)
+                            {
+                                <option value="@obj.Key" selected="@(startEvent.ObjectKey == obj.Key)">@obj.Name (@obj.Key)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="modeler2-properties-field">
+                        <label class="modeler2-properties-label">Start Form</label>
+                        @if (string.IsNullOrEmpty(startEvent.ObjectKey))
+                        {
+                            <span class="modeler2-properties-placeholder small">Select a domain object first</span>
+                        }
+                        else
+                        {
+                            <select class="modeler2-properties-input"
+                                    @onchange="(e) => SetStartEventForm(startEvent, e.Value?.ToString())">
+                                <option value="">— none —</option>
+                                @foreach (var form in _availableForms)
+                                {
+                                    <option value="@form.Id" selected="@(startEvent.FormId == form.Id)">@form.Name</option>
+                                }
+                            </select>
+                            @if (!_availableForms.Any() && !string.IsNullOrEmpty(startEvent.ObjectKey))
+                            {
+                                <div class="small text-warning mt-1"><i class="bi bi-exclamation-triangle"></i> No forms bound to "@startEvent.ObjectKey"</div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+
+            @* ── UserActivity: Form picker ───────────────────────── *@
+            @if (Node.NodeData is UserActivity userActivity)
+            {
+                var wfObjectKey = GetWorkflowObjectKey();
+                var currentFormId = (userActivity.UX as FormExperience)?.FormId;
+                <div class="modeler2-properties-section modeler2-properties-section-dyn">
+                    <div class="modeler2-properties-field">
+                        <label class="modeler2-properties-label">Form</label>
+                        @if (string.IsNullOrEmpty(wfObjectKey))
+                        {
+                            <span class="modeler2-properties-placeholder small">Workflow needs a domain object on StartEvent</span>
+                        }
+                        else
+                        {
+                            <select class="modeler2-properties-input"
+                                    @onchange="(e) => SetUserActivityForm(userActivity, e.Value?.ToString())">
+                                <option value="">— none —</option>
+                                @foreach (var form in _availableForms)
+                                {
+                                    <option value="@form.Id" selected="@(currentFormId == form.Id)">@form.Name</option>
+                                }
+                            </select>
+                            @if (!_availableForms.Any() && !string.IsNullOrEmpty(wfObjectKey))
+                            {
+                                <div class="small text-warning mt-1"><i class="bi bi-exclamation-triangle"></i> No forms bound to "@wfObjectKey"</div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
         </div>
     </div>
 }
@@ -93,6 +171,73 @@
     [Parameter] public required IWorkflowNodeRegistry Registry { get; set; }
     [Parameter] public required DesignerNode Node { get; set; }
     [Parameter] public required EventCallback OnClose { get; set; }
+
+    private IReadOnlyList<DomainObjectSummary> _domainSummaries = [];
+    private List<FormOption> _availableForms = [];
+    private string _loadedFormsKey = string.Empty;
+
+    private record FormOption(Guid Id, string Name);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _domainSummaries = await DomainObjectDefinitions.GetSummariesAsync();
+        await RefreshAvailableFormsAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await RefreshAvailableFormsAsync();
+    }
+
+    private string GetWorkflowObjectKey() =>
+        State.Nodes.Select(n => n.NodeData).OfType<StartEvent>().FirstOrDefault()?.ObjectKey ?? string.Empty;
+
+    private async Task RefreshAvailableFormsAsync()
+    {
+        var key = Node.NodeData switch
+        {
+            StartEvent se => se.ObjectKey,
+            UserActivity => GetWorkflowObjectKey(),
+            _ => string.Empty
+        };
+
+        if (key == _loadedFormsKey) return;
+        _loadedFormsKey = key;
+
+        if (string.IsNullOrEmpty(key)) { _availableForms = []; return; }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _availableForms = await db.FormDesigns
+            .AsNoTracking()
+            .Where(f => f.ObjectKey == key)
+            .OrderBy(f => f.Name)
+            .Select(f => new FormOption(f.Id, f.Name))
+            .ToListAsync();
+    }
+
+    private async Task OnStartEventObjectKeyChanged(StartEvent startEvent, string? key)
+    {
+        startEvent.ObjectKey = key ?? string.Empty;
+        startEvent.FormId = null;
+        _loadedFormsKey = string.Empty;
+        await RefreshAvailableFormsAsync();
+        State.MarkDirty();
+    }
+
+    private void SetStartEventForm(StartEvent startEvent, string? formIdStr)
+    {
+        startEvent.FormId = Guid.TryParse(formIdStr, out var id) ? id : null;
+        State.MarkDirty();
+    }
+
+    private void SetUserActivityForm(UserActivity activity, string? formIdStr)
+    {
+        if (Guid.TryParse(formIdStr, out var id))
+            activity.UX = new FormExperience { FormId = id };
+        else
+            activity.UX = new RedirectExperience("https://example.com");
+        State.MarkDirty();
+    }
 
     private void UpdateValue(PropertyInfo prop, object? val)
     {

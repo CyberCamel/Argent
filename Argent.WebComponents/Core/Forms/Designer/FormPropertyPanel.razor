@@ -14,10 +14,32 @@ else if (State.SelectedComponent is FormField field)
     <div class="property-section">
         <div class="property-label">Field</div>
         <div class="mb-2">
-            <label class="small text-muted mb-1">Name</label>
-            <input type="text" class="form-control form-control-sm font-monospace"
-                   value="@field.Name"
-                   @onchange="(e) => RenameField(field, e.Value?.ToString())" />
+            @if (_boundObjectDef != null)
+            {
+                <label class="small text-muted mb-1">Domain property</label>
+                <select class="form-control form-control-sm font-monospace mb-1"
+                        @onchange="(e) => BindToDomainProperty(field, e.Value?.ToString())">
+                    <option value="">— custom —</option>
+                    @foreach (var prop in _boundObjectDef.Properties)
+                    {
+                        <option value="@prop.Key" selected="@(field.Name == prop.Key)">@prop.DisplayName (@prop.Key)</option>
+                    }
+                </select>
+                @if (!_boundObjectDef.Properties.Any(p => p.Key == field.Name))
+                {
+                    <label class="small text-muted mb-1">Custom name</label>
+                    <input type="text" class="form-control form-control-sm font-monospace"
+                           value="@field.Name"
+                           @onchange="(e) => RenameField(field, e.Value?.ToString())" />
+                }
+            }
+            else
+            {
+                <label class="small text-muted mb-1">Name</label>
+                <input type="text" class="form-control form-control-sm font-monospace"
+                       value="@field.Name"
+                       @onchange="(e) => RenameField(field, e.Value?.ToString())" />
+            }
             @if (_nameWarning != null)
             {
                 <div class="text-warning small mt-1"><i class="bi bi-exclamation-triangle"></i> @_nameWarning</div>
@@ -477,19 +499,26 @@ else if (State.SelectedComponent is FormLayout container)
 
     private string? _nameWarning;
 
-    // ── Domain-object data source binding ──────────────────────────
+    // ── Domain-object data source binding (for DropdownField) ──────
     private IReadOnlyList<DomainObjectSummary> _catalog = [];
     private string? _boundKey;
     private List<DomainProperty> _boundProperties = [];
     private bool _boundUnpublished;
 
+    // ── Bound form object (for field Name binding) ──────────────────
+    private DomainObjectDefinition? _boundObjectDef;
+    private string _lastLoadedFormObjectKey = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         _catalog = await Definitions.GetSummariesAsync();
+        await RefreshBoundObjectDefAsync();
     }
 
     protected override async Task OnParametersSetAsync()
     {
+        await RefreshBoundObjectDefAsync();
+
         // Keep the field pickers in sync when a domain-bound dropdown becomes selected.
         if (State.SelectedComponent is FormField { Xtype: "DropdownField" } f
             && f.DataProvider?.DomainObjectId is { Length: > 0 } key)
@@ -497,6 +526,47 @@ else if (State.SelectedComponent is FormLayout container)
             await EnsureDefinitionLoaded(key);
         }
     }
+
+    private async Task RefreshBoundObjectDefAsync()
+    {
+        var formObjectKey = State.Definition.ObjectKey;
+        if (formObjectKey == _lastLoadedFormObjectKey) return;
+        _lastLoadedFormObjectKey = formObjectKey;
+        _boundObjectDef = string.IsNullOrEmpty(formObjectKey) ? null
+            : await Definitions.GetPublishedDefinitionAsync(formObjectKey);
+    }
+
+    private void BindToDomainProperty(FormField field, string? propertyKey)
+    {
+        _nameWarning = null;
+        if (string.IsNullOrEmpty(propertyKey)) { State.MarkDirty(); return; }
+
+        var prop = _boundObjectDef?.Properties.FirstOrDefault(p => p.Key == propertyKey);
+        if (prop == null) return;
+
+        RenameField(field, prop.Key);
+
+        if (string.IsNullOrEmpty(field.FieldLabel))
+            field.FieldLabel = prop.DisplayName;
+
+        var inferred = InferXtype(prop.Type);
+        if (inferred != field.Xtype)
+        {
+            field.Xtype = inferred;
+            if (inferred == "TextField" && prop.Type == DomainPropertyType.MultiLineText)
+            { field.Grow = true; field.Rows = 4; }
+        }
+
+        State.MarkDirty();
+    }
+
+    private static string InferXtype(DomainPropertyType type) => type switch
+    {
+        DomainPropertyType.Number => "NumericField",
+        DomainPropertyType.Boolean => "CheckboxField",
+        DomainPropertyType.Choice => "DropdownField",
+        _ => "TextField"
+    };
 
     private static bool IsDomainBound(FormField field) => field.DataProvider != null;
 
