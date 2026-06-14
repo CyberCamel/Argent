@@ -66,7 +66,7 @@ public class PolicyDecisionServiceTests
     }
 
     [Fact]
-    public async Task Deny_overrides_Allow()
+    public async Task Deny_overrides_Allow_regardless_of_priority()
     {
         var svc = CreateService(ctx =>
         {
@@ -77,7 +77,7 @@ public class PolicyDecisionServiceTests
                 ResourceType = ResourceType.DomainRecord,
                 ActionsJson = """["read"]""",
                 SubjectJson = """{"users":["user1"]}""",
-                Priority = 0,
+                Priority = 100,
                 IsEnabled = true
             });
             ctx.PolicyDocuments.Add(new PolicyDocument
@@ -87,7 +87,7 @@ public class PolicyDecisionServiceTests
                 ResourceType = ResourceType.DomainRecord,
                 ActionsJson = """["read"]""",
                 SubjectJson = """{"users":["user1"]}""",
-                Priority = 1,
+                Priority = 0,
                 IsEnabled = true
             });
             ctx.SaveChanges();
@@ -98,28 +98,28 @@ public class PolicyDecisionServiceTests
     }
 
     [Fact]
-    public async Task Higher_priority_policy_wins()
+    public async Task Priority_ties_break_within_Allow_only()
     {
         var svc = CreateService(ctx =>
         {
             ctx.PolicyDocuments.Add(new PolicyDocument
             {
-                Name = "Deny read",
-                Effect = PolicyEffect.Deny,
-                ResourceType = ResourceType.DomainRecord,
-                ActionsJson = """["read"]""",
-                SubjectJson = """{"users":["user1"]}""",
-                Priority = 10,
-                IsEnabled = true
-            });
-            ctx.PolicyDocuments.Add(new PolicyDocument
-            {
-                Name = "Allow read",
+                Name = "Allow high",
                 Effect = PolicyEffect.Allow,
                 ResourceType = ResourceType.DomainRecord,
                 ActionsJson = """["read"]""",
                 SubjectJson = """{"users":["user1"]}""",
                 Priority = 100,
+                IsEnabled = true
+            });
+            ctx.PolicyDocuments.Add(new PolicyDocument
+            {
+                Name = "Allow low",
+                Effect = PolicyEffect.Allow,
+                ResourceType = ResourceType.DomainRecord,
+                ActionsJson = """["read"]""",
+                SubjectJson = """{"users":["user1"]}""",
+                Priority = 10,
                 IsEnabled = true
             });
             ctx.SaveChanges();

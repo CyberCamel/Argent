@@ -1,10 +1,20 @@
 @using Argent.Models.Authorization
 @using Argent.Models.Forms.Components.Configuration
 @using Argent.WebComponents.Core.Forms.Designer
+@using Argent.Contracts.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
+@inject IPolicyDecisionService PolicyService
+@inject Microsoft.AspNetCore.Components.NavigationManager NavManager
 
 <div class="card">
     <div class="card-body">
         <h5 class="fw-bold mb-3">@(Policy == null ? "New Policy" : "Edit Policy")</h5>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger">@_error</div>
+        }
 
         <div class="mb-3">
             <label class="form-label small fw-medium">Name</label>
@@ -66,14 +76,16 @@
         </div>
 
         <div class="d-flex gap-2">
-            <button class="btn btn-primary" @onclick="Save">Save Policy</button>
+            <button class="btn btn-primary" @onclick="Save" disabled="@_saving">
+                @(_saving ? "Saving..." : "Save Policy")
+            </button>
             <button class="btn btn-outline-secondary" @onclick="Cancel">Cancel</button>
         </div>
     </div>
 </div>
 
 @code {
-    [Parameter] public Argent.Models.Authorization.PolicyDocument? Policy { get; set; }
+    [Parameter] public PolicyDocument? Policy { get; set; }
     [Parameter] public EventCallback OnSaved { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
@@ -87,6 +99,8 @@
     private string SubjectRoles = "";
     private Condition? Condition;
     private bool IsEnabled = true;
+    private bool _saving;
+    private string? _error;
 
     protected override void OnInitialized()
     {
@@ -111,34 +125,73 @@
 
     private async Task Save()
     {
-        if (Policy == null)
-            Policy = new Argent.Models.Authorization.PolicyDocument();
+        _saving = true;
+        _error = null;
 
-        Policy.Name = Name;
-        Policy.Description = Description;
-        Policy.Effect = Effect;
-        Policy.ResourceType = ResourceType;
-        Policy.Priority = Priority;
-        Policy.IsEnabled = IsEnabled;
-        Policy.Condition = Condition;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
 
-        var actions = ActionsText
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToList();
-        Policy.ActionsJson = System.Text.Json.JsonSerializer.Serialize(actions);
+            var actions = ActionsText
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
 
-        var subject = new Dictionary<string, object?>();
-        var users = SubjectUsers
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToList();
-        var roles = SubjectRoles
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToList();
-        if (users.Count > 0) subject["users"] = users;
-        if (roles.Count > 0) subject["roles"] = roles;
-        Policy.SubjectJson = System.Text.Json.JsonSerializer.Serialize(subject);
+            var subject = new Dictionary<string, object?>();
+            var users = SubjectUsers
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+            var roles = SubjectRoles
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+            if (users.Count > 0) subject["users"] = users;
+            if (roles.Count > 0) subject["roles"] = roles;
 
-        await OnSaved.InvokeAsync();
+            if (Policy == null)
+            {
+                var doc = new PolicyDocument
+                {
+                    Id = Guid.NewGuid(),
+                    Name = Name,
+                    Description = Description,
+                    Effect = Effect,
+                    ResourceType = ResourceType,
+                    Priority = Priority,
+                    IsEnabled = IsEnabled,
+                    Condition = Condition,
+                    ActionsJson = System.Text.Json.JsonSerializer.Serialize(actions),
+                    SubjectJson = System.Text.Json.JsonSerializer.Serialize(subject)
+                };
+                db.PolicyDocuments.Add(doc);
+            }
+            else
+            {
+                var existing = await db.PolicyDocuments.FindAsync([Policy.Id]);
+                if (existing != null)
+                {
+                    existing.Name = Name;
+                    existing.Description = Description;
+                    existing.Effect = Effect;
+                    existing.ResourceType = ResourceType;
+                    existing.Priority = Priority;
+                    existing.IsEnabled = IsEnabled;
+                    existing.Condition = Condition;
+                    existing.ActionsJson = System.Text.Json.JsonSerializer.Serialize(actions);
+                    existing.SubjectJson = System.Text.Json.JsonSerializer.Serialize(subject);
+                }
+            }
+
+            await db.SaveChangesAsync();
+            await PolicyService.InvalidateCacheAsync();
+            NavManager.NavigateTo("/Admin/Policies");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private async Task Cancel() => await OnCancel.InvokeAsync();

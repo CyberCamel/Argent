@@ -131,7 +131,7 @@ builder.Services.AddTransient<INodeHandler, UserActivityHandler>();
 builder.Services.AddScoped<IDomainObjectDefinitionService, DomainObjectDefinitionService>();
 builder.Services.AddScoped<IDomainObjectStore, DomainObjectStore>();
 builder.Services.AddScoped<DomainObjectDesignerService, DomainObjectDesignerService>();
-builder.Services.AddScoped<IPolicyDecisionService, PolicyDecisionService>();
+builder.Services.AddSingleton<IPolicyDecisionService, PolicyDecisionService>();
 
 builder.Services.AddScoped<ISecretProtector, DataProtectionSecretProtector>();
 builder.Services.AddScoped<IDataSourceProvider, SqlDataSourceProvider>();
@@ -185,7 +185,7 @@ app.MapPost("/api/tasks/{taskId:guid}/complete", async (
         resultData = body?.Result;
     }
 
-    await taskManager.CompleteTaskAsync(taskId, completedBy, resultData, ct);
+    await taskManager.CompleteTaskAsync(taskId, completedBy, [], resultData, ct);
     return Results.Ok(new { status = "completed" });
 });
 

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
 using Argent.Models.Workflows.Execution;
@@ -79,18 +80,33 @@ public class UserTaskManager : IUserTaskManager
 
         var query = context.UserTasks.AsQueryable();
 
-        // Assigned to user OR candidate role matches (via JSON contains)
-        query = query.Where(t =>
-            t.AssignedTo == userId ||
-            (t.CandidateRoles != null && roles.Any(r => t.CandidateRoles.Contains(r))));
-
         if (stateFilter.HasValue)
             query = query.Where(t => t.State == stateFilter.Value);
 
-        return await query
+        var tasks = await query
             .OrderByDescending(t => t.Priority)
             .ThenByDescending(t => t.CreatedAt)
             .ToListAsync(ct);
+
+        return tasks
+            .Where(t => t.AssignedTo == userId || RoleMatches(t.CandidateRoles, roles))
+            .ToList();
+    }
+
+    private static bool RoleMatches(string? candidateRolesJson, List<string> roles)
+    {
+        if (string.IsNullOrWhiteSpace(candidateRolesJson))
+            return false;
+
+        try
+        {
+            var candidates = JsonSerializer.Deserialize<List<string>>(candidateRolesJson) ?? [];
+            return candidates.Count > 0 && candidates.Any(r => roles.Contains(r));
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task ClaimAsync(Guid taskId, string userId, CancellationToken ct = default)
@@ -104,8 +120,12 @@ public class UserTaskManager : IUserTaskManager
         if (task.State != UserTaskState.Pending)
             return;
 
+        if (task.AssignedTo != null)
+            return;
+
         task.AssignedTo = userId;
         task.ClaimedAt = DateTime.UtcNow;
+        task.RowVersion = Guid.NewGuid();
         await context.SaveChangesAsync(ct);
     }
 
@@ -141,7 +161,7 @@ public class UserTaskManager : IUserTaskManager
         await context.SaveChangesAsync(ct);
     }
 
-    public async Task CompleteTaskAsync(Guid taskId, string completedBy, string? resultData, CancellationToken ct)
+    public async Task CompleteTaskAsync(Guid taskId, string completedBy, List<string> roles, string? resultData, CancellationToken ct)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
@@ -152,10 +172,14 @@ public class UserTaskManager : IUserTaskManager
         if (task.State != UserTaskState.Pending)
             return;
 
+        if (!IsAuthorizedForTask(task, completedBy, roles))
+            throw new InvalidOperationException($"User {completedBy} is not authorized to complete task {taskId}");
+
         task.State = UserTaskState.Completed;
         task.CompletedAt = DateTime.UtcNow;
         task.CompletedBy = completedBy;
         task.ResultData = resultData;
+        task.RowVersion = Guid.NewGuid();
 
         var instance = await context.WorkflowInstances
             .AsNoTracking()
@@ -174,5 +198,27 @@ public class UserTaskManager : IUserTaskManager
         });
 
         await context.SaveChangesAsync(ct);
+    }
+
+    private static bool IsAuthorizedForTask(UserTask task, string userId, List<string> roles)
+    {
+        if (task.AssignedTo == userId)
+            return true;
+
+        if (!string.IsNullOrWhiteSpace(task.CandidateRoles))
+        {
+            try
+            {
+                var candidates = JsonSerializer.Deserialize<List<string>>(task.CandidateRoles) ?? [];
+                if (candidates.Count > 0 && candidates.Any(r => roles.Contains(r)))
+                    return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        return false;
     }
 }

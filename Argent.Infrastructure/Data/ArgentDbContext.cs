@@ -262,6 +262,9 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
             entity.HasIndex(e => new { e.AssignedTo, e.State })
                 .HasDatabaseName("IX_UserTasks_AssignedTo_State");
+
+            entity.Property(e => e.RowVersion)
+                .IsConcurrencyToken();
         });
 
         // Additional indexes for WorkItem (base table config is inferred by conventions)
@@ -295,6 +298,14 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
             entity.Property(e => e.Name)
                 .HasMaxLength(256);
+
+            entity.Property(e => e.Effect)
+                .HasConversion<string>()
+                .HasMaxLength(16);
+
+            entity.Property(e => e.ResourceType)
+                .HasConversion<string>()
+                .HasMaxLength(32);
 
             entity.Property(e => e.ResourceSelectorJson)
                 .HasColumnType("nvarchar(max)");

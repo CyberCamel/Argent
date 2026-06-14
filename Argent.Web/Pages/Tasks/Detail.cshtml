@@ -10,5 +10,6 @@
     <a href="/Tasks" class="btn btn-outline-secondary btn-sm mb-3">&larr; Back to Inbox</a>
     <component type="typeof(TaskDetail)" render-mode="ServerPrerendered"
                param-TaskId="@Model.Id"
-               param-UserId="@Model.CurrentUserId" />
+               param-UserId="@Model.CurrentUserId"
+               param-Roles="@Model.CurrentRoles" />
 </div>

@@ -20,17 +20,19 @@ public class StartModel(ArgentDbContext _ctx) : PageModel
             .Join(_ctx.WorkflowDefinitions,
                 v => v.WorkflowId,
                 w => w.Id,
-                (v, w) => new StartableWorkflowDto
-                {
-                    Id = w.Id,
-                    Name = w.Name,
-                    Description = w.Description,
-                    FormId = ExtractFormId(v.Definition)
-                })
-            .Where(d => d.FormId.HasValue)
+                (v, w) => new { v.Definition, w.Id, w.Name, w.Description })
             .ToListAsync();
 
-        Workflows = deployedVersions;
+        Workflows = deployedVersions
+            .Select(x => new StartableWorkflowDto
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Description = x.Description,
+                FormId = ExtractFormId(x.Definition)
+            })
+            .Where(d => d.FormId.HasValue)
+            .ToList();
     }
 
     private static Guid? ExtractFormId(WorkflowDefinition? def)

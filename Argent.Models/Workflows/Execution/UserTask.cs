@@ -25,4 +25,7 @@ public class UserTask
     public Guid? FormId { get; set; }
     /// <summary>Seeded form values (pre-populated from workflow variables).</summary>
     public string? FormData { get; set; }
+
+    /// <summary>Concurrency / optimistic-lock token.</summary>
+    public Guid RowVersion { get; set; }
 }

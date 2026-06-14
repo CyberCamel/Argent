@@ -33,6 +33,10 @@ else
     }
     else if (_task.State == Argent.Models.Workflows.Execution.UserTaskState.Pending)
     {
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger">@_error</div>
+        }
         <FormHost FormId="@_task.FormId" OnSubmit="CompleteTask" />
     }
 }
@@ -42,8 +46,11 @@ else
 
     [Parameter] public string? UserId { get; set; }
 
+    [Parameter] public List<string>? Roles { get; set; }
+
     private Argent.Models.Workflows.Execution.UserTask? _task;
     private bool _completed;
+    private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
@@ -54,8 +61,17 @@ else
     {
         if (_task == null) return;
 
-        var json = System.Text.Json.JsonSerializer.Serialize(formData);
-        await TaskManager.CompleteTaskAsync(TaskId, UserId ?? "unknown", json, default);
-        _completed = true;
+        _error = null;
+
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(formData);
+            await TaskManager.CompleteTaskAsync(TaskId, UserId ?? "unknown", Roles ?? [], json, default);
+            _completed = true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
     }
 }

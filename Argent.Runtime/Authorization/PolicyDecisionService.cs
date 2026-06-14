@@ -49,21 +49,52 @@ public class PolicyDecisionService : IPolicyDecisionService
 
         var ctx = new AuthorizationContext(subjectAttrs, resourceAttributes, environment);
 
+        PolicyDecision? decision = null;
+
         foreach (var policy in policies.OrderByDescending(p => p.Priority))
         {
             if (!MatchesSubject(policy, userId, roles))
                 continue;
 
-            if (policy.Condition != null && !_conditionEvaluator.Evaluate(policy.Condition, ctx))
-                continue;
+            if (policy.Condition != null)
+            {
+                try
+                {
+                    if (!_conditionEvaluator.Evaluate(policy.Condition, ctx))
+                        continue;
+                }
+                catch
+                {
+                    continue;
+                }
+            }
 
+            if (policy.Effect == PolicyEffect.Deny)
+            {
+                await _auditService.RecordAsync(
+                    "Authorization", "Deny",
+                    actor: userId,
+                    details: new { policyId = policy.Id, policyName = policy.Name, resourceType = resourceType.ToString(), action },
+                    ct: ct);
+
+                return PolicyDecision.Deny;
+            }
+
+            decision = PolicyDecision.Allow;
+        }
+
+        if (decision == PolicyDecision.Allow)
+        {
+            return PolicyDecision.Allow;
+        }
+
+        if (decision == null)
+        {
             await _auditService.RecordAsync(
-                "Authorization", policy.Effect == PolicyEffect.Deny ? "Deny" : "Allow",
+                "Authorization", "Deny (default)",
                 actor: userId,
-                details: new { policyId = policy.Id, policyName = policy.Name, resourceType = resourceType.ToString(), action },
+                details: new { resourceType = resourceType.ToString(), action, reason = "No matching policy" },
                 ct: ct);
-
-            return policy.Effect == PolicyEffect.Allow ? PolicyDecision.Allow : PolicyDecision.Deny;
         }
 
         return PolicyDecision.Deny;
@@ -127,7 +158,7 @@ public class PolicyDecisionService : IPolicyDecisionService
         }
         catch
         {
-            return true;
+            return false;
         }
     }
 
@@ -143,7 +174,7 @@ public class PolicyDecisionService : IPolicyDecisionService
         }
         catch
         {
-            return true;
+            return false;
         }
     }
 }

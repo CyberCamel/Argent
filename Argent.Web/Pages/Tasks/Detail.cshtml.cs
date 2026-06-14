@@ -13,9 +13,12 @@ public class DetailModel : PageModel
 
     public string? CurrentUserId { get; set; }
 
+    public List<string> CurrentRoles { get; set; } = [];
+
     public IActionResult OnGet()
     {
         CurrentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        CurrentRoles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
         return Page();
     }
 }
