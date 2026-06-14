@@ -93,20 +93,34 @@ public class UserTaskManager : IUserTaskManager
             .ToList();
     }
 
-    private static bool RoleMatches(string? candidateRolesJson, List<string> roles)
+    private static bool RoleMatches(string? candidateRoles, List<string> roles)
     {
-        if (string.IsNullOrWhiteSpace(candidateRolesJson))
-            return false;
+        var candidates = ParseCandidateRoles(candidateRoles);
+        return candidates.Count > 0 && candidates.Any(roles.Contains);
+    }
 
-        try
+    // Candidate roles may be stored as a JSON array or a comma-separated string (the workflow
+    // designer writes CSV). Accept either so matching is robust to the stored format.
+    private static List<string> ParseCandidateRoles(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return [];
+
+        if (raw.TrimStart().StartsWith('['))
         {
-            var candidates = JsonSerializer.Deserialize<List<string>>(candidateRolesJson) ?? [];
-            return candidates.Count > 0 && candidates.Any(r => roles.Contains(r));
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(raw) ?? [];
+            }
+            catch
+            {
+                // Not valid JSON after all — fall through to CSV parsing.
+            }
         }
-        catch
-        {
-            return false;
-        }
+
+        return raw
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
     }
 
     public async Task ClaimAsync(Guid taskId, string userId, CancellationToken ct = default)
@@ -205,20 +219,6 @@ public class UserTaskManager : IUserTaskManager
         if (task.AssignedTo == userId)
             return true;
 
-        if (!string.IsNullOrWhiteSpace(task.CandidateRoles))
-        {
-            try
-            {
-                var candidates = JsonSerializer.Deserialize<List<string>>(task.CandidateRoles) ?? [];
-                if (candidates.Count > 0 && candidates.Any(r => roles.Contains(r)))
-                    return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        return false;
+        return RoleMatches(task.CandidateRoles, roles);
     }
 }

@@ -80,7 +80,10 @@ public class ConditionEvaluator : IConditionEvaluator
         }
         catch
         {
-            return true;
+            // An expression that can't be evaluated is treated as not-satisfied (fail closed).
+            // This evaluator is shared with PBAC: a broken Allow-policy condition must not grant
+            // access. (For form conditions this also means a malformed rule won't silently pass.)
+            return false;
         }
     }
 
