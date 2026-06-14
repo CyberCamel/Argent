@@ -17,6 +17,7 @@ public class PolicyDecisionService : IPolicyDecisionService
     private readonly IAuditService _auditService;
     private readonly ILogger<PolicyDecisionService> _logger;
     private readonly ConcurrentDictionary<string, List<PolicyDocument>> _cache = new();
+    private readonly ConcurrentDictionary<string, List<string>> _groupCache = new();
 
     public PolicyDecisionService(
         IDbContextFactory<ArgentDbContext> contextFactory,
@@ -41,10 +42,13 @@ public class PolicyDecisionService : IPolicyDecisionService
     {
         var policies = await GetApplicablePoliciesAsync(resourceType, action, ct);
 
+        var groups = await GetUserGroupsAsync(userId, ct);
+
         var subjectAttrs = new Dictionary<string, object?>
         {
             ["userId"] = userId,
-            ["roles"] = roles
+            ["roles"] = roles,
+            ["groups"] = groups
         };
 
         var ctx = new AuthorizationContext(subjectAttrs, resourceAttributes, environment);
@@ -53,7 +57,7 @@ public class PolicyDecisionService : IPolicyDecisionService
 
         foreach (var policy in policies.OrderByDescending(p => p.Priority))
         {
-            if (!MatchesSubject(policy, userId, roles))
+            if (!MatchesSubject(policy, userId, roles, groups))
                 continue;
 
             if (policy.Condition != null)
@@ -127,10 +131,11 @@ public class PolicyDecisionService : IPolicyDecisionService
     public Task InvalidateCacheAsync(CancellationToken ct = default)
     {
         _cache.Clear();
+        _groupCache.Clear();
         return Task.CompletedTask;
     }
 
-    private static bool MatchesSubject(PolicyDocument policy, string userId, List<string> roles)
+    private static bool MatchesSubject(PolicyDocument policy, string userId, List<string> roles, List<string> groups)
     {
         if (string.IsNullOrWhiteSpace(policy.SubjectJson) || policy.SubjectJson == "{}")
             return true;
@@ -140,26 +145,67 @@ public class PolicyDecisionService : IPolicyDecisionService
             var subject = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(policy.SubjectJson);
             if (subject == null) return true;
 
+            // ANY/OR semantics: a subject with no constraints applies to everyone; otherwise the
+            // user must satisfy at least one specified dimension (users OR roles OR groups).
+            var anyConstraint = false;
+            var anyMatch = false;
+
             if (subject.TryGetValue("users", out var usersEl) && usersEl.ValueKind == JsonValueKind.Array)
             {
                 var users = JsonSerializer.Deserialize<List<string>>(usersEl.GetRawText()) ?? [];
-                if (users.Count > 0 && !users.Contains(userId))
-                    return false;
+                if (users.Count > 0)
+                {
+                    anyConstraint = true;
+                    if (users.Contains(userId)) anyMatch = true;
+                }
             }
 
             if (subject.TryGetValue("roles", out var rolesEl) && rolesEl.ValueKind == JsonValueKind.Array)
             {
                 var policyRoles = JsonSerializer.Deserialize<List<string>>(rolesEl.GetRawText()) ?? [];
-                if (policyRoles.Count > 0 && !policyRoles.Any(r => roles.Contains(r)))
-                    return false;
+                if (policyRoles.Count > 0)
+                {
+                    anyConstraint = true;
+                    if (policyRoles.Any(roles.Contains)) anyMatch = true;
+                }
             }
 
-            return true;
+            if (subject.TryGetValue("groups", out var groupsEl) && groupsEl.ValueKind == JsonValueKind.Array)
+            {
+                var policyGroups = JsonSerializer.Deserialize<List<string>>(groupsEl.GetRawText()) ?? [];
+                if (policyGroups.Count > 0)
+                {
+                    anyConstraint = true;
+                    if (policyGroups.Any(groups.Contains)) anyMatch = true;
+                }
+            }
+
+            return !anyConstraint || anyMatch;
         }
         catch
         {
             return false;
         }
+    }
+
+    // Resolves a user's group ids, cached process-wide (the service is a singleton). Invalidated
+    // alongside the policy cache when groups/memberships or policies change.
+    private async Task<List<string>> GetUserGroupsAsync(string userId, CancellationToken ct)
+    {
+        if (_groupCache.TryGetValue(userId, out var cached))
+            return cached;
+
+        if (!Guid.TryParse(userId, out var uid))
+            return [];
+
+        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        var groups = await context.GroupMemberships
+            .Where(m => m.UserId == uid)
+            .Select(m => m.GroupId.ToString())
+            .ToListAsync(ct);
+
+        _groupCache[userId] = groups;
+        return groups;
     }
 
     private static bool ActionsMatch(string actionsJson, string action)

@@ -55,14 +55,68 @@
             <small class="text-muted">Comma-separated. Use * for all actions.</small>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label small fw-medium">Subject (users)</label>
-            <input type="text" class="form-control" @bind="SubjectUsers" placeholder="user IDs, comma-separated" />
-        </div>
+        <p class="small text-muted mb-1">
+            Subject — a policy applies to a user who matches <strong>any</strong> selected user,
+            role, or group. Leave all three empty to apply to everyone.
+        </p>
 
-        <div class="mb-3">
-            <label class="form-label small fw-medium">Subject (roles)</label>
-            <input type="text" class="form-control" @bind="SubjectRoles" placeholder="role names, comma-separated" />
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label small fw-medium">Users</label>
+                <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                    @if (_allUsers.Count == 0)
+                    {
+                        <div class="small text-muted">No users.</div>
+                    }
+                    @foreach (var u in _allUsers)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="u_@u.Id"
+                                   checked="@_selectedUsers.Contains(u.Id)"
+                                   @onchange="e => Toggle(_selectedUsers, u.Id, e)" />
+                            <label class="form-check-label small" for="u_@u.Id">@u.Label</label>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label class="form-label small fw-medium">Roles</label>
+                <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                    @if (_allRoles.Count == 0)
+                    {
+                        <div class="small text-muted">No roles.</div>
+                    }
+                    @foreach (var r in _allRoles)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="r_@r"
+                                   checked="@_selectedRoles.Contains(r)"
+                                   @onchange="e => Toggle(_selectedRoles, r, e)" />
+                            <label class="form-check-label small" for="r_@r">@r</label>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label class="form-label small fw-medium">Groups</label>
+                <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                    @if (_allGroups.Count == 0)
+                    {
+                        <div class="small text-muted">No groups. <a href="/Admin/Groups">Create one</a>.</div>
+                    }
+                    @foreach (var g in _allGroups)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="g_@g.Id"
+                                   checked="@_selectedGroups.Contains(g.Id)"
+                                   @onchange="e => Toggle(_selectedGroups, g.Id, e)" />
+                            <label class="form-check-label small" for="g_@g.Id">@g.Name</label>
+                        </div>
+                    }
+                </div>
+            </div>
         </div>
 
         <div class="mb-3">
@@ -95,15 +149,40 @@
     private ResourceType ResourceType = ResourceType.DomainRecord;
     private int Priority;
     private string ActionsText = "";
-    private string SubjectUsers = "";
-    private string SubjectRoles = "";
     private Condition? Condition;
     private bool IsEnabled = true;
     private bool _saving;
     private string? _error;
 
-    protected override void OnInitialized()
+    private record UserOption(string Id, string Label);
+    private record GroupOption(string Id, string Name);
+
+    private List<UserOption> _allUsers = [];
+    private List<string> _allRoles = [];
+    private List<GroupOption> _allGroups = [];
+
+    private readonly HashSet<string> _selectedUsers = [];
+    private readonly HashSet<string> _selectedRoles = [];
+    private readonly HashSet<string> _selectedGroups = [];
+
+    protected override async Task OnInitializedAsync()
     {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        _allUsers = await db.Users
+            .OrderBy(u => u.UserName)
+            .Select(u => new UserOption(u.Id.ToString(), u.UserName ?? u.Email ?? u.Id.ToString()))
+            .ToListAsync();
+        _allRoles = await db.Roles
+            .Where(r => r.Name != null)
+            .Select(r => r.Name!)
+            .OrderBy(n => n)
+            .ToListAsync();
+        _allGroups = await db.Groups
+            .OrderBy(g => g.Name)
+            .Select(g => new GroupOption(g.Id.ToString(), g.Name))
+            .ToListAsync();
+
         if (Policy != null)
         {
             Name = Policy.Name;
@@ -114,13 +193,19 @@
             IsEnabled = Policy.IsEnabled;
             Condition = Policy.Condition;
 
-            var actions = ParseJsonList(Policy.ActionsJson);
-            ActionsText = string.Join(", ", actions);
+            ActionsText = string.Join(", ", ParseJsonList(Policy.ActionsJson));
 
             var subject = ParseSubjectJson(Policy.SubjectJson);
-            SubjectUsers = string.Join(", ", subject.users);
-            SubjectRoles = string.Join(", ", subject.roles);
+            foreach (var u in subject.users) _selectedUsers.Add(u);
+            foreach (var r in subject.roles) _selectedRoles.Add(r);
+            foreach (var g in subject.groups) _selectedGroups.Add(g);
         }
+    }
+
+    private void Toggle(HashSet<string> set, string value, ChangeEventArgs e)
+    {
+        if (e.Value is true) set.Add(value);
+        else set.Remove(value);
     }
 
     private async Task Save()
@@ -137,18 +222,16 @@
                 .ToList();
 
             var subject = new Dictionary<string, object?>();
-            var users = SubjectUsers
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .ToList();
-            var roles = SubjectRoles
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .ToList();
-            if (users.Count > 0) subject["users"] = users;
-            if (roles.Count > 0) subject["roles"] = roles;
+            if (_selectedUsers.Count > 0) subject["users"] = _selectedUsers.ToList();
+            if (_selectedRoles.Count > 0) subject["roles"] = _selectedRoles.ToList();
+            if (_selectedGroups.Count > 0) subject["groups"] = _selectedGroups.ToList();
+
+            var actionsJson = System.Text.Json.JsonSerializer.Serialize(actions);
+            var subjectJson = System.Text.Json.JsonSerializer.Serialize(subject);
 
             if (Policy == null)
             {
-                var doc = new PolicyDocument
+                db.PolicyDocuments.Add(new PolicyDocument
                 {
                     Id = Guid.NewGuid(),
                     Name = Name,
@@ -158,10 +241,9 @@
                     Priority = Priority,
                     IsEnabled = IsEnabled,
                     Condition = Condition,
-                    ActionsJson = System.Text.Json.JsonSerializer.Serialize(actions),
-                    SubjectJson = System.Text.Json.JsonSerializer.Serialize(subject)
-                };
-                db.PolicyDocuments.Add(doc);
+                    ActionsJson = actionsJson,
+                    SubjectJson = subjectJson
+                });
             }
             else
             {
@@ -175,8 +257,8 @@
                     existing.Priority = Priority;
                     existing.IsEnabled = IsEnabled;
                     existing.Condition = Condition;
-                    existing.ActionsJson = System.Text.Json.JsonSerializer.Serialize(actions);
-                    existing.SubjectJson = System.Text.Json.JsonSerializer.Serialize(subject);
+                    existing.ActionsJson = actionsJson;
+                    existing.SubjectJson = subjectJson;
                 }
             }
 
@@ -200,29 +282,25 @@
     {
         try
         {
-            var list = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
-            return list ?? [];
+            return System.Text.Json.JsonSerializer.Deserialize<List<string>>(json) ?? [];
         }
         catch { return []; }
     }
 
-    private static (List<string> users, List<string> roles) ParseSubjectJson(string json)
+    private static (List<string> users, List<string> roles, List<string> groups) ParseSubjectJson(string json)
     {
         try
         {
             var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, System.Text.Json.JsonElement>>(json);
-            if (dict == null) return ([], []);
+            if (dict == null) return ([], [], []);
 
-            var users = dict.TryGetValue("users", out var u) && u.ValueKind == System.Text.Json.JsonValueKind.Array
-                ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(u.GetRawText()) ?? []
-                : [];
+            List<string> Read(string key) =>
+                dict.TryGetValue(key, out var el) && el.ValueKind == System.Text.Json.JsonValueKind.Array
+                    ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(el.GetRawText()) ?? []
+                    : [];
 
-            var roles = dict.TryGetValue("roles", out var r) && r.ValueKind == System.Text.Json.JsonValueKind.Array
-                ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(r.GetRawText()) ?? []
-                : [];
-
-            return (users, roles);
+            return (Read("users"), Read("roles"), Read("groups"));
         }
-        catch { return ([], []); }
+        catch { return ([], [], []); }
     }
 }

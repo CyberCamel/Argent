@@ -1,0 +1,158 @@
+@using Argent.Contracts.Authorization
+@using Argent.Models.Identity
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
+@inject IPolicyDecisionService PolicyService
+@inject Microsoft.AspNetCore.Components.NavigationManager NavManager
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="fw-bold mb-3">@(GroupId == null ? "New Group" : "Edit Group")</h5>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger">@_error</div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label small fw-medium">Name</label>
+            <input type="text" class="form-control" @bind="Name" placeholder="e.g. Finance" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small fw-medium">Description</label>
+            <textarea class="form-control" @bind="Description" rows="2"></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small fw-medium">Members</label>
+            <div class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
+                @if (_allUsers.Count == 0)
+                {
+                    <div class="small text-muted">No users.</div>
+                }
+                @foreach (var u in _allUsers)
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="m_@u.Id"
+                               checked="@_selectedUsers.Contains(u.Id)"
+                               @onchange="e => Toggle(u.Id, e)" />
+                        <label class="form-check-label small" for="m_@u.Id">@u.Label</label>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" @onclick="Save" disabled="@_saving">
+                @(_saving ? "Saving..." : "Save Group")
+            </button>
+            <a class="btn btn-outline-secondary" href="/Admin/Groups">Cancel</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Guid? GroupId { get; set; }
+
+    private string Name = "";
+    private string? Description;
+    private bool _saving;
+    private string? _error;
+
+    private record UserOption(string Id, string Label);
+
+    private List<UserOption> _allUsers = [];
+    private readonly HashSet<string> _selectedUsers = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        _allUsers = await db.Users
+            .OrderBy(u => u.UserName)
+            .Select(u => new UserOption(u.Id.ToString(), u.UserName ?? u.Email ?? u.Id.ToString()))
+            .ToListAsync();
+
+        if (GroupId != null)
+        {
+            var group = await db.Groups.FindAsync([GroupId.Value]);
+            if (group != null)
+            {
+                Name = group.Name;
+                Description = group.Description;
+            }
+
+            var members = await db.GroupMemberships
+                .Where(m => m.GroupId == GroupId.Value)
+                .Select(m => m.UserId.ToString())
+                .ToListAsync();
+            foreach (var m in members) _selectedUsers.Add(m);
+        }
+    }
+
+    private void Toggle(string userId, ChangeEventArgs e)
+    {
+        if (e.Value is true) _selectedUsers.Add(userId);
+        else _selectedUsers.Remove(userId);
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        _error = null;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(Name))
+            {
+                _error = "Name is required.";
+                return;
+            }
+
+            await using var db = await DbFactory.CreateDbContextAsync();
+
+            Group group;
+            if (GroupId == null)
+            {
+                group = new Group { Id = Guid.NewGuid(), Name = Name, Description = Description };
+                db.Groups.Add(group);
+            }
+            else
+            {
+                var existing = await db.Groups.FindAsync([GroupId.Value]);
+                if (existing == null)
+                {
+                    _error = "Group no longer exists.";
+                    return;
+                }
+                existing.Name = Name;
+                existing.Description = Description;
+                group = existing;
+
+                var current = await db.GroupMemberships
+                    .Where(m => m.GroupId == group.Id)
+                    .ToListAsync();
+                db.GroupMemberships.RemoveRange(current);
+            }
+
+            foreach (var uid in _selectedUsers)
+            {
+                if (Guid.TryParse(uid, out var userGuid))
+                    db.GroupMemberships.Add(new GroupMembership { GroupId = group.Id, UserId = userGuid });
+            }
+
+            await db.SaveChangesAsync();
+            await PolicyService.InvalidateCacheAsync();
+            NavManager.NavigateTo("/Admin/Groups");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

@@ -50,6 +50,10 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
     public DbSet<PolicyDocument> PolicyDocuments { get; set; }
 
+    public DbSet<Group> Groups { get; set; }
+
+    public DbSet<GroupMembership> GroupMemberships { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         // 1. Setup Identity tables (MUST BE FIRST)
@@ -324,6 +328,28 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
             entity.HasIndex(e => new { e.ResourceType, e.IsEnabled })
                 .HasDatabaseName("IX_PolicyDocuments_ResourceType_IsEnabled");
+        });
+
+        builder.Entity<Group>(entity =>
+        {
+            entity.ToTable("Groups");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(256);
+
+            entity.HasIndex(e => e.Name)
+                .IsUnique()
+                .HasDatabaseName("IX_Groups_Name");
+        });
+
+        builder.Entity<GroupMembership>(entity =>
+        {
+            entity.ToTable("GroupMemberships");
+            entity.HasKey(e => new { e.GroupId, e.UserId });
+
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("IX_GroupMemberships_UserId");
         });
     }
 }

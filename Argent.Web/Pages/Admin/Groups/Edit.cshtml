@@ -1,0 +1,11 @@
+@page "/Admin/Groups/Edit/{id:guid}"
+@using Argent.WebComponents.Authorization
+@model Argent.Web.Pages.Admin.Groups.EditModel
+@{
+    ViewData["Title"] = "Edit Group";
+}
+
+<div class="container py-4" style="max-width: 720px;">
+    <a href="/Admin/Groups" class="btn btn-outline-secondary btn-sm mb-3">&larr; Back to Groups</a>
+    <component type="typeof(GroupEditor)" render-mode="ServerPrerendered" param-GroupId="@Model.Id" />
+</div>

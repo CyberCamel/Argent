@@ -253,4 +253,76 @@ public class PolicyDecisionServiceTests
         var result = await svc.EvaluateAsync("user1", [], ResourceType.DomainRecord, [], "read");
         Assert.Equal(PolicyDecision.Deny, result);
     }
+
+    [Fact]
+    public async Task Group_based_policy_matches()
+    {
+        var userId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+
+        var svc = CreateService(ctx =>
+        {
+            ctx.GroupMemberships.Add(new Argent.Models.Identity.GroupMembership { GroupId = groupId, UserId = userId });
+            ctx.PolicyDocuments.Add(new PolicyDocument
+            {
+                Name = "Group access",
+                Effect = PolicyEffect.Allow,
+                ResourceType = ResourceType.DomainRecord,
+                ActionsJson = """["read"]""",
+                SubjectJson = $$"""{"groups":["{{groupId}}"]}""",
+                IsEnabled = true
+            });
+            ctx.SaveChanges();
+        });
+
+        var result = await svc.EvaluateAsync(userId.ToString(), [], ResourceType.DomainRecord, [], "read");
+        Assert.Equal(PolicyDecision.Allow, result);
+    }
+
+    [Fact]
+    public async Task Group_mismatch_returns_Deny()
+    {
+        var groupId = Guid.NewGuid();
+
+        var svc = CreateService(ctx =>
+        {
+            ctx.PolicyDocuments.Add(new PolicyDocument
+            {
+                Name = "Group access",
+                Effect = PolicyEffect.Allow,
+                ResourceType = ResourceType.DomainRecord,
+                ActionsJson = """["read"]""",
+                SubjectJson = $$"""{"groups":["{{groupId}}"]}""",
+                IsEnabled = true
+            });
+            ctx.SaveChanges();
+        });
+
+        // A user with no membership in the policy's group.
+        var result = await svc.EvaluateAsync(Guid.NewGuid().ToString(), [], ResourceType.DomainRecord, [], "read");
+        Assert.Equal(PolicyDecision.Deny, result);
+    }
+
+    [Fact]
+    public async Task Subject_matches_any_dimension_OR_semantics()
+    {
+        // Policy lists a different user but also role "Admin". Under ANY/OR, a user who has the
+        // role matches even though they are not the listed user.
+        var svc = CreateService(ctx =>
+        {
+            ctx.PolicyDocuments.Add(new PolicyDocument
+            {
+                Name = "User or role",
+                Effect = PolicyEffect.Allow,
+                ResourceType = ResourceType.DomainRecord,
+                ActionsJson = """["read"]""",
+                SubjectJson = """{"users":["someone-else"],"roles":["Admin"]}""",
+                IsEnabled = true
+            });
+            ctx.SaveChanges();
+        });
+
+        var result = await svc.EvaluateAsync("user1", ["Admin"], ResourceType.DomainRecord, [], "read");
+        Assert.Equal(PolicyDecision.Allow, result);
+    }
 }
