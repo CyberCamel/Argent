@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using Argent.Contracts.Authorization;
 using Argent.Contracts.DataSources;
 using Argent.Contracts.DomainObjects;
 using Argent.Contracts.Forms;
@@ -8,6 +9,7 @@ using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
 using Argent.Models.Forms.Components;
 using Argent.Models.Identity;
+using Argent.Runtime.Authorization;
 using Argent.Runtime.DataSources;
 using Argent.Runtime.DomainObjects;
 using Argent.Runtime.Forms;
@@ -129,6 +131,7 @@ builder.Services.AddTransient<INodeHandler, UserActivityHandler>();
 builder.Services.AddScoped<IDomainObjectDefinitionService, DomainObjectDefinitionService>();
 builder.Services.AddScoped<IDomainObjectStore, DomainObjectStore>();
 builder.Services.AddScoped<DomainObjectDesignerService, DomainObjectDesignerService>();
+builder.Services.AddScoped<IPolicyDecisionService, PolicyDecisionService>();
 
 builder.Services.AddScoped<ISecretProtector, DataProtectionSecretProtector>();
 builder.Services.AddScoped<IDataSourceProvider, SqlDataSourceProvider>();

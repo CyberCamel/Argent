@@ -1,0 +1,81 @@
+@page "/Admin/Policies"
+@model Argent.Web.Pages.Admin.Policies.IndexModel
+@{
+    ViewData["Title"] = "Policies";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Access Policies</h4>
+        <p class="text-muted small mb-0">Manage runtime authorization policies</p>
+    </div>
+    <a class="btn btn-primary" href="/Admin/Policies/Create">
+        <i class="bi bi-plus-lg"></i> New Policy
+    </a>
+</div>
+
+@if (Model.Policies.Count == 0)
+{
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-shield fs-1 text-muted mb-3 d-block"></i>
+            <p class="text-muted mb-0">No policies defined. Create one to start controlling access.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Effect</th>
+                        <th>Resource</th>
+                        <th>Actions</th>
+                        <th>Priority</th>
+                        <th>Enabled</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.Policies)
+                    {
+                        <tr>
+                            <td class="fw-medium">@p.Name</td>
+                            <td>
+                                @if (p.Effect == Argent.Models.Authorization.PolicyEffect.Allow)
+                                {
+                                    <span class="badge bg-success">Allow</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">Deny</span>
+                                }
+                            </td>
+                            <td class="small">@p.ResourceType</td>
+                            <td class="small">@p.ActionsJson</td>
+                            <td>@p.Priority</td>
+                            <td>
+                                @if (p.IsEnabled)
+                                {
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-x-circle-fill text-muted"></i>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <a class="btn btn-outline-primary btn-sm" href="/Admin/Policies/Edit/@p.Id">
+                                    <i class="bi bi-pencil-fill"></i> Edit
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

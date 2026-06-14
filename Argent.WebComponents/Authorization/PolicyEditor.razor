@@ -1,0 +1,175 @@
+@using Argent.Models.Authorization
+@using Argent.Models.Forms.Components.Configuration
+@using Argent.WebComponents.Core.Forms.Designer
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="fw-bold mb-3">@(Policy == null ? "New Policy" : "Edit Policy")</h5>
+
+        <div class="mb-3">
+            <label class="form-label small fw-medium">Name</label>
+            <input type="text" class="form-control" @bind="Name" placeholder="e.g. Allow self-service edit" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small fw-medium">Description</label>
+            <textarea class="form-control" @bind="Description" rows="2"></textarea>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col">
+                <label class="form-label small fw-medium">Effect</label>
+                <select class="form-select" @bind="Effect">
+                    <option value="@PolicyEffect.Allow">Allow</option>
+                    <option value="@PolicyEffect.Deny">Deny</option>
+                </select>
+            </div>
+            <div class="col">
+                <label class="form-label small fw-medium">Resource Type</label>
+                <select class="form-select" @bind="ResourceType">
+                    @foreach (var rt in Enum.GetValues<ResourceType>())
+                    {
+                        <option value="@rt">@rt</option>
+                    }
+                </select>
+            </div>
+            <div class="col">
+                <label class="form-label small fw-medium">Priority</label>
+                <input type="number" class="form-control" @bind="Priority" />
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small fw-medium">Actions</label>
+            <input type="text" class="form-control" @bind="ActionsText" placeholder="e.g. read, write, *" />
+            <small class="text-muted">Comma-separated. Use * for all actions.</small>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small fw-medium">Subject (users)</label>
+            <input type="text" class="form-control" @bind="SubjectUsers" placeholder="user IDs, comma-separated" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small fw-medium">Subject (roles)</label>
+            <input type="text" class="form-control" @bind="SubjectRoles" placeholder="role names, comma-separated" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small fw-medium">Condition</label>
+            <ConditionBuilder Condition="@Condition" ConditionChanged="@((c) => Condition = c)" />
+
+            <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" @bind="IsEnabled" id="enabledCheck" />
+                <label class="form-check-label small" for="enabledCheck">Enabled</label>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" @onclick="Save">Save Policy</button>
+            <button class="btn btn-outline-secondary" @onclick="Cancel">Cancel</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Argent.Models.Authorization.PolicyDocument? Policy { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private string Name = "";
+    private string? Description;
+    private PolicyEffect Effect = PolicyEffect.Allow;
+    private ResourceType ResourceType = ResourceType.DomainRecord;
+    private int Priority;
+    private string ActionsText = "";
+    private string SubjectUsers = "";
+    private string SubjectRoles = "";
+    private Condition? Condition;
+    private bool IsEnabled = true;
+
+    protected override void OnInitialized()
+    {
+        if (Policy != null)
+        {
+            Name = Policy.Name;
+            Description = Policy.Description;
+            Effect = Policy.Effect;
+            ResourceType = Policy.ResourceType;
+            Priority = Policy.Priority;
+            IsEnabled = Policy.IsEnabled;
+            Condition = Policy.Condition;
+
+            var actions = ParseJsonList(Policy.ActionsJson);
+            ActionsText = string.Join(", ", actions);
+
+            var subject = ParseSubjectJson(Policy.SubjectJson);
+            SubjectUsers = string.Join(", ", subject.users);
+            SubjectRoles = string.Join(", ", subject.roles);
+        }
+    }
+
+    private async Task Save()
+    {
+        if (Policy == null)
+            Policy = new Argent.Models.Authorization.PolicyDocument();
+
+        Policy.Name = Name;
+        Policy.Description = Description;
+        Policy.Effect = Effect;
+        Policy.ResourceType = ResourceType;
+        Policy.Priority = Priority;
+        Policy.IsEnabled = IsEnabled;
+        Policy.Condition = Condition;
+
+        var actions = ActionsText
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        Policy.ActionsJson = System.Text.Json.JsonSerializer.Serialize(actions);
+
+        var subject = new Dictionary<string, object?>();
+        var users = SubjectUsers
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        var roles = SubjectRoles
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        if (users.Count > 0) subject["users"] = users;
+        if (roles.Count > 0) subject["roles"] = roles;
+        Policy.SubjectJson = System.Text.Json.JsonSerializer.Serialize(subject);
+
+        await OnSaved.InvokeAsync();
+    }
+
+    private async Task Cancel() => await OnCancel.InvokeAsync();
+
+    private static List<string> ParseJsonList(string json)
+    {
+        try
+        {
+            var list = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
+            return list ?? [];
+        }
+        catch { return []; }
+    }
+
+    private static (List<string> users, List<string> roles) ParseSubjectJson(string json)
+    {
+        try
+        {
+            var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, System.Text.Json.JsonElement>>(json);
+            if (dict == null) return ([], []);
+
+            var users = dict.TryGetValue("users", out var u) && u.ValueKind == System.Text.Json.JsonValueKind.Array
+                ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(u.GetRawText()) ?? []
+                : [];
+
+            var roles = dict.TryGetValue("roles", out var r) && r.ValueKind == System.Text.Json.JsonValueKind.Array
+                ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(r.GetRawText()) ?? []
+                : [];
+
+            return (users, roles);
+        }
+        catch { return ([], []); }
+    }
+}
