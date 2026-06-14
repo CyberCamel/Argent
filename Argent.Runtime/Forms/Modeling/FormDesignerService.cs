@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Argent.Infrastructure.Data;
+using Argent.Infrastructure.Serialization;
 using Argent.Models.Forms.Components;
 using Argent.Models.Forms.Components.Base;
 using Microsoft.AspNetCore.Http;
@@ -149,7 +150,7 @@ public class FormDesignerService(
 
     private static FormComponent? CloneComponent(FormComponent component)
     {
-        var json = JsonSerializer.Serialize(component);
+        var json = JsonSerializer.Serialize(component, FormSerializer.Options);
         return JsonSerializer.Deserialize<FormComponent>(json);
     }
 
@@ -405,7 +406,7 @@ public class FormDesignerService(
 
     private static FormDefinition CloneDefinition(FormDefinition definition)
     {
-        var json = JsonSerializer.Serialize(definition);
+        var json = JsonSerializer.Serialize(definition, FormSerializer.Options);
         return JsonSerializer.Deserialize<FormDefinition>(json) ?? definition;
     }
 

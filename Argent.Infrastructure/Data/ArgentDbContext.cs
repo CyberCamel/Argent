@@ -9,6 +9,7 @@ using Argent.Models.Workflows;
 using Argent.Models.Workflows.Auditing;
 using Argent.Models.DomainObjects;
 using Argent.Models.DataSources;
+using Argent.Infrastructure.Serialization;
 
 namespace Argent.Infrastructure.Data;
 
@@ -115,7 +116,7 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
         {
             entity.Property(e => e.Definition)
                 .HasConversion(
-                    v => JsonSerializer.Serialize(v),
+                    v => JsonSerializer.Serialize(v, FormSerializer.Options),
                     v => JsonSerializer.Deserialize<FormDefinition>(v) ?? new FormDefinition())
                 .HasColumnType("nvarchar(max)");
         });
