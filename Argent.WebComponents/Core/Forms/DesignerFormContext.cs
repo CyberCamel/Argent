@@ -9,6 +9,7 @@ public class DesignerFormContext(IConditionEvaluator conditionEvaluator) : IForm
     public event Action? OnStateChanged;
     public Dictionary<string, object?> Environment { get; } = new();
     public List<string> UserRoles { get; set; } = [];
+    public string? UserId { get; set; }
 
     public T? GetValue<T>(string key) => default;
     public object? GetValue(string key) => null;

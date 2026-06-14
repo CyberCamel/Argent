@@ -95,7 +95,8 @@ builder.Services.AddSingleton<IConditionEvaluator, ConditionEvaluator>();
 builder.Services.AddSingleton<IFormValidator, FormValidationService>();
 builder.Services.AddScoped<IFormContext>(sp => new ArgentFormContext(
     sp.GetRequiredService<IFormValidator>(),
-    sp.GetRequiredService<IConditionEvaluator>()));
+    sp.GetRequiredService<IConditionEvaluator>(),
+    sp.GetRequiredService<IPolicyDecisionService>()));
 builder.Services.AddScoped<DesignerService, DesignerService>();
 builder.Services.AddScoped<FormDesignerService, FormDesignerService>();
 builder.Services.AddSingleton<IWorkflowNodeRegistry, ArgentWorkflowNodeRegistry>();

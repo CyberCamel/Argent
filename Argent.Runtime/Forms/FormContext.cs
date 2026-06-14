@@ -1,11 +1,14 @@
+using Argent.Contracts.Authorization;
 using Argent.Contracts.Forms;
+using Argent.Models.Authorization;
 using Argent.Models.Forms.Components.Base;
 
 namespace Argent.Runtime.Forms;
 
 public class ArgentFormContext(
     IFormValidator _validator,
-    IConditionEvaluator _conditionEvaluator) : IFormContext
+    IConditionEvaluator _conditionEvaluator,
+    IPolicyDecisionService _policyService) : IFormContext
 {
     private readonly Dictionary<string, object?> _data = new();
     private readonly HashSet<string> _touched = [];
@@ -13,6 +16,7 @@ public class ArgentFormContext(
 
     public Dictionary<string, object?> Environment { get; } = new();
     public List<string> UserRoles { get; set; } = [];
+    public string? UserId { get; set; }
 
     public event Action? OnStateChanged;
 
@@ -52,7 +56,13 @@ public class ArgentFormContext(
     public bool IsVisible(FormComponent component)
     {
         if (component is FormField field)
-            return _conditionEvaluator.EvaluateFieldVisible(field, this);
+        {
+            if (!_conditionEvaluator.EvaluateFieldVisible(field, this))
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(field.RequiredPermission))
+                return CheckPermission(field.RequiredPermission).GetAwaiter().GetResult();
+        }
         return true;
     }
 
@@ -84,5 +94,24 @@ public class ArgentFormContext(
         var combined = new Dictionary<string, object?>(Environment);
         foreach (var kvp in _data) combined[kvp.Key] = kvp.Value;
         return combined;
+    }
+
+    private async Task<bool> CheckPermission(string permission)
+    {
+        var parts = permission.Split(':', 2);
+        var resourceTypeStr = parts.Length > 0 ? parts[0] : "";
+        var action = parts.Length > 1 ? parts[1] : "read";
+
+        if (!Enum.TryParse<ResourceType>(resourceTypeStr, ignoreCase: true, out var resourceType))
+            return false;
+
+        var userId = UserId ?? "unknown";
+        var resourceAttrs = new Dictionary<string, object?>
+        {
+            ["action"] = action
+        };
+
+        var result = await _policyService.EvaluateAsync(userId, UserRoles, resourceType, resourceAttrs, action);
+        return result == PolicyDecision.Allow;
     }
 }

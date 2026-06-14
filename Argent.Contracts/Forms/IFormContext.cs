@@ -25,6 +25,7 @@ public interface IFormContext : IAttributeBag
     // Identity/Process Context (For the HTML Templates)
     Dictionary<string, object?> Environment { get; }
     new List<string> UserRoles { get; }
+    string? UserId { get; set; }
 
     // Reactivity
     event Action OnStateChanged;
