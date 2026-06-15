@@ -94,6 +94,7 @@
             </div>
         </div>
         <div class="modeler2-body">
+            <div class="modeler2-canvas-col">
             <div @ref="_canvasContainer" class="modeler2-canvas @(_activeTool == ActiveTool.AddSpace ? "modeler2-cursor-space" : "")"
                  tabindex="0"
                  @onpointerdown="OnPointerDown"
@@ -376,15 +377,15 @@
                     }
                 </svg>
 
-                @if (_editingNode != null)
-                {
-                    <div @onpointerdown:stopPropagation>
-                        <ModelerPropertiesPanel Node="_editingNode"
-                                                 State="@State"
-                                                 Registry="@Registry"
-                                                 OnClose="@ClosePropertiesPanel" />
-                    </div>
-                }
+            </div>
+
+            @if (_editingNode != null)
+            {
+                <ModelerPropertiesPanel Node="_editingNode"
+                                        State="@State"
+                                        Registry="@Registry"
+                                        OnClose="@ClosePropertiesPanel" />
+            }
             </div>
 
             <ModelerSidebar State="@State" OnHoverNode="OnSidebarHoverNode" OnVersionLoaded="OnVersionLoaded" />

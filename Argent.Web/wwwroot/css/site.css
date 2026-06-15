@@ -1250,6 +1250,15 @@ svg > rect[fill="url(#gridPattern)"] {
     font-size: 0.78rem;
 }
 
+.modeler2-canvas-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .modeler2-canvas {
     flex: 1;
     min-height: 0;
@@ -1807,13 +1816,9 @@ svg > rect[fill="url(#gridPattern)"] {
     border-top: 1px solid #313244;
     display: flex;
     flex-direction: column;
-    height: 260px;
+    max-height: 45%;
+    flex-shrink: 0;
     overflow: hidden;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 10;
 }
 
 .modeler2-properties-header {
@@ -2102,4 +2107,43 @@ svg > rect[fill="url(#gridPattern)"] {
     background: transparent;
     color: #45475a;
     border: 1px solid #313244;
+}
+
+/* ── Script action editor ────────────────────────────────────────── */
+.modeler2-script-action {
+    background: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+}
+
+.modeler2-script-action-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.modeler2-script-action-type {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a855f7;
+}
+
+.modeler2-script-action-remove {
+    color: #f38ba8;
+}
+
+.modeler2-script-action-add {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.modeler2-script-action-add .modeler2-properties-input {
+    flex: 1;
 }

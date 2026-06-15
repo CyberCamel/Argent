@@ -162,6 +162,68 @@
                     </div>
                 </div>
             }
+
+            @* ── ScriptActivity: Actions editor ──────────────────── *@
+            @if (Node.NodeData is ScriptActivity scriptActivity)
+            {
+                <div class="modeler2-properties-section modeler2-properties-section-dyn">
+                    <div class="modeler2-properties-label mb-1">Actions</div>
+
+                    @for (var i = 0; i < scriptActivity.Actions.Count; i++)
+                    {
+                        var idx = i;
+                        var action = scriptActivity.Actions[idx];
+                        <div class="modeler2-script-action">
+                            <div class="modeler2-script-action-header">
+                                <span class="modeler2-script-action-type">@GetActionTypeName(action)</span>
+                                <button class="modeler2-btn-icon modeler2-script-action-remove"
+                                        @onclick="() => RemoveAction(scriptActivity, idx)" title="Remove">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+
+                            @if (action is SetFormFieldAction sff)
+                            {
+                                <div class="modeler2-properties-field">
+                                    <label class="modeler2-properties-label">Field Key</label>
+                                    <input class="modeler2-properties-input" value="@sff.FieldKey"
+                                           @oninput="@(e => { sff.FieldKey = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
+                                </div>
+                                <div class="modeler2-properties-field">
+                                    <label class="modeler2-properties-label">Value</label>
+                                    <input class="modeler2-properties-input" value="@sff.Value"
+                                           @oninput="@(e => { sff.Value = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
+                                </div>
+                            }
+                            else if (action is SetVariableAction sv)
+                            {
+                                <div class="modeler2-properties-field">
+                                    <label class="modeler2-properties-label">Variable Name</label>
+                                    <input class="modeler2-properties-input" value="@sv.VariableName"
+                                           @oninput="@(e => { sv.VariableName = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
+                                </div>
+                                <div class="modeler2-properties-field">
+                                    <label class="modeler2-properties-label">Value</label>
+                                    <input class="modeler2-properties-input" value="@sv.Value"
+                                           @oninput="@(e => { sv.Value = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="modeler2-script-action-add">
+                        <select class="modeler2-properties-input" @bind="_newActionType">
+                            <option value="">— add action —</option>
+                            <option value="set-form-field">Set Form Field</option>
+                            <option value="set-variable">Set Instance Variable</option>
+                        </select>
+                        <button class="modeler2-btn-icon" title="Add"
+                                @onclick="() => AddAction(scriptActivity)">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 }
@@ -175,6 +237,7 @@
     private IReadOnlyList<DomainObjectSummary> _domainSummaries = [];
     private List<FormOption> _availableForms = [];
     private string _loadedFormsKey = string.Empty;
+    private string _newActionType = string.Empty;
 
     private record FormOption(Guid Id, string Name);
 
@@ -254,4 +317,32 @@
     }
 
     private void HandleClose() => OnClose.InvokeAsync();
+
+    private static string GetActionTypeName(ScriptAction action) => action switch
+    {
+        SetFormFieldAction => "Set Form Field",
+        SetVariableAction => "Set Instance Variable",
+        _ => "Unknown"
+    };
+
+    private void AddAction(ScriptActivity activity)
+    {
+        if (string.IsNullOrEmpty(_newActionType)) return;
+        ScriptAction? newAction = _newActionType switch
+        {
+            "set-form-field" => new SetFormFieldAction(),
+            "set-variable" => new SetVariableAction(),
+            _ => null
+        };
+        if (newAction == null) return;
+        activity.Actions.Add(newAction);
+        _newActionType = string.Empty;
+        State.MarkDirty();
+    }
+
+    private void RemoveAction(ScriptActivity activity, int index)
+    {
+        activity.Actions.RemoveAt(index);
+        State.MarkDirty();
+    }
 }

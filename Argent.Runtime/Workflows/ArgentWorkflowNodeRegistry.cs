@@ -1,7 +1,6 @@
 ﻿using Argent.Contracts.Workflows;
 using Argent.Models.Attributes;
 using Argent.Models.Workflows;
-using Argent.Models.Workflows.Activities;
 using System.Reflection;
 
 namespace Argent.Runtime.Workflows
@@ -72,18 +71,11 @@ namespace Argent.Runtime.Workflows
 
         private static Dictionary<Type, NodeTypeDescriptor> BuildDescriptors()
         {
-            var types = new[]
-            {
-                typeof(StartEvent),
-                typeof(EndEvent),
-                typeof(SQLActivity),
-                typeof(JintActivity),
-                typeof(RestActivity),
-                typeof(UserActivity),
-                typeof(InclusiveGateway),
-                typeof(ExclusiveGateway),
-                typeof(ParallelGateway),
-            };
+            var nodeBaseType = typeof(NodeBase);
+            var attrType = typeof(WorkflowCanvasElementAttribute);
+
+            var types = nodeBaseType.Assembly.GetTypes()
+                .Where(t => !t.IsAbstract && nodeBaseType.IsAssignableFrom(t) && t.IsDefined(attrType, inherit: false));
 
             return types.ToDictionary(t => t, FromAttribute);
         }
