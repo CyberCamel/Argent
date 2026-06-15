@@ -1,4 +1,5 @@
 using Argent.Models.Workflows;
+using Argent.Models.Workflows.Activities;
 using Argent.Models.Workflows.Modeler;
 
 namespace Argent.Runtime.Workflows.Modeling.Validation;
@@ -6,12 +7,12 @@ namespace Argent.Runtime.Workflows.Modeling.Validation;
 public class WorkflowValidator
 {
     private ValidationResult? _validationResult;
-    
+
     public ValidationResult Validate(WorkflowDefinition wf)
     {
-        _validationResult = new ();
+        _validationResult = new();
         EnsureAllNodesCanReachAnEndEvent(wf);
-        
+        EnsureUserActivitiesHaveAssignees(wf);
         return _validationResult;
     }
 
@@ -66,9 +67,21 @@ public class WorkflowValidator
         }
     }
 
+    public void EnsureUserActivitiesHaveAssignees(WorkflowDefinition wf)
+    {
+        foreach (var node in wf.Nodes.OfType<UserActivity>())
+        {
+            if (string.IsNullOrWhiteSpace(node.AssigneeExpression) &&
+                string.IsNullOrWhiteSpace(node.CandidateRoles))
+            {
+                _validationResult!.AddError(node, "User task must have an assignee expression or candidate roles");
+            }
+        }
+    }
+
     public void DetectInfiniteLoop(WorkflowDefinition wf)
     {
-        
+
     }
     
     public void DetectUnconfiguredActivity(WorkflowDefinition wf)

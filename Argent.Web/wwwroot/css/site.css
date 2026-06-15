@@ -1693,14 +1693,25 @@ svg > rect[fill="url(#gridPattern)"] {
 
 .modeler2-node-selected .modeler2-node-shape {
     stroke: #89b4fa;
-    stroke-width: 2.5;
+    stroke-width: 6;
 }
 
 .modeler2-node-shape {
     stroke: #45475a;
-    stroke-width: 1.5;
+    stroke-width: 5.5;
     transition: stroke 0.15s, filter 0.15s;
 }
+
+/* Node type fills — the CssClass from [WorkflowCanvasElement] is placed directly on the
+   shape element (ellipse/rect/polygon), so these must be class+element selectors, not
+   the descendant selectors used by the old (pre-modeler2) node system. */
+.modeler2-node-shape.node-start   { fill: #22c55e; stroke: #16a34a; }
+.modeler2-node-shape.node-end     { fill: #ef4444; stroke: #dc2626; }
+.modeler2-node-shape.node-user    { fill: #3b82f6; stroke: #2563eb; }
+.modeler2-node-shape.node-script  { fill: #a855f7; stroke: #9333ea; }
+.modeler2-node-shape.gw-inclusive { fill: #f59e0b; stroke: #d97706; }
+.modeler2-node-shape.gw-exclusive { fill: #f97316; stroke: #ea580c; }
+.modeler2-node-shape.gw-parallel  { fill: #14b8a6; stroke: #0d9488; }
 
 .modeler2-node-label {
     font-size: 11px;
@@ -2030,4 +2041,65 @@ svg > rect[fill="url(#gridPattern)"] {
     stroke: #89b4fa;
     stroke-width: 1;
     opacity: 0.7;
+}
+
+/* Instance viewer — node visit state */
+
+.modeler2-node-unvisited {
+    opacity: 0.2;
+}
+
+.modeler2-node-active .modeler2-node-shape {
+    stroke: #a6e3a1 !important;
+    stroke-width: 2.5 !important;
+    filter: drop-shadow(0 0 6px rgba(166, 227, 161, 0.5));
+}
+
+/* Instance viewer — container */
+
+.modeler2-instance-wrap {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.modeler2-instance-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #6c7086;
+    font-size: 0.875rem;
+}
+
+.modeler2-instance-legend {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: 12px;
+}
+
+.modeler2-instance-legend-item {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.modeler2-instance-legend-active {
+    background: rgba(166, 227, 161, 0.15);
+    color: #a6e3a1;
+    border: 1px solid rgba(166, 227, 161, 0.35);
+}
+
+.modeler2-instance-legend-visited {
+    background: rgba(205, 214, 244, 0.1);
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+}
+
+.modeler2-instance-legend-unvisited {
+    background: transparent;
+    color: #45475a;
+    border: 1px solid #313244;
 }

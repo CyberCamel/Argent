@@ -67,6 +67,13 @@
                                     <i class="bi bi-send-fill"></i> Publish...
                                 </button>
 
+                                @if (_publishBlockedReason != null)
+                                {
+                                    <div class="modeler2-version-publish-error">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> @_publishBlockedReason
+                                    </div>
+                                }
+
                                 <button class="modeler2-version-action-btn modeler2-version-action-btn-danger"
                                         @onclick="DiscardDraft" @onclick:stopPropagation>
                                     <i class="bi bi-trash-fill"></i> Discard draft
@@ -193,6 +200,7 @@
 
     private List<TimelineEntry>? _timeline;
     private bool _publishing;
+    private string? _publishBlockedReason;
     private string _majorVersion = "1.0";
     private string _minorVersion = "0.1";
     private bool _showChanges;
@@ -368,12 +376,22 @@
 
     private void StartPublish()
     {
+        State.Compile();
+
+        if (State.ValidationResult is { IsValid: false })
+        {
+            _publishBlockedReason = $"{State.ValidationResult.Errors.Count} validation error(s) must be fixed before publishing.";
+            return;
+        }
+
+        _publishBlockedReason = null;
         _publishing = true;
     }
 
     private void CancelPublish()
     {
         _publishing = false;
+        _publishBlockedReason = null;
     }
 
     private async Task Publish(bool isMajor)

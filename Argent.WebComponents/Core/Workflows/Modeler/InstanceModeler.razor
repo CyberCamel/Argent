@@ -1,0 +1,343 @@
+@using System.Globalization
+@using Argent.Contracts.Workflows
+@using Argent.Infrastructure.Data
+@using Argent.Models.Workflows
+@using Argent.Models.Workflows.Execution
+@using Argent.Runtime.Workflows.Modeling
+@using Argent.Runtime.Workflows.Modeling.Routing
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@inject IDbContextFactory<ArgentDbContext> DbFactory
+@inject IWorkflowNodeRegistry Registry
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (!_loaded)
+{
+    <div class="modeler2-instance-loading">
+        <span class="spinner-border spinner-border-sm text-secondary me-2"></span> Loading diagram…
+    </div>
+}
+else if (_nodes.Count == 0)
+{
+    <div class="modeler2-instance-loading text-muted">No workflow diagram available for this instance.</div>
+}
+else
+{
+    <div class="modeler2-instance-wrap">
+        <div class="modeler2-toolbar">
+            <div class="modeler2-toolbar-left">
+                <span class="modeler2-toolbar-title">Workflow Diagram</span>
+            </div>
+            <div class="modeler2-toolbar-right">
+                <button class="modeler2-btn-icon" title="Fit to screen" @onclick="FitToScreen">
+                    <i class="bi bi-arrows-angle-contract"></i>
+                </button>
+                <span class="modeler2-zoom-label">@(Math.Round(_session.Zoom * 100))%</span>
+                <div class="modeler2-instance-legend">
+                    <span class="modeler2-instance-legend-item modeler2-instance-legend-active">Active</span>
+                    <span class="modeler2-instance-legend-item modeler2-instance-legend-visited">Visited</span>
+                    <span class="modeler2-instance-legend-item modeler2-instance-legend-unvisited">Unvisited</span>
+                </div>
+            </div>
+        </div>
+        <div class="modeler2-body">
+            <div @ref="_canvas"
+                 class="modeler2-canvas"
+                 tabindex="0"
+                 @onpointerdown="OnPointerDown"
+                 @onpointermove="OnPointerMove"
+                 @onpointerup="OnPointerUp"
+                 @onpointerleave="OnPointerUp"
+                 @onpointercancel="OnPointerUp"
+                 @onwheel="OnWheel"
+                 @onwheel:preventDefault>
+
+                <svg viewBox="@_session.ViewBox" width="100%" height="100%" style="display:block">
+                    <defs>
+                        <pattern id="im-grid" width="50" height="50" patternUnits="userSpaceOnUse">
+                            <circle cx="2" cy="2" r="1" fill="#444" />
+                        </pattern>
+                        <marker id="im-arrowhead" markerWidth="6" markerHeight="4.5" refX="5" refY="2.25" orient="auto">
+                            <polygon points="0 0, 6 2.25, 0 4.5" fill="currentColor" />
+                        </marker>
+                    </defs>
+
+                    <rect x="@_session.PanX.ToString(CultureInfo.InvariantCulture)"
+                          y="@_session.PanY.ToString(CultureInfo.InvariantCulture)"
+                          width="@((_session.CanvasWidth / _session.Zoom).ToString(CultureInfo.InvariantCulture))"
+                          height="@((_session.CanvasHeight / _session.Zoom).ToString(CultureInfo.InvariantCulture))"
+                          fill="url(#im-grid)" />
+
+                    @foreach (var conn in _connections)
+                    {
+                        if (conn.Waypoints.Count < 2) continue;
+                        var path = RoutingService.WaypointsToSvgPath(conn.Waypoints);
+                        <g class="modeler2-conn">
+                            <path d="@path" stroke="transparent" stroke-width="14" fill="none" />
+                            <path d="@path" class="modeler2-conn-path" fill="none" marker-end="url(#im-arrowhead)" />
+                        </g>
+                    }
+
+                    @foreach (var node in _nodes)
+                    {
+                        var visitClass = GetVisitClass(node.NodeData.Id);
+                        <g class="modeler2-node @visitClass"
+                           transform="translate(@node.X.ToString("F2", CultureInfo.InvariantCulture), @node.Y.ToString("F2", CultureInfo.InvariantCulture))">
+
+                            @switch (node.Shape)
+                            {
+                                case NodeShape.Circle:
+                                    <ellipse cx="@(node.Width / 2)" cy="@(node.Height / 2)"
+                                             rx="@(node.Width / 2)" ry="@(node.Height / 2)"
+                                             class="modeler2-node-shape @node.CssClass" />
+                                    break;
+                                case NodeShape.Diamond:
+                                    <polygon points="@($"{(node.Width / 2).ToString("F2", CultureInfo.InvariantCulture)},0 {node.Width.ToString("F2", CultureInfo.InvariantCulture)},{(node.Height / 2).ToString("F2", CultureInfo.InvariantCulture)} {(node.Width / 2).ToString("F2", CultureInfo.InvariantCulture)},{node.Height.ToString("F2", CultureInfo.InvariantCulture)} 0,{(node.Height / 2).ToString("F2", CultureInfo.InvariantCulture)}")"
+                                             class="modeler2-node-shape @node.CssClass" />
+                                    break;
+                                default:
+                                    <rect x="0" y="0" width="@node.Width" height="@node.Height" rx="6"
+                                          class="modeler2-node-shape @node.CssClass" />
+                                    break;
+                            }
+
+                            <text x="@(node.Width / 2)" y="@(node.Height / 2 + 4)"
+                                  text-anchor="middle" class="modeler2-node-label" dominant-baseline="middle">
+                                @node.Title
+                            </text>
+                        </g>
+                    }
+                </svg>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public Guid InstanceId { get; set; }
+
+    private List<DesignerNode> _nodes = [];
+    private List<DesignerConnection> _connections = [];
+    private HashSet<Guid> _visitedNodeIds = [];
+    private HashSet<Guid> _activeNodeIds = [];
+
+    private readonly ModelerSession _session = new();
+    private bool _loaded;
+    private bool _fitted;
+
+    private ElementReference _canvas;
+    private DotNetObjectReference<InstanceModeler>? _dotNetRef;
+
+    private bool _panning;
+    private double _startMouseX, _startMouseY;
+    private double _startPanX, _startPanY;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var instance = await db.WorkflowInstances
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.InstanceId == InstanceId);
+
+        if (instance == null || instance.VersionId == Guid.Empty)
+        {
+            _loaded = true;
+            return;
+        }
+
+        var tokens = await db.WorkflowTokens
+            .AsNoTracking()
+            .Where(t => t.InstanceId == InstanceId)
+            .ToListAsync();
+
+        _visitedNodeIds = tokens.Select(t => t.NodeId).ToHashSet();
+        _activeNodeIds  = tokens.Where(t => t.State != TokenState.Consumed).Select(t => t.NodeId).ToHashSet();
+
+        var version = await db.WorkflowVersions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == instance.VersionId);
+
+        if (version?.Definition != null)
+            BuildCanvas(version.Definition);
+
+        _loaded = true;
+    }
+
+    private void BuildCanvas(WorkflowDefinition def)
+    {
+        var metaCache = Registry.GetRegisteredTypes().ToList();
+        var nodeMap = new Dictionary<Guid, DesignerNode>();
+
+        foreach (var nodeData in def.Nodes)
+        {
+            var meta = metaCache.FirstOrDefault(m => m.NodeType == nodeData.GetType());
+            var layout = def.Layouts?.GetValueOrDefault(nodeData.Id);
+
+            var dn = new DesignerNode
+            {
+                NodeData = nodeData,
+                Title    = meta?.DisplayName ?? nodeData.Name ?? "Unknown",
+                CssClass = meta?.CssClass ?? "",
+                Shape    = meta?.Shape ?? NodeShape.Rectangle,
+                X        = layout?.X ?? 100,
+                Y        = layout?.Y ?? 100,
+                Width    = layout?.Width  ?? meta?.DefaultWidth  ?? 160,
+                Height   = layout?.Height ?? meta?.DefaultHeight ?? 80,
+            };
+
+            _nodes.Add(dn);
+            nodeMap[nodeData.Id] = dn;
+        }
+
+        foreach (var conn in def.Connections)
+        {
+            if (!nodeMap.TryGetValue(conn.From.Id, out var src) ||
+                !nodeMap.TryGetValue(conn.To.Id,   out var tgt))
+                continue;
+
+            var (srcDir, tgtDir) = RoutingService.GetBestDirections(src, tgt);
+            var dc = new DesignerConnection
+            {
+                EngineConnection = conn,
+                Source    = src,
+                Target    = tgt,
+                SourceDir = srcDir,
+                TargetDir = tgtDir,
+            };
+            dc.Waypoints = RoutingService.AutoRoute(dc.Source, dc.SourceDir, dc.Target, dc.TargetDir);
+            _connections.Add(dc);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _nodes.Count > 0)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("Modeler2.init", _canvas, _dotNetRef);
+        }
+    }
+
+    [JSInvokable]
+    public void OnCanvasResized(double width, double height)
+    {
+        _session.CanvasWidth  = width;
+        _session.CanvasHeight = height;
+
+        if (!_fitted && _nodes.Count > 0)
+        {
+            _fitted = true;
+            ZoomToFocus();
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void ZoomToFocus()
+    {
+        var focus = _activeNodeIds.Count > 0
+            ? _nodes.Where(n => _activeNodeIds.Contains(n.NodeData.Id)).ToList()
+            : _nodes;
+
+        double minX = focus.Min(n => n.X);
+        double minY = focus.Min(n => n.Y);
+        double maxX = focus.Max(n => n.X + n.Width);
+        double maxY = focus.Max(n => n.Y + n.Height);
+
+        double pad = 80;
+        double cw = maxX - minX + pad * 2;
+        double ch = maxY - minY + pad * 2;
+        if (cw < 1 || ch < 1) return;
+
+        _session.Zoom = Math.Clamp(Math.Min(_session.CanvasWidth / cw, _session.CanvasHeight / ch), 0.1, 3.0);
+        _session.PanX = minX - pad - (_session.CanvasWidth  / _session.Zoom - cw) / 2;
+        _session.PanY = minY - pad - (_session.CanvasHeight / _session.Zoom - ch) / 2;
+    }
+
+    private void FitToScreen()
+    {
+        if (_nodes.Count == 0) return;
+
+        double minX = _nodes.Min(n => n.X);
+        double minY = _nodes.Min(n => n.Y);
+        double maxX = _nodes.Max(n => n.X + n.Width);
+        double maxY = _nodes.Max(n => n.Y + n.Height);
+
+        double pad = 40;
+        double cw = maxX - minX + pad * 2;
+        double ch = maxY - minY + pad * 2;
+        if (cw < 1 || ch < 1) return;
+
+        _session.Zoom = Math.Clamp(Math.Min(_session.CanvasWidth / cw, _session.CanvasHeight / ch), 0.1, 3.0);
+        _session.PanX = minX - pad - (_session.CanvasWidth  / _session.Zoom - cw) / 2;
+        _session.PanY = minY - pad - (_session.CanvasHeight / _session.Zoom - ch) / 2;
+
+        StateHasChanged();
+    }
+
+    private string GetVisitClass(Guid nodeId)
+    {
+        if (_activeNodeIds.Contains(nodeId))  return "modeler2-node-active";
+        if (_visitedNodeIds.Contains(nodeId)) return "modeler2-node-visited";
+        return "modeler2-node-unvisited";
+    }
+
+    private void OnPointerDown(PointerEventArgs e)
+    {
+        _panning     = true;
+        _startMouseX = e.ClientX;
+        _startMouseY = e.ClientY;
+        _startPanX   = _session.PanX;
+        _startPanY   = _session.PanY;
+    }
+
+    private async Task OnPointerMove(PointerEventArgs e)
+    {
+        if (!_panning) return;
+
+        var dims = await JS.InvokeAsync<CanvasBounds>("Modeler2.getDimensions", _canvas);
+        var (sx, sy) = _session.ScreenToWorld(_startMouseX, _startMouseY, dims.Left, dims.Top);
+        var (wx, wy) = _session.ScreenToWorld(e.ClientX,    e.ClientY,    dims.Left, dims.Top);
+
+        _session.PanX = _startPanX - (wx - sx);
+        _session.PanY = _startPanY - (wy - sy);
+
+        StateHasChanged();
+    }
+
+    private void OnPointerUp(PointerEventArgs e) => _panning = false;
+
+    private async Task OnWheel(WheelEventArgs e)
+    {
+        var dims = await JS.InvokeAsync<CanvasBounds>("Modeler2.getDimensions", _canvas);
+        var (beforeX, beforeY) = _session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
+
+        _session.Zoom = Math.Clamp(_session.Zoom * Math.Pow(1.001, -e.DeltaY), 0.1, 3.0);
+
+        var (afterX, afterY) = _session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
+        _session.PanX += beforeX - afterX;
+        _session.PanY += beforeY - afterY;
+
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_dotNetRef != null)
+        {
+            try { await JS.InvokeVoidAsync("Modeler2.destroy", _canvas); }
+            catch (JSDisconnectedException) { }
+            _dotNetRef.Dispose();
+        }
+    }
+
+    private sealed class CanvasBounds
+    {
+        public double Left   { get; set; }
+        public double Top    { get; set; }
+        public double Width  { get; set; }
+        public double Height { get; set; }
+    }
+}

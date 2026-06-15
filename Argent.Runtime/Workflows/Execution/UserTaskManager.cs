@@ -194,21 +194,12 @@ public class UserTaskManager : IUserTaskManager
         task.CompletedBy = completedBy;
         task.RowVersion = Guid.NewGuid();
 
-        var instance = await context.WorkflowInstances
-            .AsNoTracking()
-            .FirstOrDefaultAsync(i => i.InstanceId == task.InstanceId, ct);
-
-        context.WorkItems.Add(new WorkItem
-        {
-            Id = Guid.NewGuid(),
-            TokenId = task.TokenId,
-            WorkflowInstanceId = task.InstanceId,
-            DefinitionId = instance?.WorkflowId ?? Guid.Empty,
-            NodeId = task.NodeId,
-            NodeType = "UserActivity",
-            State = WorkItemState.Pending,
-            CreatedAt = DateTime.UtcNow
-        });
+        await context.WorkItems
+            .Where(w => w.TokenId == task.TokenId && w.State == WorkItemState.Waiting)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(w => w.State, WorkItemState.Pending)
+                .SetProperty(w => w.LockedBy, (string?)null)
+                .SetProperty(w => w.LockExpirationUtc, (DateTime?)null), ct);
 
         await context.SaveChangesAsync(ct);
     }
