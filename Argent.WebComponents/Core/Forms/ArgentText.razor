@@ -11,9 +11,10 @@
                 <span class="text-danger">*</span>
             }
         </label>
+        @{var _textErrors = Errors.ToList();}
         @if (Metadata.Grow && Metadata.Rows > 1)
         {
-            <textarea class="form-control"
+            <textarea class="form-control @(_textErrors.Count > 0 ? "is-invalid" : "")"
                       rows="@Metadata.Rows"
                       value="@CurrentValue"
                       @oninput="(e) => OnValueChanged(e.Value)"
@@ -25,7 +26,7 @@
         else
         {
             <input type="text"
-                   class="form-control"
+                   class="form-control @(_textErrors.Count > 0 ? "is-invalid" : "")"
                    value="@CurrentValue"
                    @oninput="(e) => OnValueChanged(e.Value)"
                    placeholder="@Metadata.Placeholder"
@@ -33,15 +34,15 @@
                    readOnly="@Metadata.ReadOnly"
                    maxlength="@Metadata.MaxLength" />
         }
+        @if (_textErrors.Count > 0)
+        {
+            <div class="invalid-feedback d-block">
+                @foreach (var err in _textErrors) { <div>@err</div> }
+            </div>
+        }
         @if (Metadata.Description != null)
         {
             <div class="form-text">@Metadata.Description</div>
-        }
-        @if (Errors.Any())
-        {
-            <div class="invalid-feedback d-block">
-                @foreach (var err in Errors) { <div>@err</div> }
-            </div>
         }
     </div>
 }

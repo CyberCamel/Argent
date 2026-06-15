@@ -5,14 +5,11 @@ using Argent.Models.Attributes;
 
 namespace Argent.Models.Forms.Components.Base;
 
-[PbacResource]
 public class FormField : FormComponent
 {
-    [PbacProperty]
     [JsonPropertyName("name")]
     public required string Name { get; set; }
 
-    [PbacProperty]
     [JsonPropertyName("fieldLabel")]
     public string? FieldLabel { get; set; }
 

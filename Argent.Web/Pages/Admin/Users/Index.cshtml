@@ -1,4 +1,4 @@
-@page "/UserAdministration"
+@page "/Users"
 @model IndexModel
 @{
     ViewData["Title"] = "User Management";
@@ -33,7 +33,7 @@
                    hx-get="/UserAdministration/List"
                    hx-trigger="load, userActionCompleted from:body, userDeleted from:body"
                    hx-swap="innerHTML">
-                <partial name="~/Pages/UserAdministration/_UserTablePartial.cshtml" model="Model.Users" />
+                <partial name="~/Pages/Admin/Users/_UserTablePartial.cshtml" model="Model.Users" />
             </tbody>
         </table>
     </div>

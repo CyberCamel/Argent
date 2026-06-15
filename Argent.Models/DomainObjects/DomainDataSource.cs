@@ -9,16 +9,12 @@ namespace Argent.Models.DomainObjects;
 /// <c>DataProviderConfig.DataSourceIndex</c> on the Forms side.
 /// </summary>
 
-[PbacResource]
 public class DomainDataSource
 {
-    [PbacProperty]
     public string Name { get; set; } = string.Empty;
-    [PbacProperty]
     public string? Description { get; set; }
 
     /// <summary>Key of the admin-defined <c>DataSource</c> connection this query runs against.</summary>
-    [PbacProperty]
     public string DataSourceKey { get; set; } = string.Empty;
 
     /// <summary>The SQL query that returns rows shaped like this object.</summary>

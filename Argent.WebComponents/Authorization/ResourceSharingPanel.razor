@@ -1,0 +1,343 @@
+@using System.Text.Json
+@using Argent.Contracts.Authorization
+@using Argent.Models.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
+@inject IResourceOwnershipService OwnershipService
+
+<button class="btn btn-sm btn-outline-secondary" @onclick="Open">
+    <i class="bi bi-shield-lock me-1"></i>Manage Access
+</button>
+
+@if (_open)
+{
+    <div class="rsp-backdrop" @onclick="Close"></div>
+
+    <div class="rsp-modal" @onclick:stopPropagation>
+        <div class="rsp-header">
+            <span class="fw-semibold">Share Access</span>
+            <button class="btn-close" @onclick="Close"></button>
+        </div>
+
+        @if (_loading)
+        {
+            <div class="rsp-loading">Loading...</div>
+        }
+        else
+        {
+            <div class="rsp-body">
+
+                @* ── Left: searchable subject list ── *@
+                <div class="rsp-sidebar">
+                    <input class="form-control form-control-sm mb-2"
+                           type="search" placeholder="Search users & groups…"
+                           @bind="_search" @bind:event="oninput" />
+
+                    <div class="rsp-subject-list">
+                        @foreach (var s in Filtered)
+                        {
+                            <div class="rsp-subject-item @(_dragging?.Id == s.Id ? "dragging" : "")"
+                                 draggable="true"
+                                 @ondragstart="() => _dragging = s"
+                                 @ondragend="() => _dragging = null">
+                                <i class="bi @s.Icon me-1"></i>
+                                @s.Label
+                            </div>
+                        }
+                        @if (!Filtered.Any())
+                        {
+                            <div class="text-muted small px-1">No results.</div>
+                        }
+                    </div>
+                </div>
+
+                @* ── Right: one drop zone per action ── *@
+                <div class="rsp-zones">
+                    @foreach (var action in AvailableActions)
+                    {
+                        var isOver = _dragOver == action;
+                        <div class="rsp-zone @(isOver ? "rsp-zone-over" : "")"
+                             @ondragover:preventDefault
+                             @ondragenter="() => _dragOver = action"
+                             @ondragleave="() => { if (_dragOver == action) _dragOver = null; }"
+                             @ondrop="() => Drop(action)">
+
+                            <div class="rsp-zone-label">
+                                <i class="bi @ActionIcon(action) me-1"></i>@ActionLabel(action)
+                            </div>
+
+                            <div class="rsp-zone-chips">
+                                @foreach (var entry in EntriesFor(action))
+                                {
+                                    <span class="rsp-chip">
+                                        <i class="bi @entry.Icon me-1"></i>
+                                        @entry.Label
+                                        <button class="rsp-chip-remove" title="Remove"
+                                                @onclick="() => RemoveAction(entry, action)"
+                                                @onclick:stopPropagation>
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </span>
+                                }
+                                @if (!EntriesFor(action).Any())
+                                {
+                                    <span class="rsp-zone-empty">Drop a user or group here</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<style>
+    .rsp-backdrop {
+        position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 1050;
+    }
+    .rsp-modal {
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        z-index: 1051; background: #fff; border-radius: 8px;
+        box-shadow: 0 8px 32px rgba(0,0,0,.2);
+        width: min(900px, 95vw); max-height: 85vh;
+        display: flex; flex-direction: column; overflow: hidden;
+    }
+    .rsp-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: .75rem 1rem; border-bottom: 1px solid #dee2e6;
+    }
+    .rsp-loading { padding: 2rem; text-align: center; color: #6c757d; }
+    .rsp-body {
+        display: flex; flex: 1; overflow: hidden;
+    }
+    .rsp-sidebar {
+        width: 220px; min-width: 220px; border-right: 1px solid #dee2e6;
+        display: flex; flex-direction: column; padding: .75rem;
+        overflow: hidden;
+    }
+    .rsp-subject-list { flex: 1; overflow-y: auto; }
+    .rsp-subject-item {
+        padding: .35rem .5rem; border-radius: 4px; cursor: grab; font-size: .85rem;
+        user-select: none; border: 1px solid transparent;
+    }
+    .rsp-subject-item:hover { background: #f0f4ff; border-color: #c5d3f0; }
+    .rsp-subject-item.dragging { opacity: .4; }
+    .rsp-zones {
+        flex: 1; display: flex; flex-direction: column; gap: .5rem;
+        padding: .75rem; overflow-y: auto;
+    }
+    .rsp-zone {
+        border: 2px dashed #dee2e6; border-radius: 6px; padding: .5rem .75rem;
+        transition: border-color .15s, background .15s; min-height: 72px;
+    }
+    .rsp-zone-over {
+        border-color: #0d6efd; background: #f0f4ff;
+    }
+    .rsp-zone-label {
+        font-size: .75rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: .04em; color: #6c757d; margin-bottom: .4rem;
+    }
+    .rsp-zone-chips { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+    .rsp-zone-empty { font-size: .8rem; color: #adb5bd; }
+    .rsp-chip {
+        display: inline-flex; align-items: center; gap: .25rem;
+        background: #e9ecef; border-radius: 20px; padding: .2rem .6rem .2rem .5rem;
+        font-size: .82rem; white-space: nowrap;
+    }
+    .rsp-chip-remove {
+        background: none; border: none; padding: 0; line-height: 1;
+        color: #6c757d; cursor: pointer; display: flex; align-items: center;
+    }
+    .rsp-chip-remove:hover { color: #dc3545; }
+</style>
+
+@code {
+    [Parameter] public required string ResourceType { get; set; }
+    [Parameter] public required Guid ResourceId { get; set; }
+
+    record SubjectItem(string Id, string Label, string Icon, bool IsGroup);
+
+    // In-memory representation: one entry per (subject × resource), holding all granted actions.
+    record PermissionEntry(string SubjectId, string Label, string Icon, Guid PolicyId, List<string> Actions);
+
+    private bool _open;
+    private bool _loading;
+    private string _search = "";
+    private SubjectItem? _dragging;
+    private string? _dragOver;
+
+    private List<SubjectItem> _allSubjects = [];
+    private List<PermissionEntry> _entries = [];
+
+    private string[] AvailableActions => ResourceType switch
+    {
+        "Workflow" => ResourceActions.Workflow.Owner,
+        "Form"     => ResourceActions.Form.Owner,
+        _          => []
+    };
+
+    private IEnumerable<SubjectItem> Filtered => string.IsNullOrWhiteSpace(_search)
+        ? _allSubjects
+        : _allSubjects.Where(s => s.Label.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<PermissionEntry> EntriesFor(string action) =>
+        _entries.Where(e => e.Actions.Contains(action, StringComparer.OrdinalIgnoreCase));
+
+    private static string ActionLabel(string action) => action switch
+    {
+        "view"   => "View",
+        "model"  => "Model",
+        "design" => "Design",
+        "run"    => "Run",
+        "delete" => "Delete",
+        _        => action
+    };
+
+    private static string ActionIcon(string action) => action switch
+    {
+        "view"   => "bi-eye",
+        "model"  => "bi-pencil-square",
+        "design" => "bi-pencil-square",
+        "run"    => "bi-play-circle",
+        "delete" => "bi-trash",
+        _        => "bi-key"
+    };
+
+    private async Task Open()
+    {
+        _open = true;
+        await LoadAsync();
+    }
+
+    private void Close()
+    {
+        _open = false;
+        _dragging = null;
+        _dragOver = null;
+        _search = "";
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var users = await db.Users
+            .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+            .Select(u => new { Id = u.Id.ToString(), Label = u.FirstName + " " + u.LastName, u.UserName })
+            .ToListAsync();
+
+        var groups = await db.Groups
+            .OrderBy(g => g.Name)
+            .Select(g => new { Id = g.Id.ToString(), g.Name })
+            .ToListAsync();
+
+        _allSubjects =
+        [
+            ..users.Select(u => new SubjectItem(u.Id, $"{u.Label} ({u.UserName})", "bi-person", false)),
+            ..groups.Select(g => new SubjectItem(g.Id, g.Name, "bi-people", true))
+        ];
+
+        var policies = await OwnershipService.GetResourcePoliciesAsync(ResourceType, ResourceId);
+        _entries = BuildEntries(policies);
+
+        _loading = false;
+    }
+
+    // Flatten policies into one PermissionEntry per unique subject (first matching policy wins for display).
+    private List<PermissionEntry> BuildEntries(List<Argent.Models.Authorization.PolicyDocument> policies)
+    {
+        var result = new List<PermissionEntry>();
+
+        foreach (var policy in policies)
+        {
+            var actions = ParseJsonList(policy.ActionsJson);
+            foreach (var subjectId in ExtractSubjectIds(policy.SubjectJson))
+            {
+                var existing = result.FirstOrDefault(e => e.SubjectId == subjectId.Id && e.PolicyId == policy.Id);
+                if (existing != null) continue;
+
+                var subject = _allSubjects.FirstOrDefault(s => s.Id == subjectId.Id);
+                var label = subject?.Label ?? subjectId.Id;
+                var icon  = subject?.Icon  ?? (subjectId.IsGroup ? "bi-people" : "bi-person");
+                result.Add(new PermissionEntry(subjectId.Id, label, icon, policy.Id, actions));
+            }
+        }
+
+        return result;
+    }
+
+    private async Task Drop(string action)
+    {
+        _dragOver = null;
+        if (_dragging == null) return;
+        var subject = _dragging;
+        _dragging = null;
+
+        // Find an existing entry for this subject on this resource.
+        var existing = _entries.FirstOrDefault(e => e.SubjectId == subject.Id);
+
+        if (existing != null)
+        {
+            if (existing.Actions.Contains(action, StringComparer.OrdinalIgnoreCase)) return;
+            var updated = existing.Actions.Append(action).ToList();
+            await OwnershipService.UpdateActionsAsync(existing.PolicyId, updated);
+        }
+        else
+        {
+            var subjectJson = subject.IsGroup
+                ? JsonSerializer.Serialize(new { groups = new[] { subject.Id } })
+                : JsonSerializer.Serialize(new { users  = new[] { subject.Id } });
+            await OwnershipService.ShareAccessAsync(ResourceType, ResourceId, subjectJson, [action]);
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task RemoveAction(PermissionEntry entry, string action)
+    {
+        var remaining = entry.Actions.Where(a => !a.Equals(action, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (remaining.Count == 0)
+            await OwnershipService.RevokeAccessAsync(entry.PolicyId);
+        else
+            await OwnershipService.UpdateActionsAsync(entry.PolicyId, remaining);
+
+        await LoadAsync();
+    }
+
+    private static List<string> ParseJsonList(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try { return JsonSerializer.Deserialize<List<string>>(json) ?? []; }
+        catch { return []; }
+    }
+
+    private record SubjectRef(string Id, bool IsGroup);
+
+    private static List<SubjectRef> ExtractSubjectIds(string subjectJson)
+    {
+        var result = new List<SubjectRef>();
+        if (string.IsNullOrWhiteSpace(subjectJson) || subjectJson == "{}") return result;
+
+        try
+        {
+            var doc = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(subjectJson);
+            if (doc == null) return result;
+
+            if (doc.TryGetValue("users", out var u))
+                result.AddRange((JsonSerializer.Deserialize<List<string>>(u.GetRawText()) ?? [])
+                    .Select(id => new SubjectRef(id, false)));
+
+            if (doc.TryGetValue("groups", out var g))
+                result.AddRange((JsonSerializer.Deserialize<List<string>>(g.GetRawText()) ?? [])
+                    .Select(id => new SubjectRef(id, true)));
+        }
+        catch { }
+
+        return result;
+    }
+}

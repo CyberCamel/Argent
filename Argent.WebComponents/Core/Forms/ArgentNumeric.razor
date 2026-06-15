@@ -1,9 +1,10 @@
-﻿@using Argent.WebComponents
+@using Argent.WebComponents
 @inherits FormInputComponentBase
 
 @if (IsVisible)
 {
     <div class="mb-3 @Metadata.CssClass">
+        @{var _numErrors = Errors.ToList();}
         <label class="form-label">
             @Metadata.FieldLabel
             @if (Context.IsRequired(Metadata))
@@ -12,9 +13,9 @@
             }
         </label>
         <input type="number"
-               class="form-control"
+               class="form-control @(_numErrors.Count > 0 ? "is-invalid" : "")"
                value="@CurrentValue"
-               @oninput="(e) => OnValueChanged(e.Value)"
+               @onchange="(e) => OnValueChanged(e.Value)"
                placeholder="@Metadata.Placeholder"
                disabled="@Metadata.Disabled"
                readOnly="@Metadata.ReadOnly"
@@ -25,10 +26,10 @@
         {
             <div class="form-text">@Metadata.Description</div>
         }
-        @if (Errors.Any())
+        @if (_numErrors.Count > 0)
         {
             <div class="invalid-feedback d-block">
-                @foreach (var err in Errors) { <div>@err</div> }
+                @foreach (var err in _numErrors) { <div>@err</div> }
             </div>
         }
     </div>

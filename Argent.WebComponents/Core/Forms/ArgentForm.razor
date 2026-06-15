@@ -29,20 +29,9 @@ else
             <ArgentRenderer Metadata="component" />
         }
 
-        @if (_errors is { Count: > 0 })
+        @if (!string.IsNullOrEmpty(_submitError))
         {
-            <div class="alert alert-danger mt-3">
-                <strong>Please fix the following:</strong>
-                <ul class="mb-0">
-                    @foreach (var fieldErrors in _errors.Values)
-                    {
-                        foreach (var error in fieldErrors)
-                        {
-                            <li>@error</li>
-                        }
-                    }
-                </ul>
-            </div>
+            <div class="alert alert-danger mt-3">@_submitError</div>
         }
 
         @if (_submitted)
@@ -79,11 +68,12 @@ else
 
     private FormDefinition? _definition;
     private Dictionary<string, List<string>>? _errors;
+    private string? _submitError;
     private bool _submitted;
 
     protected override async Task OnInitializedAsync()
     {
-        Context.OnStateChanged += StateHasChanged;
+        Context.OnStateChanged += HandleContextChanged;
         Context.RecordId = RecordId;
 
         if (Definition != null)
@@ -97,8 +87,18 @@ else
             _definition = doc?.Definition;
         }
 
+        if (_definition != null && !string.IsNullOrEmpty(_definition.ObjectKey)
+            && Context is Argent.Runtime.Forms.ArgentFormContext argentCtx)
+        {
+            var domainDef = await DomainObjectDefinitionService.GetPublishedDefinitionAsync(_definition.ObjectKey);
+            argentCtx.DomainDefinition = domainDef;
+        }
+
         if (RecordId.HasValue && _definition != null)
-            await SeedFromRecordAsync(RecordId.Value);
+        {
+            try { await SeedFromRecordAsync(RecordId.Value); }
+            catch (Exception ex) { _submitError = $"Could not load existing record: {ex.Message}"; }
+        }
     }
 
     private async Task SeedFromRecordAsync(Guid recordId)
@@ -123,20 +123,27 @@ else
         Context.SetInitialValues(values);
     }
 
-    public void Dispose() => Context.OnStateChanged -= StateHasChanged;
+    private void HandleContextChanged()
+    {
+        _errors = null; // clear stale submit-time summary when the user makes any change
+        StateHasChanged();
+    }
+
+    public void Dispose() => Context.OnStateChanged -= HandleContextChanged;
 
     private async Task Submit()
     {
         if (_definition == null) return;
 
-        (Context as ArgentFormContext)?.RevealAllErrors();
+        _submitError = null;
+        var ctx = Context as ArgentFormContext;
+        ctx?.RevealAllErrors();
         _errors = Validator.ValidateForm(_definition, Context);
         if (_errors.Count > 0) return;
 
         var allValues = Context.GetAllData();
 
-        // Resolve which field names are bound to DomainProperties vs custom.
-        var domainDef = await DomainObjectDefinitionService.GetPublishedDefinitionAsync(_definition.ObjectKey);
+        var domainDef = ctx?.DomainDefinition;
         var boundKeys = domainDef?.Properties
             .Select(p => p.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
@@ -149,40 +156,55 @@ else
             .Where(kvp => !boundKeys.Contains(kvp.Key))
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
-        // Persist the DomainRecord.
         var user = Context.UserId;
         DomainRecord record;
-        if (Context.RecordId.HasValue)
+        try
         {
-            record = await DomainObjectStore.UpdateAsync(_definition.ObjectKey, Context.RecordId.Value, boundValues, user);
-        }
-        else
-        {
-            record = await DomainObjectStore.CreateAsync(_definition.ObjectKey, boundValues, user);
-            Context.RecordId = record.Id;
-        }
-
-        // Persist custom fields if present.
-        if (customValues.Count > 0 && FormId.HasValue)
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            var existing = await db.FormCustomData
-                .FirstOrDefaultAsync(c => c.RecordId == record.Id && c.FormId == FormId.Value);
-            if (existing != null)
+            if (Context.RecordId.HasValue)
             {
-                existing.Values = customValues;
-                existing.UpdatedAt = DateTime.UtcNow;
+                record = await DomainObjectStore.UpdateAsync(_definition.ObjectKey, Context.RecordId.Value, boundValues, user);
             }
             else
             {
-                db.FormCustomData.Add(new FormCustomData
-                {
-                    RecordId = record.Id,
-                    FormId = FormId.Value,
-                    Values = customValues
-                });
+                record = await DomainObjectStore.CreateAsync(_definition.ObjectKey, boundValues, user);
+                Context.RecordId = record.Id;
             }
-            await db.SaveChangesAsync();
+
+            if (customValues.Count > 0 && FormId.HasValue)
+            {
+                await using var db = await DbFactory.CreateDbContextAsync();
+                var existing = await db.FormCustomData
+                    .FirstOrDefaultAsync(c => c.RecordId == record.Id && c.FormId == FormId.Value);
+                if (existing != null)
+                {
+                    existing.Values = customValues;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    db.FormCustomData.Add(new FormCustomData
+                    {
+                        RecordId = record.Id,
+                        FormId = FormId.Value,
+                        Values = customValues
+                    });
+                }
+                await db.SaveChangesAsync();
+            }
+        }
+        catch (DomainValidationException dvx)
+        {
+            // Push per-field so errors appear inline next to each offending field.
+            var perField = dvx.Errors
+                .GroupBy(e => e.Property)
+                .ToDictionary(g => g.Key, g => g.Select(e => e.Message).ToList());
+            ctx?.SetServerErrors(perField);
+            return;
+        }
+        catch (Exception ex)
+        {
+            _submitError = ex.Message;
+            return;
         }
 
         _submitted = true;

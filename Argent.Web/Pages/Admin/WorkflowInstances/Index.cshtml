@@ -1,0 +1,72 @@
+@page "/Admin/WorkflowInstances"
+@model Argent.Web.Pages.Admin.WorkflowInstances.IndexModel
+@using Argent.Models.Workflows.Execution
+@{
+    ViewData["Title"] = "Workflow Instances";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Workflow Instances</h4>
+        <p class="text-muted small mb-0">Monitor running and completed workflow executions</p>
+    </div>
+</div>
+
+@if (Model.Instances.Count == 0)
+{
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-diagram-3 fs-1 text-muted mb-3 d-block"></i>
+            <p class="text-muted mb-0">No workflow instances yet.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Workflow</th>
+                        <th>State</th>
+                        <th>Active Tokens</th>
+                        <th>Started</th>
+                        <th>Ended</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var inst in Model.Instances)
+                    {
+                        <tr>
+                            <td class="fw-medium">@inst.WorkflowName</td>
+                            <td>
+                                @{
+                                    var stateBadge = inst.State switch
+                                    {
+                                        InstanceState.Running => "bg-primary",
+                                        InstanceState.Suspended => "bg-warning text-dark",
+                                        InstanceState.Completed => "bg-success",
+                                        InstanceState.Failed => "bg-danger",
+                                        InstanceState.Cancelled => "bg-secondary",
+                                        _ => "bg-secondary"
+                                    };
+                                }
+                                <span class="badge @stateBadge rounded-pill">@inst.State</span>
+                            </td>
+                            <td>@inst.TokenCount</td>
+                            <td class="text-muted small">@inst.StartTime.ToString("g")</td>
+                            <td class="text-muted small">@(inst.EndTime?.ToString("g") ?? "—")</td>
+                            <td class="text-end">
+                                <a class="btn btn-outline-primary btn-sm" asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@inst.InstanceId">
+                                    <i class="bi bi-eye-fill"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

@@ -1,0 +1,114 @@
+@page "/Admin/Audit"
+@model Argent.Web.Pages.Admin.Audit.IndexModel
+@{
+    ViewData["Title"] = "Audit Log";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Audit Log</h4>
+        <p class="text-muted small mb-0">Workflow execution audit trail</p>
+    </div>
+</div>
+
+@* Filters *@
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label small fw-medium">Category</label>
+                <select name="category" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All</option>
+                    @foreach (var cat in (List<string>)ViewData["Categories"]!)
+                    {
+                        <option value="@cat" selected="@(Model.CategoryFilter == cat)">@cat</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small fw-medium">Event Type</label>
+                <select name="eventType" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All</option>
+                    @foreach (var et in (List<string>)ViewData["EventTypes"]!)
+                    {
+                        <option value="@et" selected="@(Model.EventTypeFilter == et)">@et</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small fw-medium">Instance Id</label>
+                <input type="text" name="instanceId" class="form-control form-control-sm"
+                       placeholder="Guid…" value="@Model.InstanceFilter?.ToString()"
+                       style="width: 280px;" />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-funnel-fill"></i> Filter
+                </button>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.CategoryFilter) || !string.IsNullOrEmpty(Model.EventTypeFilter) || Model.InstanceFilter.HasValue)
+            {
+                <div class="col-auto">
+                    <a class="btn btn-sm btn-outline-secondary" asp-page="/Admin/Audit/Index">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </a>
+                </div>
+            }
+        </form>
+    </div>
+</div>
+
+@if (Model.Entries.Count == 0)
+{
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-journal-text fs-1 text-muted mb-3 d-block"></i>
+            <p class="text-muted mb-0">No audit entries match your criteria.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Category</th>
+                        <th>Event</th>
+                        <th>Instance</th>
+                        <th>Token</th>
+                        <th>Actor</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in Model.Entries)
+                    {
+                        <tr>
+                            <td class="text-muted text-nowrap">@entry.TimeStamp.ToString("g")</td>
+                            <td><span class="badge bg-secondary rounded-pill">@entry.Category</span></td>
+                            <td class="fw-medium">@entry.EventType</td>
+                            <td>
+                                <a class="text-decoration-none font-monospace small"
+                                   asp-page="/Admin/WorkflowInstances/Detail"
+                                   asp-route-id="@entry.InstanceId">
+                                    @entry.InstanceId.ToString()[..8]…
+                                </a>
+                            </td>
+                            <td class="text-muted font-monospace small">
+                                @(entry.TokenId?.ToString()[..8] ?? "—")
+                            </td>
+                            <td class="text-muted">@(entry.Actor ?? "—")</td>
+                            <td><code class="small">@(entry.Details ?? "—")</code></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer text-muted small">
+            @Model.Entries.Count entries
+        </div>
+    </div>
+}

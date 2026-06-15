@@ -14,13 +14,6 @@
             var componentType = Registry.Resolve(_rootMetadata.Xtype);
             <div>
                 <DynamicComponent Type="componentType" Parameters="_parameters" />
-                @if (_rootMetadata is FormField field && effective.GetErrors(field).Count() > 0)
-                {
-                    @foreach (var error in effective.GetErrors(field))
-                    {
-                        <span class="text-danger">@error</span>
-                    }
-                }
             </div>
         }
     </CascadingValue>

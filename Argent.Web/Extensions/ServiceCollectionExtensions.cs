@@ -27,19 +27,24 @@ public static class ServiceCollectionExtensions
             {
                 policy.RequireRole("SuperAdmin");
             });
-
-            options.AddPolicy("PbacTaskView", policy =>
+            options.AddPolicy("PbacWorkflowRun", policy =>
             {
-                policy.Requirements.Add(new PbacRequirement("Task", "View"));
+                policy.Requirements.Add(new PbacRequirement("Workflow", "run"));
             });
-            options.AddPolicy("PbacTaskComplete", policy =>
+            options.AddPolicy("PbacWorkflowModel", policy =>
             {
-                policy.Requirements.Add(new PbacRequirement("Task", "Complete"));
+                policy.Requirements.Add(new PbacRequirement("Workflow", "model"));
+            });
+            options.AddPolicy("PbacFormDesign", policy =>
+            {
+                policy.Requirements.Add(new PbacRequirement("Form", "design"));
             });
         });
 
         services.AddScoped<IAuthorizationHandler, PbacAuthorizationHandler>();
         services.AddSingleton<IPbacResourceRegistry, PbacResourceRegistry>();
+        services.AddScoped<IResourceOwnershipService, ResourceOwnershipService>();
+        services.AddScoped<ICapabilityService, CapabilityService>();
 
         return services;
     }

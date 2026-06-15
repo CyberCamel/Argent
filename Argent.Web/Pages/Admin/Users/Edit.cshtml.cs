@@ -30,13 +30,13 @@ public class EditModel(
             AvailableRoles = [.. roleManager.Roles.Select(r => r.Name ?? "Unknown role")]
         };
 
-        return Partial("~/Pages/UserAdministration/_EditUserPartial.cshtml", EditUser);
+        return Partial("~/Pages/Admin/Users/_EditUserPartial.cshtml", EditUser);
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid)
-            return Partial("~/Pages/UserAdministration/_EditUserPartial.cshtml", EditUser);
+            return Partial("~/Pages/Admin/Users/_EditUserPartial.cshtml", EditUser);
 
         var user = await userManager.FindByNameAsync(EditUser.UserName);
         if (user == null) return NotFound();
@@ -52,7 +52,7 @@ public class EditModel(
             foreach (var error in result.Errors)
                 ModelState.AddModelError(string.Empty, error.Description);
 
-            return Partial("~/Pages/UserAdministration/_EditUserPartial.cshtml", EditUser);
+            return Partial("~/Pages/Admin/Users/_EditUserPartial.cshtml", EditUser);
         }
 
         Response.Headers["HX-Trigger"] = "userActionCompleted";

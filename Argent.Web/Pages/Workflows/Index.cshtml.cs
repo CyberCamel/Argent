@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Argent.Contracts.Authorization;
 using Argent.Contracts.Workflows;
 using Argent.Infrastructure.Data;
 using Argent.Models.Enums;
@@ -10,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Argent.Web.Pages.Workflows;
 
 [Authorize(Policy = "FlowAdminOnly")]
-public class IndexModel(ArgentDbContext _ctx) : PageModel
+public class IndexModel(ArgentDbContext _ctx, IResourceOwnershipService _ownership) : PageModel
 {
     public List<WorkflowListItemDto> Defs { get; set; } = [];
     public HashSet<Guid> DeployedWorkflowIds { get; set; } = [];
@@ -29,7 +31,7 @@ public class IndexModel(ArgentDbContext _ctx) : PageModel
         return Page();
     }
 
-    public IActionResult OnPostCreate([FromForm] string name, [FromForm] string? description)
+    public async Task<IActionResult> OnPostCreate([FromForm] string name, [FromForm] string? description)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -47,7 +49,11 @@ public class IndexModel(ArgentDbContext _ctx) : PageModel
             Tags = []
         };
         _ctx.WorkflowDefinitions.Add(workflow);
-        _ctx.SaveChanges();
+        await _ctx.SaveChangesAsync();
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        if (!string.IsNullOrEmpty(userId))
+            await _ownership.GrantOwnershipAsync("Workflow", workflow.Id, userId);
 
         return RedirectToPage("/Workflows/Model/Edit", new { id = workflow.Id });
     }

@@ -1,4 +1,5 @@
 using Argent.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ public class FormListItem
     public DateTime UpdatedAt { get; set; }
 }
 
+[Authorize(Policy = "FormAdminOnly")]
 public class IndexModel(ArgentDbContext _ctx) : PageModel
 {
     public List<FormListItem> Forms { get; set; } = [];

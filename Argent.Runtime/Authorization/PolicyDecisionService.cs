@@ -41,6 +41,7 @@ public class PolicyDecisionService : IPolicyDecisionService
         CancellationToken ct = default)
     {
         var policies = await GetApplicablePoliciesAsync(resourceType, action, ct);
+        var scopedPolicies = FilterByResourceSelector(policies, resourceAttributes);
 
         var groups = await GetUserGroupsAsync(userId, ct);
 
@@ -55,7 +56,7 @@ public class PolicyDecisionService : IPolicyDecisionService
 
         PolicyDecision? decision = null;
 
-        foreach (var policy in policies.OrderByDescending(p => p.Priority))
+        foreach (var policy in scopedPolicies.OrderByDescending(p => p.Priority))
         {
             if (!MatchesSubject(policy, userId, roles, groups))
                 continue;
@@ -156,7 +157,7 @@ public class PolicyDecisionService : IPolicyDecisionService
                 if (users.Count > 0)
                 {
                     anyConstraint = true;
-                    if (users.Contains(userId)) anyMatch = true;
+                    if (users.Contains(userId, StringComparer.OrdinalIgnoreCase)) anyMatch = true;
                 }
             }
 
@@ -231,6 +232,44 @@ public class PolicyDecisionService : IPolicyDecisionService
         var groups = effective.Select(g => g.ToString()).ToList();
         _groupCache[userId] = groups;
         return groups;
+    }
+
+    private static List<PolicyDocument> FilterByResourceSelector(
+        List<PolicyDocument> policies,
+        Dictionary<string, object?> resourceAttributes)
+    {
+        return policies.Where(p => MatchesResourceSelector(p.ResourceSelectorJson, resourceAttributes)).ToList();
+    }
+
+    private static bool MatchesResourceSelector(string? selectorJson, Dictionary<string, object?> resourceAttributes)
+    {
+        if (string.IsNullOrWhiteSpace(selectorJson) || selectorJson == "{}")
+            return true;
+
+        try
+        {
+            var selector = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(selectorJson);
+            if (selector == null || selector.Count == 0)
+                return true;
+
+            if (selector.TryGetValue("id", out var idEl))
+            {
+                var selectorId = idEl.GetString();
+                if (selectorId == null)
+                    return true;
+
+                if (!resourceAttributes.TryGetValue("id", out var resourceId))
+                    return false;
+
+                return string.Equals(resourceId?.ToString(), selectorId, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return true;
+        }
+        catch
+        {
+            return true;
+        }
     }
 
     private static bool ActionsMatch(string actionsJson, string action)

@@ -1,0 +1,292 @@
+@using System.Text.Json
+@using Argent.Contracts.Authorization
+@using Argent.Models.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject ICapabilityService CapabilityService
+@inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
+
+@if (_loading)
+{
+    <div class="text-muted">Loading…</div>
+}
+else
+{
+    foreach (var section in Sections)
+    {
+        <div class="cap-section mb-4">
+            <h6 class="cap-section-title">@section.Label</h6>
+            <table class="table table-sm cap-table">
+                <thead>
+                    <tr>
+                        <th style="width:140px">Action</th>
+                        <th>Who can perform this globally</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var action in section.Actions)
+                    {
+                        <tr>
+                            <td class="cap-action-cell">
+                                <i class="bi @ActionIcon(action) me-1 text-secondary"></i>
+                                @ActionLabel(action)
+                            </td>
+                            <td>
+                                <div class="d-flex flex-wrap align-items-center gap-1">
+                                    @foreach (var entry in EntriesFor(section.ResourceType, action))
+                                    {
+                                        <span class="cap-chip">
+                                            <i class="bi @entry.Icon me-1"></i>
+                                            @entry.Label
+                                            <button class="cap-chip-remove"
+                                                    @onclick="() => Revoke(entry.PolicyId, action)"
+                                                    @onclick:stopPropagation
+                                                    title="Remove">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </span>
+                                    }
+
+                                    @* Add button / inline picker *@
+                                    @if (_addTarget?.ResourceType == section.ResourceType && _addTarget?.Action == action)
+                                    {
+                                        <div class="cap-add-popup" @onclick:stopPropagation>
+                                            <input class="form-control form-control-sm"
+                                                   type="search" placeholder="Search…"
+                                                   @bind="_addSearch" @bind:event="oninput"
+                                                   @ref="_searchInput" />
+                                            <div class="cap-add-list">
+                                                @foreach (var s in FilteredSubjects)
+                                                {
+                                                    var captured = s;
+                                                    <button class="cap-add-item"
+                                                            @onclick="() => Grant(captured)">
+                                                        <i class="bi @captured.Icon me-1"></i>
+                                                        @captured.Label
+                                                    </button>
+                                                }
+                                                @if (!FilteredSubjects.Any())
+                                                {
+                                                    <span class="text-muted small px-2">No results.</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary cap-add-btn"
+                                                @onclick="() => OpenAdd(section.ResourceType, action)">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+<div class="@(_addTarget != null ? "cap-dismiss" : "d-none")" @onclick="CloseAdd"></div>
+
+<style>
+    .cap-section-title {
+        font-weight: 600; font-size: .9rem; text-transform: uppercase;
+        letter-spacing: .05em; color: #495057; margin-bottom: .5rem;
+    }
+    .cap-table { border: 1px solid #dee2e6; }
+    .cap-action-cell { vertical-align: middle; white-space: nowrap; font-size: .875rem; }
+    .cap-chip {
+        display: inline-flex; align-items: center; gap: .2rem;
+        background: #e9ecef; border-radius: 20px;
+        padding: .18rem .5rem .18rem .45rem; font-size: .82rem;
+    }
+    .cap-chip-remove {
+        background: none; border: none; padding: 0; line-height: 1;
+        color: #6c757d; cursor: pointer; display: flex; align-items: center;
+    }
+    .cap-chip-remove:hover { color: #dc3545; }
+    .cap-add-btn { padding: .1rem .4rem; font-size: .8rem; }
+    .cap-add-popup {
+        position: relative; background: #fff; border: 1px solid #dee2e6;
+        border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.12);
+        padding: .5rem; min-width: 220px; z-index: 200;
+    }
+    .cap-add-list {
+        max-height: 180px; overflow-y: auto; margin-top: .35rem;
+        display: flex; flex-direction: column;
+    }
+    .cap-add-item {
+        background: none; border: none; text-align: left; padding: .3rem .4rem;
+        font-size: .85rem; border-radius: 4px; cursor: pointer;
+    }
+    .cap-add-item:hover { background: #f0f4ff; }
+    .cap-dismiss {
+        position: fixed; inset: 0; z-index: 199;
+    }
+</style>
+
+@code {
+    record Section(string Label, string ResourceType, string[] Actions);
+    record SubjectItem(string Id, string Label, string Icon, bool IsGroup, bool IsRole);
+    record PermissionEntry(string SubjectId, string Label, string Icon, Guid PolicyId);
+
+    private static readonly Section[] Sections =
+    [
+        new("Workflows", "Workflow", ResourceActions.Workflow.Owner),
+        new("Forms",     "Form",     ResourceActions.Form.Owner),
+    ];
+
+    private bool _loading = true;
+    private readonly Dictionary<string, List<Argent.Models.Authorization.PolicyDocument>> _policies = new();
+
+    private List<SubjectItem> _allSubjects = [];
+    private string _addSearch = "";
+    private (string ResourceType, string Action)? _addTarget;
+    private ElementReference _searchInput;
+
+    private IEnumerable<SubjectItem> FilteredSubjects => string.IsNullOrWhiteSpace(_addSearch)
+        ? _allSubjects
+        : _allSubjects.Where(s => s.Label.Contains(_addSearch, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var users = await db.Users
+            .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+            .Select(u => new { Id = u.Id.ToString(), u.FirstName, u.LastName, u.UserName })
+            .ToListAsync();
+
+        var roles = await db.Roles
+            .Where(r => r.Name != null)
+            .OrderBy(r => r.Name)
+            .Select(r => new { Name = r.Name! })
+            .ToListAsync();
+
+        var groups = await db.Groups
+            .OrderBy(g => g.Name)
+            .Select(g => new { Id = g.Id.ToString(), g.Name })
+            .ToListAsync();
+
+        _allSubjects =
+        [
+            ..users.Select(u  => new SubjectItem(u.Id,   $"{u.FirstName} {u.LastName} ({u.UserName})", "bi-person",  false, false)),
+            ..roles.Select(r  => new SubjectItem(r.Name, r.Name,                                        "bi-shield",  false, true)),
+            ..groups.Select(g => new SubjectItem(g.Id,   g.Name,                                        "bi-people",  true,  false)),
+        ];
+
+        foreach (var s in Sections)
+            _policies[s.ResourceType] = await CapabilityService.GetCapabilitiesAsync(s.ResourceType);
+
+        _loading = false;
+    }
+
+    private IEnumerable<PermissionEntry> EntriesFor(string resourceType, string action)
+    {
+        if (!_policies.TryGetValue(resourceType, out var policies))
+            yield break;
+
+        foreach (var p in policies)
+        {
+            var actions = ParseList(p.ActionsJson);
+            if (!actions.Contains(action, StringComparer.OrdinalIgnoreCase)) continue;
+
+            foreach (var subjectId in ExtractSubjectIds(p.SubjectJson))
+            {
+                var subject = _allSubjects.FirstOrDefault(s => s.Id == subjectId.Id);
+                var label   = subject?.Label ?? subjectId.Id;
+                var icon    = subject?.Icon  ?? (subjectId.IsGroup ? "bi-people" : subjectId.IsRole ? "bi-shield" : "bi-person");
+                yield return new PermissionEntry(subjectId.Id, label, icon, p.Id);
+            }
+        }
+    }
+
+    private async Task OpenAdd(string resourceType, string action)
+    {
+        _addTarget = (resourceType, action);
+        _addSearch = "";
+        await Task.Yield();
+        try { await _searchInput.FocusAsync(); } catch { }
+    }
+
+    private void CloseAdd()
+    {
+        _addTarget = null;
+        _addSearch = "";
+    }
+
+    private async Task Grant(SubjectItem subject)
+    {
+        if (_addTarget is not { } target) return;
+        CloseAdd();
+
+        var subjectJson = subject.IsRole
+            ? JsonSerializer.Serialize(new { roles  = new[] { subject.Id } })
+            : subject.IsGroup
+                ? JsonSerializer.Serialize(new { groups = new[] { subject.Id } })
+                : JsonSerializer.Serialize(new { users  = new[] { subject.Id } });
+
+        await CapabilityService.GrantAsync(target.ResourceType, subjectJson, target.Action);
+        await LoadAsync();
+    }
+
+    private async Task Revoke(Guid policyId, string action)
+    {
+        await CapabilityService.RevokeActionAsync(policyId, action);
+        await LoadAsync();
+    }
+
+    private static string ActionLabel(string a) => a switch
+    {
+        "view"   => "View",
+        "model"  => "Model",
+        "design" => "Design",
+        "run"    => "Run",
+        "delete" => "Delete",
+        _        => a
+    };
+
+    private static string ActionIcon(string a) => a switch
+    {
+        "view"   => "bi-eye",
+        "model"  => "bi-pencil-square",
+        "design" => "bi-pencil-square",
+        "run"    => "bi-play-circle",
+        "delete" => "bi-trash",
+        _        => "bi-key"
+    };
+
+    private static List<string> ParseList(string json)
+    {
+        try { return JsonSerializer.Deserialize<List<string>>(json) ?? []; }
+        catch { return []; }
+    }
+
+    private record SubjectRef(string Id, bool IsGroup, bool IsRole);
+
+    private static List<SubjectRef> ExtractSubjectIds(string subjectJson)
+    {
+        var result = new List<SubjectRef>();
+        if (string.IsNullOrWhiteSpace(subjectJson) || subjectJson == "{}") return result;
+        try
+        {
+            var doc = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(subjectJson);
+            if (doc == null) return result;
+            if (doc.TryGetValue("users",  out var u)) result.AddRange((JsonSerializer.Deserialize<List<string>>(u.GetRawText()) ?? []).Select(id => new SubjectRef(id, false, false)));
+            if (doc.TryGetValue("roles",  out var r)) result.AddRange((JsonSerializer.Deserialize<List<string>>(r.GetRawText()) ?? []).Select(id => new SubjectRef(id, false, true)));
+            if (doc.TryGetValue("groups", out var g)) result.AddRange((JsonSerializer.Deserialize<List<string>>(g.GetRawText()) ?? []).Select(id => new SubjectRef(id, true,  false)));
+        }
+        catch { }
+        return result;
+    }
+}

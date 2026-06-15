@@ -1,4 +1,4 @@
-﻿@using Argent.Contracts.DomainObjects
+@using Argent.Contracts.DomainObjects
 @using Argent.Models.Forms.Components.Base
 @inherits FormInputComponentBase
 @inject IDomainObjectStore Store
@@ -6,6 +6,7 @@
 @if (IsVisible)
 {
     <div class="mb-3 @Metadata.CssClass">
+        @{var _ddErrors = Errors.ToList();}
         <label class="form-label">
             @Metadata.FieldLabel
             @if (Context.IsRequired(Metadata))
@@ -13,45 +14,48 @@
                 <span class="text-danger">*</span>
             }
         </label>
+
         @if (Metadata.MultiSelect)
         {
-            <select class="form-select"
-                    multiple
-                    @onchange="(e) => OnValueChanged(e.Value)"
-                    disabled="@Metadata.Disabled">
-                @if (_resolvedItems.Count > 0)
+            <div class="@(_ddErrors.Count > 0 ? "is-invalid" : "")">
+                @foreach (var opt in _resolvedItems)
                 {
-                    @foreach (var opt in _resolvedItems)
-                    {
-                        <option value="@opt.Value" disabled="@opt.Disabled">@opt.Label</option>
-                    }
+                    var optVal = opt.Value?.ToString() ?? string.Empty;
+                    var isChecked = CurrentValues.Contains(optVal);
+                    <div class="form-check">
+                        <input type="checkbox"
+                               class="form-check-input"
+                               id="@($"{Metadata.Id}_{optVal}")"
+                               checked="@isChecked"
+                               @onchange="() => ToggleOption(optVal)"
+                               disabled="@(Metadata.Disabled || opt.Disabled)" />
+                        <label class="form-check-label" for="@($"{Metadata.Id}_{optVal}")">@opt.Label</label>
+                    </div>
                 }
-            </select>
+            </div>
         }
         else
         {
-            <select class="form-select"
-                    value="@CurrentValue"
+            <select class="form-select @(_ddErrors.Count > 0 ? "is-invalid" : "")"
                     @onchange="(e) => OnValueChanged(e.Value)"
                     disabled="@Metadata.Disabled">
                 <option value="">-- Select --</option>
-                @if (_resolvedItems.Count > 0)
+                @foreach (var opt in _resolvedItems)
                 {
-                    @foreach (var opt in _resolvedItems)
-                    {
-                        <option value="@opt.Value" disabled="@opt.Disabled">@opt.Label</option>
-                    }
+                    var optVal = opt.Value?.ToString() ?? string.Empty;
+                    <option value="@optVal" selected="@(CurrentValue == optVal)" disabled="@opt.Disabled">@opt.Label</option>
                 }
             </select>
         }
+
         @if (Metadata.Description != null)
         {
             <div class="form-text">@Metadata.Description</div>
         }
-        @if (Errors.Any())
+        @if (_ddErrors.Count > 0)
         {
             <div class="invalid-feedback d-block">
-                @foreach (var err in Errors) { <div>@err</div> }
+                @foreach (var err in _ddErrors) { <div>@err</div> }
             </div>
         }
     </div>
@@ -60,14 +64,30 @@
 @code {
     private List<SelectOption> _resolvedItems = [];
     private string? _resolvedKey;
+
+    private string Key => Metadata.Name ?? Metadata.Id;
     private bool IsVisible => Context.IsVisible(Metadata);
-    private string? CurrentValue => Context.GetValue<string>(Metadata.Name ?? Metadata.Id);
     private IEnumerable<string> Errors => Context.GetErrors(Metadata);
+
+    private string CurrentValue => Context.GetValue(Key)?.ToString() ?? string.Empty;
+
+    private HashSet<string> CurrentValues
+    {
+        get
+        {
+            var raw = Context.GetValue(Key);
+            return raw switch
+            {
+                IEnumerable<string> list => new HashSet<string>(list),
+                string s when !string.IsNullOrEmpty(s) => [s],
+                _ => []
+            };
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
         var dp = Metadata.DataProvider;
-        // Re-resolve only when the source actually changed (selection/edits re-render frequently).
         var key = $"{dp?.DomainObjectId}|{dp?.ValueField}|{dp?.LabelField}|{dp?.DataSourceIndex}|{Metadata.Items.Count}";
         if (key == _resolvedKey) return;
         _resolvedKey = key;
@@ -94,13 +114,22 @@
         }
         catch
         {
-            // A misconfigured or unpublished binding shouldn't break form rendering.
             _resolvedItems = [];
         }
     }
 
     private void OnValueChanged(object? val)
     {
-        Context.SetValue(Metadata.Name ?? Metadata.Id, val?.ToString());
+        Context.SetValue(Key, val?.ToString());
+    }
+
+    private void ToggleOption(string optVal)
+    {
+        var current = CurrentValues;
+        if (current.Contains(optVal))
+            current.Remove(optVal);
+        else
+            current.Add(optVal);
+        Context.SetValue(Key, current.ToList());
     }
 }

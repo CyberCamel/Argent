@@ -1,7 +1,9 @@
 using Argent.Contracts.Authorization;
 using Argent.Contracts.Forms;
 using Argent.Models.Authorization;
+using Argent.Models.DomainObjects;
 using Argent.Models.Forms.Components.Base;
+using Argent.Runtime.DomainObjects;
 
 namespace Argent.Runtime.Forms;
 
@@ -12,7 +14,11 @@ public class ArgentFormContext(
 {
     private readonly Dictionary<string, object?> _data = new();
     private readonly HashSet<string> _touched = [];
+    private readonly Dictionary<string, List<string>> _serverErrors = new();
     private bool _showAllErrors;
+
+    /// <summary>When set, domain-level validation (required + type compat) runs live in GetErrors.</summary>
+    public DomainObjectDefinition? DomainDefinition { get; set; }
 
     public Dictionary<string, object?> Environment { get; } = new();
     public List<string> UserRoles { get; set; } = [];
@@ -49,6 +55,18 @@ public class ArgentFormContext(
             return;
         _data[key] = value;
         _touched.Add(key);
+        _serverErrors.Remove(key);
+        NotifyStateChanged();
+    }
+
+    /// <summary>
+    /// Stores server-side validation errors (e.g. uniqueness constraint failures) keyed by field name.
+    /// Each field's errors are cleared automatically when the user next edits that field.
+    /// </summary>
+    public void SetServerErrors(Dictionary<string, List<string>> errors)
+    {
+        _serverErrors.Clear();
+        foreach (var kvp in errors) _serverErrors[kvp.Key] = kvp.Value;
         NotifyStateChanged();
     }
 
@@ -78,7 +96,26 @@ public class ArgentFormContext(
     {
         if (string.IsNullOrEmpty(component.Name)) return [];
         if (!_showAllErrors && !_touched.Contains(component.Name)) return [];
-        return _validator.ValidateField(component, this);
+
+        var errors = _validator.ValidateField(component, this);
+
+        // Domain validation (required + type compatibility) runs live when a definition is bound.
+        // Only applied when the form layer has no errors already — avoids duplicate "required" messages.
+        if (DomainDefinition != null && errors.Count == 0)
+        {
+            var domainErrors = DomainRecordValidator.Validate(DomainDefinition, GetAllValues())
+                .Where(e => string.Equals(e.Property, component.Name, StringComparison.OrdinalIgnoreCase))
+                .Select(e => e.Message)
+                .ToList();
+            if (domainErrors.Count > 0)
+                errors = [.. errors, .. domainErrors];
+        }
+
+        // Server errors (e.g. uniqueness) persist until the user edits the field.
+        if (_serverErrors.TryGetValue(component.Name, out var serverErrs))
+            errors = [.. errors, .. serverErrs];
+
+        return errors;
     }
 
     /// <summary>After this call every field shows its errors, touched or not.</summary>

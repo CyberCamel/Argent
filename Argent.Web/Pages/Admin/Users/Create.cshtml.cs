@@ -15,7 +15,7 @@ public class CreateModel(UserManager<InternalUser> userManager) : PageModel
 
     public IActionResult OnGet()
     {
-        return Partial("~/Pages/UserAdministration/_CreateUserPartial.cshtml", new CreateUserViewModel());
+        return Partial("~/Pages/Admin/Users/_CreateUserPartial.cshtml", new CreateUserViewModel());
     }
 
     public async Task<IActionResult> OnPostAsync()
@@ -23,7 +23,7 @@ public class CreateModel(UserManager<InternalUser> userManager) : PageModel
         if (!ModelState.IsValid)
         {
             Response.StatusCode = 400;
-            return Partial("~/Pages/UserAdministration/_CreateUserPartial.cshtml", CreateUser);
+            return Partial("~/Pages/Admin/Users/_CreateUserPartial.cshtml", CreateUser);
         }
 
         var result = await userManager.CreateAsync(new InternalUser
@@ -40,7 +40,7 @@ public class CreateModel(UserManager<InternalUser> userManager) : PageModel
             foreach (var error in result.Errors)
                 ModelState.AddModelError(string.Empty, error.Description);
 
-            return Partial("~/Pages/UserAdministration/_CreateUserPartial.cshtml", CreateUser);
+            return Partial("~/Pages/Admin/Users/_CreateUserPartial.cshtml", CreateUser);
         }
 
         Response.Headers["HX-Trigger"] = "userActionCompleted";

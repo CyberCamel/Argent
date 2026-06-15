@@ -1,6 +1,7 @@
 @using Argent.Runtime.Workflows.Modeling
 @using Argent.Models.Workflows
 @using Argent.WebComponents.Core.Workflows.Modeler
+@using Argent.WebComponents.Authorization
 
 <div class="modeler2-sidebar">
     <div class="modeler2-sidebar-tabs">
@@ -16,6 +17,10 @@
                 @onclick="() => SetTab(TabType.Errors)">
             <i class="bi bi-exclamation-triangle"></i> Errors
         </button>
+        <button class="@(_activeTab == TabType.Access ? "modeler2-sidebar-tab-active" : "")"
+                @onclick="() => SetTab(TabType.Access)">
+            <i class="bi bi-shield-lock"></i> Access
+        </button>
     </div>
     <div class="modeler2-sidebar-content" @onmouseleave="() => OnHoverNode.InvokeAsync(null)">
         @switch (_activeTab)
@@ -29,6 +34,18 @@
             case TabType.Errors:
                 <ErrorViewer State="@State" OnHoverNode="OnHoverNode" />
                 break;
+            case TabType.Access:
+                <div class="p-3">
+                    @if (State.CurrentWorkflowId.HasValue)
+                    {
+                        <ResourceSharingPanel ResourceType="Workflow" ResourceId="@State.CurrentWorkflowId.Value" />
+                    }
+                    else
+                    {
+                        <p class="text-muted small">Save the workflow first to manage access.</p>
+                    }
+                </div>
+                break;
         }
     </div>
 </div>
@@ -38,7 +55,7 @@
     [Parameter] public EventCallback<NodeBase?> OnHoverNode { get; set; }
     [Parameter] public EventCallback OnVersionLoaded { get; set; }
 
-    private enum TabType { Versions, Json, Errors }
+    private enum TabType { Versions, Json, Errors, Access }
     private TabType _activeTab = TabType.Versions;
 
     private void SetTab(TabType tab) => _activeTab = tab;

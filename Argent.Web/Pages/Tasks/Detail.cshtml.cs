@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Argent.Web.Pages.Tasks;
 
-[Authorize(Policy = "PbacTaskView")]
+[Authorize]
 public class DetailModel : PageModel
 {
     [FromRoute]

@@ -1,11 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Argent.Web.Pages.Admin.Policies;
+namespace Argent.Web.Pages.Admin;
 
 [Authorize(Policy = "SuperAdminOnly")]
-public class CreateModel : PageModel
+public class CapabilitiesModel : PageModel
 {
     public void OnGet() { }
 }

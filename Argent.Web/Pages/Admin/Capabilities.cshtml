@@ -1,0 +1,18 @@
+@page "/Admin/Capabilities"
+@using Argent.WebComponents.Authorization
+@model Argent.Web.Pages.Admin.CapabilitiesModel
+@{
+    ViewData["Title"] = "Capabilities";
+}
+
+<div class="d-flex align-items-start mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Platform Capabilities</h4>
+        <p class="text-muted small mb-0">
+            Control which users, roles, and groups can perform actions across all resources of each type.
+            Per-resource access is managed from within each workflow or form.
+        </p>
+    </div>
+</div>
+
+<component type="typeof(CapabilitiesPanel)" render-mode="ServerPrerendered" />

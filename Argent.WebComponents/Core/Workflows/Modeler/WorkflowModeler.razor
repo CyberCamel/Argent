@@ -1,5 +1,6 @@
 @using System.Security.Claims
 @using System.Globalization
+@using Argent.Contracts.Authorization
 @using Argent.Contracts.Workflows
 @using Argent.Runtime.Workflows.Modeling
 @using Argent.Runtime.Workflows.Modeling.Routing
@@ -11,6 +12,7 @@
 @inject IWorkflowNodeRegistry Registry
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject IResourceOwnershipService OwnershipService
 
 <div class="modeler2-layout">
     @if (EffectiveReadOnly)
@@ -1101,7 +1103,7 @@
         }
         else if ((e.CtrlKey || e.MetaKey) && e.Key is "s" or "S")
         {
-            HandleSave();
+            _ = HandleSave();
         }
         else if (e.Key == "Delete" || e.Key == "Backspace")
         {
@@ -1302,14 +1304,19 @@
 
     // ======================== SAVE / COMPILE / PUBLISH ========================
 
-    private void HandleSave()
+    private async Task HandleSave()
     {
+        var wasNew = !State.CurrentWorkflowId.HasValue;
         State.Compile();
         State.SaveDraft();
         State.Notify();
 
-        if (!WorkflowId.HasValue && State.CurrentWorkflowId.HasValue)
+        if (wasNew && State.CurrentWorkflowId.HasValue)
         {
+            var userId = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!string.IsNullOrEmpty(userId))
+                await OwnershipService.GrantOwnershipAsync("Workflow", State.CurrentWorkflowId.Value, userId);
+
             Nav.NavigateTo($"/Workflows/Edit/{State.CurrentWorkflowId}", forceLoad: true);
         }
     }

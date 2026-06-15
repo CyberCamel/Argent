@@ -29,6 +29,6 @@ public class ListModel(UserManager<InternalUser> userManager) : PageModel
             });
         }
         Users = list;
-        return Partial("~/Pages/UserAdministration/_UserTablePartial.cshtml", Users);
+        return Partial("~/Pages/Admin/Users/_UserTablePartial.cshtml", Users);
     }
 }

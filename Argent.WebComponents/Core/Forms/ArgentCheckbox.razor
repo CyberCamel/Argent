@@ -4,7 +4,8 @@
 @if (IsVisible)
 {
     <div class="form-check mb-3 @Metadata.CssClass">
-        <input class="form-check-input"
+        @{var _cbErrors = Errors.ToList();}
+        <input class="form-check-input @(_cbErrors.Count > 0 ? "is-invalid" : "")"
                type="checkbox"
                id="@Metadata.Id"
                checked="@CurrentValue"
@@ -18,10 +19,10 @@
         {
             <div class="form-text">@Metadata.Description</div>
         }
-        @if (Errors.Any())
+        @if (_cbErrors.Count > 0)
         {
             <div class="invalid-feedback d-block">
-                @foreach (var err in Errors) { <div>@err</div> }
+                @foreach (var err in _cbErrors) { <div>@err</div> }
             </div>
         }
     </div>

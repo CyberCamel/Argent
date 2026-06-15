@@ -7,6 +7,40 @@
 
 @if (State.SelectedComponent == null)
 {
+    @if (_boundObjectDef != null)
+    {
+        <div class="property-section mb-2">
+            @{
+                var allFieldNames = State.AllFieldNames().ToHashSet();
+                var requiredProps = _boundObjectDef.Properties.Where(p => p.Required).ToList();
+                var missingProps = requiredProps.Where(p => !allFieldNames.Contains(p.Key)).ToList();
+                var coveredProps = requiredProps.Where(p => allFieldNames.Contains(p.Key)).ToList();
+            }
+            <div class="property-label">Required field coverage</div>
+            @if (!requiredProps.Any())
+            {
+                <div class="small text-muted">No required properties defined.</div>
+            }
+            else
+            {
+                @if (missingProps.Any())
+                {
+                    <div class="alert alert-warning py-1 px-2 small mb-1">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Missing:</strong> @string.Join(", ", missingProps.Select(p => p.DisplayName))
+                    </div>
+                }
+                @if (coveredProps.Any())
+                {
+                    <div class="small text-success">
+                        @foreach (var p in coveredProps)
+                        {
+                            <span class="me-2"><i class="bi bi-check-circle"></i> @p.DisplayName</span>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    }
     <p class="text-muted small">Select a component on the canvas to edit its properties.</p>
 }
 else if (State.SelectedComponent is FormField field)
@@ -22,7 +56,9 @@ else if (State.SelectedComponent is FormField field)
                     <option value="">— custom —</option>
                     @foreach (var prop in _boundObjectDef.Properties)
                     {
-                        <option value="@prop.Key" selected="@(field.Name == prop.Key)">@prop.DisplayName (@prop.Key)</option>
+                        var alreadyBound = State.AllFieldNames().Any(n => n != field.Name && n == prop.Key);
+                        var optLabel = $"{prop.DisplayName} ({prop.Key}){(prop.Required ? " *" : "")}{(alreadyBound ? " ✓" : "")}";
+                        <option value="@prop.Key" selected="@(field.Name == prop.Key)">@optLabel</option>
                     }
                 </select>
                 @if (!_boundObjectDef.Properties.Any(p => p.Key == field.Name))
@@ -43,6 +79,16 @@ else if (State.SelectedComponent is FormField field)
             @if (_nameWarning != null)
             {
                 <div class="text-warning small mt-1"><i class="bi bi-exclamation-triangle"></i> @_nameWarning</div>
+            }
+            @{
+                var _domainPropMatch = _boundObjectDef?.Properties.FirstOrDefault(p => p.Key == field.Name);
+            }
+            @if (_domainPropMatch != null && field.Xtype != InferXtype(_domainPropMatch.Type))
+            {
+                <div class="text-warning small mt-1">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Expected <strong>@InferXtype(_domainPropMatch.Type)</strong> for this property (current: @field.Xtype)
+                </div>
             }
         </div>
         <div class="mb-2">
@@ -555,6 +601,12 @@ else if (State.SelectedComponent is FormLayout container)
             field.Xtype = inferred;
             if (inferred == "TextField" && prop.Type == DomainPropertyType.MultiLineText)
             { field.Grow = true; field.Rows = 4; }
+        }
+
+        if (prop.Type == DomainPropertyType.Choice)
+        {
+            field.DataProvider = null;
+            field.Items = prop.Choices.Select(c => new SelectOption { Label = c.Label, Value = c.Value }).ToList();
         }
 
         State.MarkDirty();

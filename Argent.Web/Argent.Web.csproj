@@ -50,14 +50,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AdditionalFiles Include="Pages\Admin\UserAdministration\Create.cshtml" />
-    <AdditionalFiles Include="Pages\Admin\UserAdministration\Delete.cshtml" />
-    <AdditionalFiles Include="Pages\Admin\UserAdministration\Edit.cshtml" />
-    <AdditionalFiles Include="Pages\Admin\UserAdministration\Index.cshtml" />
-    <AdditionalFiles Include="Pages\Admin\UserAdministration\List.cshtml" />
-    <AdditionalFiles Include="Pages\Admin\UserAdministration\_CreateUserPartial.cshtml" />
-    <AdditionalFiles Include="Pages\Admin\UserAdministration\_EditUserPartial.cshtml" />
-    <AdditionalFiles Include="Pages\Admin\UserAdministration\_UserTablePartial.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\Create.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\Delete.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\Edit.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\Index.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\List.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\_CreateUserPartial.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\_EditUserPartial.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\_UserTablePartial.cshtml" />
   </ItemGroup>
 
 </Project>

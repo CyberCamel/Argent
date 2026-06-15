@@ -47,17 +47,18 @@ The leaf-node assembly. Contains no logic — only POCOs, enums, JSON-polymorphi
 | `DomainObjects` | `DomainObject`, `DomainObjectDefinition`, `DomainObjectDraft`, `DomainObjectVersion`, `DomainObjectRecord`, `DomainProperty`, `DomainPropertyType`, `DomainChoiceOption`, `DomainDataSource`, `DomainObjectState` | Schema definitions for custom entity types, their typed properties, data source bindings, version lifecycle (draft → publish), and instance records |
 | `DomainObjects.Querying` | `DomainQuery`, `DomainQueryResult`, `DomainFilter`, `DomainSort`, `DomainFilterCondition`, `DomainFilterOperator`, `DomainFilterLogic` | Declarative query/filter/sort/pagination model for domain object records |
 | `Workflows` | `WorkflowDefinition`, `Workflow`, `WorkflowVersion`, `WorkflowDraft`, `NodeBase`, `Connection`, `StartEvent`, `EndEvent`, `ExclusiveGateway`, `InclusiveGateway`, `ParallelGateway`, `Lane`, `Pool`, `Token`, `WorkflowMetadata`, `WorkflowDiff` | Workflow graph model. `NodeBase` is the JSON-polymorphic base; concrete nodes carry `[WorkflowCanvasElement]` attributes with metadata for the designer. `Connection.Expression` carries the gateway condition (NCalc) for conditional branches |
+| `Authorization` | `PolicyDocument`, `PolicyDecision` (enum), `PolicyEffect` (enum), `ResourceActions` | Policy-based access control models. `PolicyDocument` is the persisted policy entity with Effect, ResourceType, ResourceSelectorJson, ActionsJson, SubjectJson, optional Condition tree, and Priority. `ResourceActions` defines well-known action constants per resource type |
 | `Workflows.Activities` | `Activity`, `SQLActivity`, `RestActivity`, `JintActivity`, `UserActivity`, `ServerActivity`, `UserExperience` (`RedirectExperience`, `WaitExperience`, `TaskExperience`) | Concrete node types, each `NodeBase` subtypes discriminated by JSON type discriminator. `UserActivity.UX` selects how a user task is surfaced |
 | `Workflows.Execution` | `WorkflowToken`, `WorkItem`, `WorkflowInstance`, `UserTask`, `WorkItemState`, `InstanceState`, `TokenState`, `UserTaskState` | Token-based execution state. `WorkflowToken` is the BPMN "token" that flows through the graph (carries the variable `Payload` plus `GroupId`/`TokenCount` for gateway join correlation); `WorkItem` is the claimable execution queue row (state, lock fields, retry counters, priority/schedule); `WorkflowInstance` tracks a running execution; `UserTask` is a pending human task |
 | `Workflows.Auditing` | `WorkflowJournalEntry`, enums | Audit trail entries for workflow execution |
 | `Workflows.Modeler` | `NodeLayout`, `LayoutElement` | Visual layout data (position, dimensions) for the workflow designer canvas |
-| `Forms.Components` | `FormDefinition` | Top-level form definition containing a tree of `FormComponent` items |
+| `Forms.Components` | `FormDefinition`, `FormCustomData` | Top-level form definition containing a tree of `FormComponent` items. `FormCustomData` stores field values that have no corresponding `DomainProperty` on the bound domain object |
 | `Forms.Components.Base` | `FormComponent` (abstract, JSON-polymorphic), `FormField`, `FormLayout`, `SelectOption` | Form component tree. `FormField` for data-bound inputs, `FormLayout` for containers (Row, Column, Flex, Fieldset, Tabs, Accordion) |
 | `Forms.Components.Configuration` | `FieldValidator` (abstract hierarchy: `LengthValidator`, `RangeValidator`, `RegexValidator`, `EmailValidator`, `UrlValidator`, `CompareFieldValidator`, `ExpressionValidator`); `Condition` (abstract: `AndCondition`, `OrCondition`, `NotCondition`, `CompareCondition`, `RoleCondition`, `ExpressionCondition`); `DataProviderConfig` | Declarative validation rules and conditional logic (visibility, required, disabled, readOnly) |
 | `Forms.Filtering` | `QueryGroup`, `FilterItem`, `IFilter` | Generic filtering constructs for form data sources |
 | `DataSources` | `DataSource` (abstract, JSON-polymorphic), `SqlDataSource`, `RestDataSource`, `SoapDataSource`, `DataSourceRequest`, `SqlRequest`, `RestRequest`, `SoapRequest`, `DataSourceResult`, `DataSourceTestResult`, `DataSourceSummary`, enums | Connection configuration models for SQL/REST/SOAP endpoints |
-| `Identity` | `Person` (abstract), `InternalUser`, `ExternalUser`, `Organization`, `Position`, enums | Identity model extending ASP.NET Core Identity's `IdentityUser<Guid>` |
-| `Attributes` | `WorkflowCanvasElementAttribute`, `NodePropertyAttribute` | Metadata attributes decorating workflow node classes for the designer toolbox |
+| `Identity` | `Person` (abstract), `InternalUser`, `ExternalUser`, `Organization`, `Position`, `Group`, `GroupMembership`, `GroupGroupMembership`, enums | Identity model extending ASP.NET Core Identity's `IdentityUser<Guid>`. `Group` is a named collection of users (LDAP-style) with transitive nesting via `GroupGroupMembership`; groups are first-class PBAC subjects |
+| `Attributes` | `WorkflowCanvasElementAttribute`, `NodePropertyAttribute`, `PbacResourceAttribute`, `PbacPropertyAttribute` | Metadata attributes decorating workflow node classes for the designer toolbox. `PbacResourceAttribute` (class-level) and `PbacPropertyAttribute` (property-level) enable PBAC policy discovery via reflection |
 | `Enums` | `WorkflowDefinitionState` (Draft, Published, Deployed) | Lifecycle states for workflows and domain objects |
 
 ### Polymorphic JSON serialization
@@ -67,7 +68,7 @@ All three designer subsystems (workflows, forms, domain objects) store their def
 - `NodeBase` → `SQLActivity`, `RestActivity`, `JintActivity`, `UserActivity`, `ServerActivity`, `StartEvent`, `EndEvent`, `ExclusiveGateway`, `InclusiveGateway`, `ParallelGateway`
 - `FormComponent` → `FormField`, `FormLayout` (with `LayoutType` sub-discriminator)
 - `DataSource` → `SqlDataSource`, `RestDataSource`, `SoapDataSource`
-- `Condition` → `AndCondition`, `OrCondition`, `NotCondition`, `CompareCondition`, `RoleCondition`, `ExpressionCondition`
+- `Condition` → `AndCondition`, `OrCondition`, `NotCondition`, `CompareCondition`, `RoleCondition`, `ExpressionCondition` — also used by `PolicyDocument.Condition` for attribute-based policy conditions
 - `FieldValidator` → `LengthValidator`, `RangeValidator`, `RegexValidator`, `EmailValidator`, `UrlValidator`, `CompareFieldValidator`, `ExpressionValidator`
 
 ---
@@ -79,6 +80,16 @@ All three designer subsystems (workflows, forms, domain objects) store their def
 Defines all public-facing interfaces and DTOs that decouple the runtime layer from consumers. No implementation lives here.
 
 ### Interfaces by Subsystem
+
+#### Authorization (`Authorization/`)
+
+| Interface | Signature | Consumers | Purpose |
+|---|---|---|---|
+| `IPbacResourceRegistry` | `ResourceTypeNames { get; }`, `GetProperties(resourceType)` | PolicyDecisionService | Discovers resource types via `[PbacResource]` attributes and their PBAC-visible properties via `[PbacProperty]` |
+| `IPolicyDecisionService` | `EvaluateAsync(userId, roles, resourceType, resourceAttributes, action, env?)`, `GetApplicablePoliciesAsync(resourceType, action)`, `InvalidateCacheAsync()` | PbacAuthorizationHandler, DomainObjectStore, workflows | Core policy evaluation engine. Default-deny; Deny always wins over Allow. Evaluates subject match (users/roles/groups), resource selector, and condition tree. Caches policies and group membership in-memory; all decisions audited via `IAuditService` |
+| `IAttributeBag` | `GetValue(key)`, `GetAllValues()`, `UserRoles` | ConditionEvaluator, AuthorizationContext | Abstraction for prefix-keyed attribute lookup (`subject.*`, `resource.*`, `env.*`) during policy condition evaluation |
+| `ICapabilityService` | `GetCapabilitiesAsync(resourceType)`, `GrantAsync(resourceType, subjectJson, action)`, `RevokeActionAsync(policyId, action)`, `InvalidateCacheAsync()` | Admin UI (CapabilitiesPanel) | Manages global (non-resource-scoped) policies — the base capability layer |
+| `IResourceOwnershipService` | `GrantOwnershipAsync(resourceType, resourceId, userId)`, `ShareAccessAsync(resourceType, resourceId, subjectJson, actions)`, `RevokeAccessAsync(policyId)`, `UpdateActionsAsync(policyId, actions)`, `GetResourcePoliciesAsync(resourceType, resourceId)` | Admin UI (ResourceSharingPanel), Workflow pages | Manages resource-instance-scoped policies for ownership and sharing |
 
 #### Data Sources (`DataSources/`)
 
@@ -100,7 +111,7 @@ Defines all public-facing interfaces and DTOs that decouple the runtime layer fr
 
 | Interface | Signature | Consumers | Purpose |
 |---|---|---|---|
-| `IFormContext` | `GetValue<T>(key)`, `GetValue(key)`, `SetValue(key, value)`, `GetAllData()`, `GetAllValues()`, `IsVisible(component)`, `IsRequired(field)`, `GetErrors(field)`, `Environment { get; }`, `UserRoles { get; }`, `OnStateChanged` event, `NotifyStateChanged()` | ArgentForm.razor, ConditionEvaluator, FormValidationService | Runtime per-form state bag: values, visibility, errors, touch tracking, reactivity |
+| `IFormContext` | `GetValue<T>(key)`, `GetValue(key)`, `SetValue(key, value)`, `SetInitialValues(values)`, `GetAllData()`, `GetAllValues()`, `IsVisible(component)`, `IsRequired(field)`, `GetErrors(field)`, `Environment { get; }`, `UserRoles { get; }`, `UserId { get; set; }`, `RecordId { get; set; }`, `OnStateChanged` event, `NotifyStateChanged()` | ArgentForm.razor, ConditionEvaluator, FormValidationService | Runtime per-form state bag: values, visibility, errors, touch tracking, reactivity. Extends `IAttributeBag`; PBAC additions `UserId`, `UserRoles`, `RecordId` enable form-level policy checks |
 | `IConditionEvaluator` | `Evaluate(condition, context)`, `EvaluateFieldVisible(field, context)`, `EvaluateFieldRequired(field, context)`, `EvaluateFieldDisabled(field, context)`, `EvaluateFieldReadOnly(field, context)` | ArgentFormContext, FormValidationService, DesignerFormContext | Evaluates condition trees (And/Or/Not/Compare/Role/NCalc Expression) against a form context |
 | `IFormValidator` | `ValidateForm(definition, context)`, `ValidateField(field, context)` | ArgentFormContext, ArgentForm.razor | Validates visible fields against required flag, inline constraints, and registered validators |
 | `IFormComponentRegistry` | `Resolve(typeName)`, `GetRegisteredTypes()` | ArgentRenderer.razor | Maps xtype strings to Blazor component Types. Seeded in Program.cs |
@@ -174,7 +185,8 @@ Extends `IdentityDbContext<InternalUser, IdentityRole<Guid>, Guid>` and configur
 | DbSet | Entity | Purpose |
 |---|---|---|
 | `Positions` | `Position` | Person-position join table |
-| `FormDocuments` | `FormDocument` | Persisted form definitions (JSON) |
+| `FormDesigns` | `FormDesign` | Persisted form definitions (JSON) |
+| `FormCustomData` | `FormCustomData` | Form field values not mapped to a domain property, keyed to `RecordId` + `FormId` |
 | `WorkItems` | `WorkItem` | Workflow execution queue (claimable, lockable) |
 | `WorkflowTokens` | `WorkflowToken` | BPMN tokens — per-instance execution state |
 | `WorkflowInstances` | `WorkflowInstance` | Running workflow instances |
@@ -188,6 +200,10 @@ Extends `IdentityDbContext<InternalUser, IdentityRole<Guid>, Guid>` and configur
 | `DomainObjectDrafts` | `DomainObjectDraft` | Editable domain object drafts |
 | `DomainObjectRecords` | `DomainObjectRecord` | Domain object instance data (JSON values) |
 | `DataSources` | `DataSourceDocument` | Data source connections (encrypted config) |
+| `PolicyDocuments` | `PolicyDocument` | PBAC policy rules (Effect, ResourceType, ResourceSelector, Actions, Subject, Condition, Priority) |
+| `Groups` | `Group` | Named user collections for PBAC subject targeting |
+| `GroupMemberships` | `GroupMembership` | User-to-group join table |
+| `GroupGroupMemberships` | `GroupGroupMembership` | Nested-group edges for transitive membership |
 
 **Key configuration patterns:**
 
@@ -200,11 +216,11 @@ Extends `IdentityDbContext<InternalUser, IdentityRole<Guid>, Guid>` and configur
   `IX_WorkItems_Claim_Immediate` on `(State, Priority, CreatedAt)` filtered to
   `State = 0 AND ScheduledAt IS NULL`, and `IX_WorkItems_Scheduled` for deferred items; plus
   state indexes on `WorkflowTokens`, `WorkflowInstances`, `UserTasks`, and `WorkflowJournalEntries`.
-  Schema is created via `EnsureCreated()` (no migrations yet)
+  Schema is managed via EF Core migrations (initial migration created, applied via `context.Database.MigrateAsync()` at startup)
 
 ### Entity Documents
 
-- `FormDocument` — `Id`, `Name`, `Description`, `Definition` (JSON), `CreatedBy`, `CreatedAt`, `UpdatedAt`
+- `FormDesign` — `Id`, `Name`, `Description`, `ObjectKey`, `Definition` (JSON), `CreatedBy`, `CreatedAt`, `UpdatedAt`
 - `DataSourceDocument` — `Id`, `Key` (unique), `Name`, `Description`, `Kind`, `Config` (encrypted JSON), `CreatedBy`, `CreatedAt`, `UpdatedAt`
 - `DomainObjectRecord` — `Id`, `DomainObjectId` (FK), `DefinitionVersion`, `Values` (JSON dictionary), `CreatedBy`, `CreatedAt`, `UpdatedBy`, `UpdatedAt`
 
@@ -356,7 +372,7 @@ Coerces raw `JsonElement` / string values to match `DomainPropertyType`:
 
 #### `ArgentFormContext` (implements `IFormContext`)
 
-**Dependencies:** `IFormValidator`, `IConditionEvaluator`
+**Dependencies:** `IFormValidator`, `IConditionEvaluator`, `IPolicyDecisionService`
 
 Scoped per-form state:
 - **Data dictionary:** `GetValue/SetValue` with change detection (no-op if value unchanged)
@@ -638,6 +654,60 @@ Orthogonal auto-routing for workflow connections:
 - Waypoint dragging constraints (preserves orthogonal segments)
 - Midpoint waypoint insertion
 
+### 4h. Authorization (`Authorization/`)
+
+The PBAC subsystem implements the policy engine and supporting services defined in `Argent.Contracts.Authorization`.
+
+#### `PolicyDecisionService` (implements `IPolicyDecisionService`)
+
+**Dependencies:** `IDbContextFactory<ArgentDbContext>`, `IAuditService`
+**Lifetime:** Singleton (caches policies and group membership in `ConcurrentDictionary`)
+
+The core policy evaluation engine:
+
+1. Fetches all enabled policies for the resource type from DB (cached)
+2. Filters by resource selector (`ResourceSelectorJson` matches `resourceAttributes["id"]`)
+3. Resolves user's group membership with transitive nesting (`GroupGroupMembership`), cached per user
+4. Builds an `AuthorizationContext` with subject/resource/environment attributes
+5. Orders policies by descending `Priority`
+6. For each policy: checks subject match (ANY/OR across users/roles/groups), evaluates condition tree, applies effect
+7. **Deny always wins** — any matching Deny policy returns Deny immediately
+8. Default-deny when no policy matches
+9. All decisions audited via `IAuditService`
+
+Subject matching (`MatchesSubject`):
+- Empty `SubjectJson` → applies to everyone
+- ANY/OR semantics: user must match at least one of `users`, `roles`, or `groups` if any are specified
+
+Group resolution (`GetUserGroupsAsync`):
+- Loads direct `GroupMembership` rows
+- Loads all `GroupGroupMembership` edges (parent-child)
+- Computes transitive closure (cycle-safe with visited set) for effective group IDs
+
+Cache invalidation via `InvalidateCacheAsync()` clears both policy and group caches.
+
+#### `PbacResourceRegistry` (implements `IPbacResourceRegistry`)
+
+**Lifetime:** Singleton
+
+Scans assemblies for classes decorated with `[PbacResource]`, discovers properties with `[PbacProperty]`, and maps them to `"resource.{camelCaseName}"` paths.
+
+#### `AuthorizationContext` (implements `IAttributeBag`)
+
+Carries all attributes for policy condition evaluation. Prefixes all keys: `subject.*`, `resource.*`, `env.*`.
+
+#### `CapabilityService` (implements `ICapabilityService`)
+
+**Lifetime:** Scoped
+
+Manages global (non-resource-scoped) policies. `GrantAsync` reuses an existing global policy for the same subject if one exists (appends action).
+
+#### `ResourceOwnershipService` (implements `IResourceOwnershipService`)
+
+**Lifetime:** Scoped
+
+Manages resource-instance-scoped policies. `GrantOwnershipAsync` uses a resource-type switch to determine the owner's full action set (e.g., `ResourceActions.Workflow.Owner`). Creates `PolicyDocument` with `ResourceSelectorJson = {"id":"..."}`.
+
 ### Stubs
 
 - `JintExecutor.cs` — Empty class wrapping Jint `Engine`. No implementation.
@@ -660,7 +730,7 @@ The composition root: configures DI, middleware, authentication, and hosts Blazo
 | Singleton | `IConditionEvaluator` | `ConditionEvaluator` |
 | Singleton | `IFormValidator` | `FormValidationService` |
 | Singleton | `IWorkflowNodeRegistry` | `ArgentWorkflowNodeRegistry` |
-| Scoped | `IFormContext` | `ArgentFormContext` (factory: injected with validator + condition evaluator) |
+| Scoped | `IFormContext` | `ArgentFormContext` (factory: injected with validator + condition evaluator + `IPolicyDecisionService`) |
 | Scoped | `IDataSourceCatalog` | `DataSourceCatalog` |
 | Scoped | `IDataSourceRunner` | `DataSourceRunner` |
 | Scoped | `IDataSourceProvider` (×3) | `SqlDataSourceProvider`, `RestDataSourceProvider`, `SoapDataSourceProvider` |
@@ -678,33 +748,42 @@ The composition root: configures DI, middleware, authentication, and hosts Blazo
 | Scoped | `DesignerService` | `DesignerService` |
 | Scoped | `FormDesignerService` | `FormDesignerService` |
 | Scoped | `DomainObjectDesignerService` | `DomainObjectDesignerService` |
+| Singleton | `IPolicyDecisionService` | `PolicyDecisionService` |
+| Singleton | `IPbacResourceRegistry` | `PbacResourceRegistry` |
+| Scoped | `IResourceOwnershipService` | `ResourceOwnershipService` |
+| Scoped | `ICapabilityService` | `CapabilityService` |
+| Scoped | `IAuthorizationHandler` | `PbacAuthorizationHandler` |
 | Hosted | — | `WorkflowEngine` |
 
 **Infrastructure:**
 - `DbContextFactory<ArgentDbContext>` + scoped fallback for Identity (`AddScoped(p => factory.CreateDbContext())`)
 - ASP.NET Core Identity with `InternalUser`, roles (`IdentityRole<Guid>`)
-- Authorization policies: `UserAdminOnly`, `FlowAdminOnly`, `FormAdminOnly`, `SuperAdminOnly`
+- Authorization policies: `UserAdminOnly`, `FlowAdminOnly`, `FormAdminOnly`, `SuperAdminOnly`, `PbacTaskView`, `PbacTaskComplete`, `PbacWorkflowRun`, `PbacWorkflowModel`, `PbacFormDesign` (via `PbacRequirement`)
 - SignalR for Blazor Server
 - Data Protection for `ISecretProtector`
 - `IHttpClientFactory` for REST/SOAP providers
 
 **Startup:**
-- `EnsureDeleted()` + `EnsureCreated()` (development mode)
+- `context.Database.MigrateAsync()` applies EF Core migrations
 - Seeds roles (SuperAdmin, UserAdmin, FormAdmin, FlowAdmin, User) and sample users
+- Seeds domain object mock data from `MOCK_DATA.csv`
 - Generates JSON Schema for `FormDefinition` at `Resources/form-schema.json`
 
 ### Razor Pages
 
 | Area | Pages | Purpose |
-|---|---|---|
+|---|---|---|---|
 | Dashboard | `Index` | Workflow/form counts, recent items |
 | Auth | `Login`, `Logout`, `QuickLogin` | Authentication |
 | Account | `Profile`, `Privacy`, `Error` | User-facing pages |
 | DataSources | `Index`, `Create`, `Edit` | Data source connection management |
-| DomainObjects | `Index`, `Create`, `Edit` | Domain object schema management |
+| DomainObjects | `Index`, `Create`, `Edit` | Domain object schema management + designer |
 | Forms | `Index`, `Create`, `Edit`, `Live` | Form management + live form rendering for end-users |
-| Workflows | `Index`, `Model/{Edit,View}`, `Modeler` | Workflow management + modeler page |
-| UserAdministration | `Index`, `List`, `Create`, `Edit`, `Delete` | User admin CRUD |
+| Workflows | `Index`, `Start`, `Model/{Edit,View}`, `Modeler` | Workflow management + modeler + start workflow |
+| Tasks | `Index`, `Detail` | User task inbox and detail view |
+| Admin/Users | `Index`, `List`, `Create`, `Edit`, `Delete` | User admin CRUD |
+| Admin/Groups | `Index`, `Create`, `Edit` | Group management for PBAC subject targeting |
+| Admin/Capabilities | `Index` | Global platform capability management (SuperAdmin only) |
 
 ### `DataProtectionSecretProtector` (implements `ISecretProtector`)
 
@@ -716,16 +795,27 @@ Seeds the database:
 - Roles: `SuperAdmin`, `UserAdmin`, `FormAdmin`, `FlowAdmin`, `User`
 - Users: "MultiTool" (FormAdmin + FlowAdmin), "Overlord" (SuperAdmin), "alexb" (SuperAdmin)
 
+### `PbacAuthorizationHandler` / `PbacRequirement`
+
+Bridges PBAC to ASP.NET Core authorization. `PbacRequirement` carries `ResourceType` and `Action`. `PbacAuthorizationHandler` extracts `userId` and `roles` from the `ClaimsPrincipal`, calls `IPolicyDecisionService.EvaluateAsync()`, and succeeds the requirement only when the decision is `Allow`.
+
+Registered as `IAuthorizationHandler` in DI, enabling declarative `[Authorize(Policy = "PbacWorkflowRun")]` on Razor Pages.
+
 ### Security Authorization
 
 Defined in `ServiceCollectionExtensions.AddArgentSecurity()`:
 
-| Policy | Allowed Roles |
+| Policy | Allowed Roles / Requirement |
 |---|---|
 | `UserAdminOnly` | `UserAdmin`, `SuperAdmin` |
 | `FlowAdminOnly` | `FlowAdmin`, `SuperAdmin` |
 | `FormAdminOnly` | `FormAdmin`, `SuperAdmin` |
 | `SuperAdminOnly` | `SuperAdmin` |
+| `PbacTaskView` | `PbacRequirement("UserTask", "view")` |
+| `PbacTaskComplete` | `PbacRequirement("UserTask", "complete")` |
+| `PbacWorkflowRun` | `PbacRequirement("Workflow", "run")` |
+| `PbacWorkflowModel` | `PbacRequirement("Workflow", "model")` |
+| `PbacFormDesign` | `PbacRequirement("Form", "design")` |
 
 ---
 
@@ -830,6 +920,51 @@ View model for canvas state:
 - `ViewBox` — computed SVG viewBox string
 - `ScreenToWorld(clientX, clientY, rectLeft, rectTop)` — coordinate transform
 
+### Workflow Lifecycle Components
+
+#### `TaskDetail.razor`
+
+User task detail view for the task inbox:
+- Displays task metadata (title, description, due date, priority)
+- Shows the associated `ArgentForm` if the task has a bound form definition
+- Submit completes the task via `IUserTaskManager.CompleteTaskAsync()`
+- Re-directs to workflow instance status on completion
+
+#### `WorkflowStarter.razor`
+
+Workflow start component:
+- Lists deployable workflows filtered by PBAC (`PbacWorkflowRun` policy)
+- Optionally accepts pre-bound form data from a domain object record
+- Calls `IWorkflowInstanceManager.StartAsync()` and displays instance status
+
+### Authorization Components
+
+#### `CapabilitiesPanel.razor`
+
+Admin UI for managing global platform capabilities per resource type:
+- Table per resource type (Workflow, Form) with rows per action
+- Cells show chips for subjects (users, roles, groups) that have the capability
+- Inline searchable picker to add subjects; chips with remove buttons
+- Calls `ICapabilityService.GrantAsync` and `RevokeActionAsync`
+
+#### `ResourceSharingPanel.razor`
+
+Per-resource sharing UI (rendered as modal from resource detail pages):
+- Drag-and-drop interface: subjects on the left, action zones on the right
+- Calls `IResourceOwnershipService.ShareAccessAsync`, `UpdateActionsAsync`, `RevokeAccessAsync`
+- Parameters: `ResourceType`, `ResourceId`
+
+#### `GroupEditor.razor`
+
+Create/Edit group form with `MemberSelector` for user and nested group members.
+On save, persists group + memberships and invalidates the policy cache.
+
+#### `MemberSelector.razor`
+
+Reusable subject/member picker with two modes:
+- Non-searchable: dropdown + add button for small option sets
+- Searchable: search box with paginated results and paginated selected items list
+
 ### Domain Object Designer
 
 #### `DomainObjectDesigner.razor`
@@ -889,10 +1024,11 @@ builder.AddProject<Argent_Web>("Argent")
 
 Coverage centers on the token-based workflow engine, in three tiers:
 
-**Unit (`Workflows/Handlers/`, `Workflows/Execution/`):**
+**Unit (`Workflows/Handlers/`, `Workflows/Execution/`, `Authorization/`):**
 - Gateway evaluators — `ExclusiveGatewayEvaluator`, `InclusiveGatewayEvaluator`, `ParallelGatewayEvaluator`
 - Activity handlers — `SQLActivityHandler` (mock `IDataSourceRunner`), `RestActivityHandler` (stub `HttpMessageHandler` asserting `{{token}}` substitution), `JintActivityHandler` (real Jint), `UserActivityHandler` (mock `IUserTaskManager`)
 - `TokenRunner` (mocked deps: consumed-token short-circuit, missing-definition failure, success/commit, `Waiting`, exception-retry), `TokenMovement` helpers, `AuditService`, `RecoveryPass` (stale-lock release, dead-letter, orphan re-queue, flag-not-complete)
+- `PolicyDecisionService` — subject matching, condition evaluation, group resolution, cache invalidation
 
 **Integration — SQLite (`IntegrationTestBase` + `WorkflowTraversalIntegrationTests`):**
 in-memory SQLite with the real handlers and `TokenMovement`, advancing whole graphs:
@@ -954,7 +1090,7 @@ Ryuk; if no container runtime is present the SQL tests skip rather than fail.
 | **JSON Serialization** | Designer services serialize/deserialize definitions | `System.Text.Json` for persistence and cloning |
 | **Cascading Parameter** | `ArgentForm` passes `IFormContext` to field components | Blazor `CascadingValue` |
 
-### Data Flow: Form Submission
+### Data Flow: Form Submission (with Domain Object Binding)
 
 ```
 User fills form in browser
@@ -964,8 +1100,36 @@ User fills form in browser
   → User clicks Submit
     → ArgentForm calls IFormValidator.ValidateForm()
       → FormValidationService walks all fields, evaluates conditions, checks validators
-    → If valid: serializes FormData, raises OnValidSubmit
     → If invalid: calls IFormContext.RevealAllErrors(), shows errors
+    → If valid: raises OnValidSubmit with FormData
+      → If FormDefinition.ObjectKey is set:
+          → DomainObjectStore.UpsertAsync() creates/updates DomainObjectRecord
+          → RecordId written to IFormContext.RecordId
+          → Unmapped field values stored in FormCustomData
+          → If workflow trigger configured: WorkflowStarter starts instance with RecordId
+```
+
+### Data Flow: PBAC Authorization
+
+```
+Request arrives (e.g., /Workflows/Start?workflowId=X)
+  → [Authorize(Policy = "PbacWorkflowRun")]
+    → PbacAuthorizationHandler.HandleRequirementAsync()
+      → Extracts userId, roles from ClaimsPrincipal
+      → Calls IPolicyDecisionService.EvaluateAsync()
+        → PolicyDecisionService:
+          → Fetches enabled policies for resource type from DB (cached)
+          → Filters by resource selector (global or instance-scoped)
+          → Resolves user's groups with transitive nesting (cached)
+          → Builds AuthorizationContext (subject + resource + env attributes)
+          → Evaluates policies by Priority DESC:
+              MatchesSubject() → ANY/OR across users/roles/groups
+              Evaluates condition tree if present
+              Deny → audit + DENY (immediate)
+              Allow → continue scanning
+          → Default-deny if no policy matched
+      → If Allow: context.Succeed(requirement)
+      → If Deny: 403 Forbidden
 ```
 
 ### Data Flow: Workflow Execution

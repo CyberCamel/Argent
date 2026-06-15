@@ -1,4 +1,7 @@
+using System.Security.Claims;
+using Argent.Contracts.Authorization;
 using Argent.Infrastructure.Data;
+using Argent.Models.Authorization;
 using Argent.Models.Enums;
 using Argent.Models.Workflows;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Argent.Web.Pages.Workflows;
 
 [Authorize]
-public class StartModel(ArgentDbContext _ctx) : PageModel
+public class StartModel(ArgentDbContext _ctx, IPolicyDecisionService _policyService) : PageModel
 {
     [BindProperty(SupportsGet = true)]
     public Guid? WorkflowId { get; set; }
@@ -22,6 +25,9 @@ public class StartModel(ArgentDbContext _ctx) : PageModel
 
     public async Task<IActionResult> OnGetAsync()
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+
         if (WorkflowId.HasValue)
         {
             var workflow = await _ctx.WorkflowDefinitions
@@ -30,6 +36,14 @@ public class StartModel(ArgentDbContext _ctx) : PageModel
 
             if (workflow == null)
                 return NotFound();
+
+            var decision = await _policyService.EvaluateAsync(
+                userId, roles, "Workflow",
+                new Dictionary<string, object?> { ["id"] = workflow.Id.ToString() },
+                ResourceActions.Workflow.Run);
+
+            if (decision != PolicyDecision.Allow)
+                return Forbid();
 
             WorkflowName = workflow.Name;
             return Page();
@@ -43,15 +57,25 @@ public class StartModel(ArgentDbContext _ctx) : PageModel
                 (v, w) => new { v.Definition, w.Id, w.Name, w.Description })
             .ToListAsync();
 
-        Workflows = deployedVersions
-            .Select(x => new StartableWorkflowDto
-            {
-                Id = x.Id,
-                Name = x.Name,
-                Description = x.Description
-            })
-            .ToList();
+        // Show only workflows the current user has run access to.
+        var visibleWorkflows = new List<StartableWorkflowDto>();
+        foreach (var x in deployedVersions)
+        {
+            var decision = await _policyService.EvaluateAsync(
+                userId, roles, "Workflow",
+                new Dictionary<string, object?> { ["id"] = x.Id.ToString() },
+                ResourceActions.Workflow.Run);
 
+            if (decision == PolicyDecision.Allow)
+                visibleWorkflows.Add(new StartableWorkflowDto
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    Description = x.Description
+                });
+        }
+
+        Workflows = visibleWorkflows;
         return Page();
     }
 

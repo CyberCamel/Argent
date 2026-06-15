@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Argent.Web.Pages.Tasks;
 
-[Authorize(Policy = "PbacTaskView")]
+[Authorize]
 public class IndexModel(IUserTaskManager _taskManager) : PageModel
 {
     public List<UserTask> Tasks { get; set; } = [];

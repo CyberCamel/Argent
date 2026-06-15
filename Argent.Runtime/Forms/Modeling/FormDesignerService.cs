@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using System.Text.Json;
+using Argent.Contracts.Authorization;
 using Argent.Infrastructure.Data;
 using Argent.Infrastructure.Serialization;
 using Argent.Models.Forms.Components;
@@ -26,7 +28,8 @@ public readonly record struct DropTarget(string? ContainerId, int Index, int Col
 
 public class FormDesignerService(
     IDbContextFactory<ArgentDbContext> _dbContextFactory,
-    IHttpContextAccessor _httpContextAccessor)
+    IHttpContextAccessor _httpContextAccessor,
+    IResourceOwnershipService _ownershipService)
 {
     public FormDefinition Definition { get; private set; } = NewDefinition();
 
@@ -368,7 +371,8 @@ public class FormDesignerService(
 
     public async Task SaveAsync()
     {
-        var updatedBy = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
+        var currentUser = _httpContextAccessor.HttpContext?.User;
+        var updatedBy = currentUser?.Identity?.Name ?? "Unknown";
 
         // Detach the stored copy from the live designer instance.
         var definitionCopy = CloneDefinition(Definition);
@@ -377,6 +381,8 @@ public class FormDesignerService(
         var existing = StoredFormId.HasValue
             ? await dbContext.FormDesigns.FindAsync(StoredFormId.Value)
             : null;
+
+        var isNew = existing == null;
 
         if (existing != null)
         {
@@ -402,6 +408,14 @@ public class FormDesignerService(
         }
 
         await dbContext.SaveChangesAsync();
+
+        if (isNew && StoredFormId.HasValue)
+        {
+            var userId = currentUser?.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!string.IsNullOrEmpty(userId))
+                await _ownershipService.GrantOwnershipAsync("Form", StoredFormId.Value, userId);
+        }
+
         HasUnsavedChanges = false;
         Notify();
     }

@@ -4,6 +4,7 @@
 @using Argent.Runtime.Forms
 @using Argent.Runtime.Forms.Modeling
 @using Argent.WebComponents.Core.Forms
+@using Argent.WebComponents.Authorization
 @implements IDisposable
 @inject FormDesignerService State
 @inject NavigationManager Navigation
@@ -148,6 +149,12 @@
         <div class="border-start bg-light p-3" style="width: 360px; min-width: 360px; overflow-y: auto;">
             <h6 class="text-muted mb-3"><i class="bi bi-sliders"></i> Properties</h6>
             <FormPropertyPanel State="@State" />
+
+            @if (State.StoredFormId.HasValue)
+            {
+                <hr />
+                <ResourceSharingPanel ResourceType="Form" ResourceId="@State.StoredFormId.Value" />
+            }
         </div>
     </div>
 </div>
