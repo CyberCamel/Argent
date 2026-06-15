@@ -3,6 +3,7 @@ using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
 using Argent.Models.Enums;
 using Argent.Models.Workflows;
+using Argent.Runtime.Workflows;
 using Argent.Models.Workflows.Auditing;
 using Argent.Models.Workflows.Execution;
 using Microsoft.EntityFrameworkCore;
@@ -132,7 +133,7 @@ public class TokenRunner : ITokenRunner
                 {
                     var targetNode = definition.Nodes.FirstOrDefault(n => n.Id == c.To.Id);
                     return targetNode != null
-                        ? new CandidateTarget(targetNode.Id, targetNode.GetType().Name, c.Expression)
+                        ? new CandidateTarget(targetNode.Id, targetNode.GetType().Name, ResolveExpression(c))
                         : null;
                 })
                 .Where(c => c != null)
@@ -428,6 +429,13 @@ public class TokenRunner : ITokenRunner
                 n.GetType().Name,
                 mergedVars))
             .ToList();
+    }
+
+    private static string? ResolveExpression(Connection c)
+    {
+        if (c.IsDefault) return null;
+        if (c.Condition != null) return ConditionCompiler.Compile(c.Condition);
+        return c.Expression;
     }
 
     protected internal virtual async Task SetWorkItemStateCoreAsync(

@@ -1,0 +1,168 @@
+@using Argent.Contracts.DomainObjects
+@using Argent.Infrastructure.Data
+@using Argent.Models.DomainObjects
+@using Argent.Models.Forms.Components
+@using Argent.Models.Forms.Components.Base
+@using Argent.Models.Forms.Components.Configuration
+@using Argent.Models.Workflows
+@using Argent.Models.Workflows.Activities
+@using Argent.Runtime.Workflows.Modeling
+@using Argent.WebComponents.Core.Forms.Designer
+@using Microsoft.EntityFrameworkCore
+@inject IDomainObjectDefinitionService DomainObjectDefinitions
+@inject IDbContextFactory<ArgentDbContext> DbContextFactory
+
+<div class="modeler2-properties">
+    <div class="modeler2-properties-header">
+        <span class="modeler2-properties-title">
+            <i class="bi bi-arrow-right-circle"></i> Connection —
+            <span class="modeler2-properties-type">@Connection.Source.Title</span>
+            <span class="modeler2-properties-sep">→</span>
+            <span class="modeler2-properties-name">@Connection.Target.Title</span>
+        </span>
+        <button type="button" class="modeler2-properties-close" @onclick="HandleClose" title="Close">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+    <div class="modeler2-properties-body">
+        <div class="modeler2-properties-section">
+            <div class="modeler2-properties-field">
+                <label class="modeler2-properties-label">Label</label>
+                <input class="modeler2-properties-input"
+                       value="@_conn.Label"
+                       @oninput="@(e => { _conn.Label = e.Value?.ToString(); State.MarkDirty(); })" />
+            </div>
+            <div class="modeler2-properties-field modeler2-properties-field-inline">
+                <label class="modeler2-properties-label">Default path</label>
+                <label class="modeler2-properties-switch">
+                    <input type="checkbox" checked="@_conn.IsDefault"
+                           @onchange="OnIsDefaultChanged" />
+                    <span class="modeler2-properties-switch-slider"></span>
+                </label>
+                @if (_conn.IsDefault)
+                {
+                    <span class="modeler2-conn-default-hint">Used when no other path matches</span>
+                }
+            </div>
+        </div>
+
+        @if (!_conn.IsDefault)
+        {
+            <div class="modeler2-properties-section modeler2-properties-section-dyn">
+                <div class="modeler2-properties-label mb-1">Condition</div>
+                <div class="modeler2-conn-condition-wrap">
+                    <ConditionBuilder Condition="@_conn.Condition"
+                                      ConditionChanged="@OnConditionChanged"
+                                      OnChanged="@OnConditionEdited"
+                                      Fields="@_fields" />
+                </div>
+                @if (_fields == null)
+                {
+                    <div class="small text-muted mt-1">
+                        <i class="bi bi-info-circle"></i> Add a domain object to StartEvent to get field hints.
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public required DesignerService State { get; set; }
+    [Parameter] public required DesignerConnection Connection { get; set; }
+    [Parameter] public required EventCallback OnClose { get; set; }
+
+    private Connection _conn = null!;
+    private List<string>? _fields;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _conn = Connection.EngineConnection;
+        await LoadFieldsAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _conn = Connection.EngineConnection;
+        await LoadFieldsAsync();
+    }
+
+    private async Task LoadFieldsAsync()
+    {
+        var startEvent = State.Nodes
+            .Select(n => n.NodeData)
+            .OfType<StartEvent>()
+            .FirstOrDefault();
+
+        var allFields = new List<string>();
+
+        // Domain object properties
+        if (startEvent != null && !string.IsNullOrEmpty(startEvent.ObjectKey))
+        {
+            var def = await DomainObjectDefinitions.GetPublishedDefinitionAsync(startEvent.ObjectKey);
+            if (def != null)
+                allFields.AddRange(def.Properties.Select(p => p.Key));
+
+            // Form field keys (includes FormCustomData fields not in the domain object)
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            var formDesigns = await db.FormDesigns
+                .AsNoTracking()
+                .Where(f => f.ObjectKey == startEvent.ObjectKey)
+                .ToListAsync();
+
+            foreach (var design in formDesigns)
+            {
+                if (design.Definition?.Components is { } components)
+                    allFields.AddRange(CollectFieldNames(components));
+            }
+        }
+
+        // Workflow instance variables set by script/jint nodes
+        foreach (var node in State.Nodes.Select(n => n.NodeData))
+        {
+            switch (node)
+            {
+                case ScriptActivity sa:
+                    allFields.AddRange(sa.Actions.OfType<SetVariableAction>()
+                        .Select(a => a.VariableName)
+                        .Where(v => !string.IsNullOrWhiteSpace(v)));
+                    break;
+                case JintActivity ja when !string.IsNullOrWhiteSpace(ja.ReturnVariable):
+                    allFields.Add(ja.ReturnVariable);
+                    break;
+            }
+        }
+
+        _fields = allFields.Distinct(StringComparer.OrdinalIgnoreCase).Order().ToList();
+        if (_fields.Count == 0) _fields = null;
+    }
+
+    private static IEnumerable<string> CollectFieldNames(IEnumerable<FormComponent> components)
+    {
+        foreach (var c in components)
+        {
+            if (c is FormField f && !string.IsNullOrWhiteSpace(f.Name))
+                yield return f.Name;
+            else if (c is FormLayout layout)
+                foreach (var name in CollectFieldNames(layout.Items))
+                    yield return name;
+        }
+    }
+
+    private void OnIsDefaultChanged(ChangeEventArgs e)
+    {
+        _conn.IsDefault = (bool)(e.Value ?? false);
+        if (_conn.IsDefault) _conn.Condition = null;
+        State.MarkDirty();
+    }
+
+    private void OnConditionChanged(Condition? c)
+    {
+        _conn.Condition = c;
+        State.MarkDirty();
+    }
+
+    private void OnConditionEdited() => State.MarkDirty();
+
+    private void HandleClose() => OnClose.InvokeAsync();
+}

@@ -931,10 +931,13 @@ svg > rect[fill="url(#gridPattern)"] {
     flex-grow: 1;
     height: 100%;
     overflow: hidden;
+    --toolbox-width: 200px;
+    --sidebar-width: 340px;
+    --properties-height: 260px;
 }
 
 .modeler2-toolbox {
-    width: 200px;
+    width: var(--toolbox-width);
     flex-shrink: 0;
     background: #181825;
     border-right: 1px solid #313244;
@@ -1154,7 +1157,7 @@ svg > rect[fill="url(#gridPattern)"] {
 }
 
 .modeler2-sidebar {
-    width: 340px;
+    width: var(--sidebar-width);
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -1257,6 +1260,29 @@ svg > rect[fill="url(#gridPattern)"] {
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+}
+
+.modeler2-resizer {
+    flex-shrink: 0;
+    background: transparent;
+    transition: background 0.15s;
+    position: relative;
+    z-index: 20;
+}
+
+.modeler2-resizer-h {
+    width: 5px;
+    cursor: col-resize;
+}
+
+.modeler2-resizer-v {
+    height: 5px;
+    cursor: row-resize;
+}
+
+.modeler2-resizer:hover,
+.modeler2-resizer:active {
+    background: #89b4fa55;
 }
 
 .modeler2-canvas {
@@ -1718,9 +1744,17 @@ svg > rect[fill="url(#gridPattern)"] {
 .modeler2-node-shape.node-end     { fill: #ef4444; stroke: #dc2626; }
 .modeler2-node-shape.node-user    { fill: #3b82f6; stroke: #2563eb; }
 .modeler2-node-shape.node-script  { fill: #a855f7; stroke: #9333ea; }
-.modeler2-node-shape.gw-inclusive { fill: #f59e0b; stroke: #d97706; }
-.modeler2-node-shape.gw-exclusive { fill: #f97316; stroke: #ea580c; }
-.modeler2-node-shape.gw-parallel  { fill: #14b8a6; stroke: #0d9488; }
+.modeler2-node-shape.gw-inclusive,
+.modeler2-node-shape.gw-exclusive,
+.modeler2-node-shape.gw-parallel  { fill: #f59e0b; stroke: #d97706; }
+
+.modeler2-gw-symbol {
+    stroke: #fff;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    fill: none;
+    pointer-events: none;
+}
 
 .modeler2-node-label {
     font-size: 11px;
@@ -1816,7 +1850,8 @@ svg > rect[fill="url(#gridPattern)"] {
     border-top: 1px solid #313244;
     display: flex;
     flex-direction: column;
-    max-height: 45%;
+    height: var(--properties-height);
+    max-height: 70%;
     flex-shrink: 0;
     overflow: hidden;
 }
@@ -2107,6 +2142,48 @@ svg > rect[fill="url(#gridPattern)"] {
     background: transparent;
     color: #45475a;
     border: 1px solid #313244;
+}
+
+/* ── Gateway connection labels and default-path styling ─────────── */
+.modeler2-conn-default .modeler2-conn-path {
+    stroke-dasharray: 6 3;
+}
+
+.modeler2-conn-label {
+    font-size: 10px;
+    fill: #a6adc8;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    paint-order: stroke;
+    stroke: #1e1e2e;
+    stroke-width: 3px;
+    font-family: monospace;
+    pointer-events: none;
+    user-select: none;
+}
+
+.modeler2-conn-label-default {
+    fill: #94e2d5;
+}
+
+/* ── Connection editor panel ─────────────────────────────────────── */
+.modeler2-conn-condition-wrap {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 10px;
+    margin-top: 4px;
+}
+
+.modeler2-properties-field-inline {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 12px;
+}
+
+.modeler2-conn-default-hint {
+    font-size: 0.7rem;
+    color: #94e2d5;
+    flex: 1;
 }
 
 /* ── Script action editor ────────────────────────────────────────── */

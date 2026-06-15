@@ -46,6 +46,10 @@
             </div>
         </div>
     }
+    <div class="modeler2-resizer modeler2-resizer-h"
+         data-resize-prop="--toolbox-width"
+         data-resize-axis="x"
+         data-resize-min="120"></div>
     <div class="modeler2-main">
         <div class="modeler2-toolbar">
             <div class="modeler2-toolbar-left">
@@ -129,10 +133,12 @@
                         if (wps.Count < 2) continue;
                         var isSel = State.SelectedConnection == conn;
                         var path = RoutingService.WaypointsToSvgPath(wps);
+                        var isGwConn = conn.Source.NodeData is ExclusiveGateway or InclusiveGateway;
+                        var isDefault = conn.EngineConnection.IsDefault;
+                        var connLabel = GetConnectionLabel(conn);
 
-                        <g class="modeler2-conn @(isSel ? "modeler2-conn-selected" : "")"
-                           @onpointerdown:stopPropagation
-                           @ondblclick="e => OnConnectionDoubleClick(e, conn)">
+                        <g class="modeler2-conn @(isSel ? "modeler2-conn-selected" : "") @(isDefault ? "modeler2-conn-default" : "")"
+                           @onpointerdown:stopPropagation>
 
                             <path d="@path" stroke="transparent" stroke-width="14" fill="none"
                                   style="cursor: pointer;"
@@ -140,6 +146,15 @@
 
                             <path d="@path" class="modeler2-conn-path" fill="none"
                                   marker-end="url(#g2-arrowhead)" />
+
+                            @if (isGwConn && !string.IsNullOrEmpty(connLabel))
+                            {
+                                var mid = wps.Count / 2;
+                                var lx = (wps[mid - 1].X + wps[mid].X) / 2.0;
+                                var ly = (wps[mid - 1].Y + wps[mid].Y) / 2.0 - 8;
+                                var connLabelCls = isDefault ? "modeler2-conn-label modeler2-conn-label-default" : "modeler2-conn-label";
+                                <svg:text x="@lx" y="@ly" class="@connLabelCls">@connLabel</svg:text>
+                            }
 
                             @if (isSel)
                             {
@@ -310,8 +325,25 @@
                                              class="modeler2-node-shape @node.CssClass" />
                                     break;
                                 case NodeShape.Diamond:
-                                    <polygon points="@($"{(node.Width / 2).ToString("F2", CultureInfo.InvariantCulture)},0 {node.Width.ToString("F2", CultureInfo.InvariantCulture)},{(node.Height / 2).ToString("F2", CultureInfo.InvariantCulture)} {(node.Width / 2).ToString("F2", CultureInfo.InvariantCulture)},{node.Height.ToString("F2", CultureInfo.InvariantCulture)} 0,{(node.Height / 2).ToString("F2", CultureInfo.InvariantCulture)}")"
+                                    var _gdw = node.Width; var _gdh = node.Height;
+                                    var _gcx = _gdw / 2.0; var _gcy = _gdh / 2.0;
+                                    var _ghs = Math.Min(_gdw, _gdh) * 0.17;
+                                    <polygon points="@($"{(_gdw / 2).ToString("F2", CultureInfo.InvariantCulture)},0 {_gdw.ToString("F2", CultureInfo.InvariantCulture)},{(_gdh / 2).ToString("F2", CultureInfo.InvariantCulture)} {(_gdw / 2).ToString("F2", CultureInfo.InvariantCulture)},{_gdh.ToString("F2", CultureInfo.InvariantCulture)} 0,{(_gdh / 2).ToString("F2", CultureInfo.InvariantCulture)}")"
                                              class="modeler2-node-shape @node.CssClass" />
+                                    @if (node.NodeData is ExclusiveGateway)
+                                    {
+                                        <line class="modeler2-gw-symbol" x1="@(_gcx - _ghs)" y1="@(_gcy - _ghs)" x2="@(_gcx + _ghs)" y2="@(_gcy + _ghs)" />
+                                        <line class="modeler2-gw-symbol" x1="@(_gcx + _ghs)" y1="@(_gcy - _ghs)" x2="@(_gcx - _ghs)" y2="@(_gcy + _ghs)" />
+                                    }
+                                    else if (node.NodeData is ParallelGateway)
+                                    {
+                                        <line class="modeler2-gw-symbol" x1="@_gcx" y1="@(_gcy - _ghs)" x2="@_gcx" y2="@(_gcy + _ghs)" />
+                                        <line class="modeler2-gw-symbol" x1="@(_gcx - _ghs)" y1="@_gcy" x2="@(_gcx + _ghs)" y2="@_gcy" />
+                                    }
+                                    else if (node.NodeData is InclusiveGateway)
+                                    {
+                                        <circle class="modeler2-gw-symbol" cx="@_gcx" cy="@_gcy" r="@_ghs" />
+                                    }
                                     break;
                                 default:
                                     <rect x="0" y="0" width="@node.Width" height="@node.Height" rx="6"
@@ -319,9 +351,18 @@
                                     break;
                             }
 
-                            <text x="@(node.Width / 2)" y="@(node.Height / 2 + 4)"
-                                  text-anchor="middle" class="modeler2-node-label"
-                                  dominant-baseline="middle">@(node.Title)</text>
+                            @if (node.Shape == NodeShape.Diamond)
+                            {
+                                <svg:text x="@(node.Width / 2)" y="@(node.Height + 14)"
+                                          text-anchor="middle" class="modeler2-node-label"
+                                          dominant-baseline="middle">@node.Title</svg:text>
+                            }
+                            else
+                            {
+                                <svg:text x="@(node.Width / 2)" y="@(node.Height / 2 + 4)"
+                                          text-anchor="middle" class="modeler2-node-label"
+                                          dominant-baseline="middle">@node.Title</svg:text>
+                            }
 
                             @* Anchors *@
                             @if (!EffectiveReadOnly && isSel)
@@ -381,13 +422,36 @@
 
             @if (_editingNode != null)
             {
+                <div class="modeler2-resizer modeler2-resizer-v"
+                     data-resize-prop="--properties-height"
+                     data-resize-axis="y"
+                     data-resize-invert="true"
+                     data-resize-min="80"></div>
                 <ModelerPropertiesPanel Node="_editingNode"
                                         State="@State"
                                         Registry="@Registry"
                                         OnClose="@ClosePropertiesPanel" />
             }
+            else if (!EffectiveReadOnly
+                && State.SelectedConnection is { } gwConn
+                && gwConn.Source.NodeData is ExclusiveGateway or InclusiveGateway)
+            {
+                <div class="modeler2-resizer modeler2-resizer-v"
+                     data-resize-prop="--properties-height"
+                     data-resize-axis="y"
+                     data-resize-invert="true"
+                     data-resize-min="80"></div>
+                <ConnectionEditorPanel Connection="@gwConn"
+                                       State="@State"
+                                       OnClose="@CloseConnectionEditor" />
+            }
             </div>
 
+            <div class="modeler2-resizer modeler2-resizer-h"
+                 data-resize-prop="--sidebar-width"
+                 data-resize-axis="x"
+                 data-resize-invert="true"
+                 data-resize-min="200"></div>
             <ModelerSidebar State="@State" OnHoverNode="OnSidebarHoverNode" OnVersionLoaded="OnVersionLoaded" />
         </div>
     </div>
@@ -900,6 +964,23 @@
         State.Notify();
     }
 
+    private void CloseConnectionEditor()
+    {
+        State.Select(null);
+        State.Notify();
+    }
+
+    private static string GetConnectionLabel(DesignerConnection conn)
+    {
+        var c = conn.EngineConnection;
+        if (!string.IsNullOrEmpty(c.Label)) return c.Label;
+        if (c.IsDefault) return "default";
+        if (c.Condition != null) return "[condition]";
+        if (!string.IsNullOrEmpty(c.Expression))
+            return c.Expression.Length > 18 ? c.Expression[..18] + "…" : c.Expression;
+        return "";
+    }
+
     private void OnSidebarHoverNode(NodeBase? node)
     {
         _highlightedNodeId = node?.Id;
@@ -1012,6 +1093,7 @@
 
         int segIdx = RoutingService.FindNearestSegment(conn.Waypoints, wx, wy);
         State.Select(conn);
+        _editingNode = null;
 
         if (segIdx >= 0)
         {
@@ -1023,20 +1105,6 @@
         }
 
         State.Notify();
-    }
-
-    private async Task OnConnectionDoubleClick(MouseEventArgs e, DesignerConnection conn)
-    {
-        if (EffectiveReadOnly) return;
-
-        var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
-
-        int segIdx = RoutingService.FindNearestSegment(conn.Waypoints, wx, wy);
-        if (segIdx >= 0)
-        {
-            RoutingService.InsertWaypointAtMidpoint(conn.Waypoints, segIdx);
-            State.MarkDirty();
-        }
     }
 
     private async Task OnWaypointPointerDown(PointerEventArgs e, DesignerConnection conn, int idx)

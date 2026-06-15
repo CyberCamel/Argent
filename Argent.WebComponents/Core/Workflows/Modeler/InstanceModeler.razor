@@ -93,8 +93,25 @@ else
                                              class="modeler2-node-shape @node.CssClass" />
                                     break;
                                 case NodeShape.Diamond:
-                                    <polygon points="@($"{(node.Width / 2).ToString("F2", CultureInfo.InvariantCulture)},0 {node.Width.ToString("F2", CultureInfo.InvariantCulture)},{(node.Height / 2).ToString("F2", CultureInfo.InvariantCulture)} {(node.Width / 2).ToString("F2", CultureInfo.InvariantCulture)},{node.Height.ToString("F2", CultureInfo.InvariantCulture)} 0,{(node.Height / 2).ToString("F2", CultureInfo.InvariantCulture)}")"
+                                    var _idw = node.Width; var _idh = node.Height;
+                                    var _icx = _idw / 2.0; var _icy = _idh / 2.0;
+                                    var _ihs = Math.Min(_idw, _idh) * 0.17;
+                                    <polygon points="@($"{(_idw / 2).ToString("F2", CultureInfo.InvariantCulture)},0 {_idw.ToString("F2", CultureInfo.InvariantCulture)},{(_idh / 2).ToString("F2", CultureInfo.InvariantCulture)} {(_idw / 2).ToString("F2", CultureInfo.InvariantCulture)},{_idh.ToString("F2", CultureInfo.InvariantCulture)} 0,{(_idh / 2).ToString("F2", CultureInfo.InvariantCulture)}")"
                                              class="modeler2-node-shape @node.CssClass" />
+                                    @if (node.NodeData is ExclusiveGateway)
+                                    {
+                                        <line class="modeler2-gw-symbol" x1="@(_icx - _ihs)" y1="@(_icy - _ihs)" x2="@(_icx + _ihs)" y2="@(_icy + _ihs)" />
+                                        <line class="modeler2-gw-symbol" x1="@(_icx + _ihs)" y1="@(_icy - _ihs)" x2="@(_icx - _ihs)" y2="@(_icy + _ihs)" />
+                                    }
+                                    else if (node.NodeData is ParallelGateway)
+                                    {
+                                        <line class="modeler2-gw-symbol" x1="@_icx" y1="@(_icy - _ihs)" x2="@_icx" y2="@(_icy + _ihs)" />
+                                        <line class="modeler2-gw-symbol" x1="@(_icx - _ihs)" y1="@_icy" x2="@(_icx + _ihs)" y2="@_icy" />
+                                    }
+                                    else if (node.NodeData is InclusiveGateway)
+                                    {
+                                        <circle class="modeler2-gw-symbol" cx="@_icx" cy="@_icy" r="@_ihs" />
+                                    }
                                     break;
                                 default:
                                     <rect x="0" y="0" width="@node.Width" height="@node.Height" rx="6"
@@ -102,10 +119,18 @@ else
                                     break;
                             }
 
-                            <text x="@(node.Width / 2)" y="@(node.Height / 2 + 4)"
-                                  text-anchor="middle" class="modeler2-node-label" dominant-baseline="middle">
-                                @node.Title
-                            </text>
+                            @if (node.Shape == NodeShape.Diamond)
+                            {
+                                <svg:text x="@(node.Width / 2)" y="@(node.Height + 14)"
+                                          text-anchor="middle" class="modeler2-node-label"
+                                          dominant-baseline="middle">@node.Title</svg:text>
+                            }
+                            else
+                            {
+                                <svg:text x="@(node.Width / 2)" y="@(node.Height / 2 + 4)"
+                                          text-anchor="middle" class="modeler2-node-label"
+                                          dominant-baseline="middle">@node.Title</svg:text>
+                            }
                         </g>
                     }
                 </svg>
