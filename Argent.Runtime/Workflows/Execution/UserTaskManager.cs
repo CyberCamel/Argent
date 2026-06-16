@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
+using Argent.Models.Workflows.Auditing;
 using Argent.Models.Workflows.Execution;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,10 +10,12 @@ namespace Argent.Runtime.Workflows.Execution;
 public class UserTaskManager : IUserTaskManager
 {
     private readonly IDbContextFactory<ArgentDbContext> _contextFactory;
+    private readonly IAuditService _audit;
 
-    public UserTaskManager(IDbContextFactory<ArgentDbContext> contextFactory)
+    public UserTaskManager(IDbContextFactory<ArgentDbContext> contextFactory, IAuditService audit)
     {
         _contextFactory = contextFactory;
+        _audit = audit;
     }
 
     public async Task<UserTask> CreateTaskAsync(
@@ -50,6 +53,14 @@ public class UserTaskManager : IUserTaskManager
 
         context.UserTasks.Add(task);
         await context.SaveChangesAsync(ct);
+
+        await _audit.RecordAsync(
+            category: "Task",
+            eventType: nameof(WorkflowAuditEventType.TaskCreated),
+            instanceId: instanceId,
+            tokenId: tokenId,
+            details: new { Title = title, AssigneeExpression = assigneeExpression, CandidateRoles = candidateRoles, Priority = priority },
+            ct: ct);
 
         return task;
     }
@@ -141,6 +152,15 @@ public class UserTaskManager : IUserTaskManager
         task.ClaimedAt = DateTime.UtcNow;
         task.RowVersion = Guid.NewGuid();
         await context.SaveChangesAsync(ct);
+
+        await _audit.RecordAsync(
+            category: "Task",
+            eventType: nameof(WorkflowAuditEventType.TaskStarted),
+            instanceId: task.InstanceId,
+            tokenId: task.TokenId,
+            actor: userId,
+            details: new { TaskId = taskId, Title = task.Title },
+            ct: ct);
     }
 
     public async Task ReleaseAsync(Guid taskId, CancellationToken ct = default)
@@ -154,9 +174,19 @@ public class UserTaskManager : IUserTaskManager
         if (task.State != UserTaskState.Pending)
             return;
 
+        var previousAssignee = task.AssignedTo;
         task.AssignedTo = null;
         task.ClaimedAt = null;
         await context.SaveChangesAsync(ct);
+
+        await _audit.RecordAsync(
+            category: "Task",
+            eventType: nameof(WorkflowAuditEventType.TaskReleased),
+            instanceId: task.InstanceId,
+            tokenId: task.TokenId,
+            actor: previousAssignee,
+            details: new { TaskId = taskId, Title = task.Title },
+            ct: ct);
     }
 
     public async Task ReassignAsync(Guid taskId, string toUser, CancellationToken ct = default)
@@ -170,9 +200,18 @@ public class UserTaskManager : IUserTaskManager
         if (task.State != UserTaskState.Pending)
             return;
 
+        var fromUser = task.AssignedTo;
         task.AssignedTo = toUser;
         task.ClaimedAt = null;
         await context.SaveChangesAsync(ct);
+
+        await _audit.RecordAsync(
+            category: "Task",
+            eventType: nameof(WorkflowAuditEventType.TaskReassigned),
+            instanceId: task.InstanceId,
+            tokenId: task.TokenId,
+            details: new { TaskId = taskId, Title = task.Title, From = fromUser, To = toUser },
+            ct: ct);
     }
 
     public async Task CompleteTaskAsync(Guid taskId, string completedBy, List<string> roles, CancellationToken ct)
@@ -202,6 +241,15 @@ public class UserTaskManager : IUserTaskManager
                 .SetProperty(w => w.LockExpirationUtc, (DateTime?)null), ct);
 
         await context.SaveChangesAsync(ct);
+
+        await _audit.RecordAsync(
+            category: "Task",
+            eventType: nameof(WorkflowAuditEventType.TaskCompleted),
+            instanceId: task.InstanceId,
+            tokenId: task.TokenId,
+            actor: completedBy,
+            details: new { TaskId = taskId, Title = task.Title },
+            ct: ct);
     }
 
     private static bool IsAuthorizedForTask(UserTask task, string userId, List<string> roles)

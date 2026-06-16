@@ -40,13 +40,31 @@ else
                     @foreach (var g in Model.Groups)
                     {
                         <tr>
-                            <td class="fw-medium">@g.Name</td>
+                            <td class="fw-medium">
+                                @g.Name
+                                @if (g.IsSystem)
+                                {
+                                    <span class="badge bg-primary rounded-pill ms-2 small">System</span>
+                                }
+                            </td>
                             <td class="small text-muted">@g.Description</td>
-                            <td><span class="badge bg-secondary">@g.MemberCount</span></td>
+                            <td>
+                                @if (g.IsSystem)
+                                {
+                                    <span class="text-muted small">—</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">@g.MemberCount</span>
+                                }
+                            </td>
                             <td class="text-end">
-                                <a class="btn btn-outline-primary btn-sm" href="/Admin/Groups/Edit/@g.Id">
-                                    <i class="bi bi-pencil-fill"></i> Edit
-                                </a>
+                                @if (!g.IsSystem)
+                                {
+                                    <a class="btn btn-outline-primary btn-sm" href="/Admin/Groups/Edit/@g.Id">
+                                        <i class="bi bi-pencil-fill"></i> Edit
+                                    </a>
+                                }
                             </td>
                         </tr>
                     }

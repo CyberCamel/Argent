@@ -1,5 +1,7 @@
 using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
+using Argent.Models.DomainObjects;
+using Argent.Models.Forms;
 using Argent.Models.Workflows;
 using Argent.Models.Workflows.Auditing;
 using Argent.Models.Workflows.Execution;
@@ -7,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Argent.Web.Pages.Admin.WorkflowInstances;
 
@@ -20,6 +23,7 @@ public class DetailModel(
     public List<WorkItemRow> WorkItems { get; set; } = [];
     public List<UserTaskRow> UserTasks { get; set; } = [];
     public List<AuditRow> AuditEntries { get; set; } = [];
+    public List<VariableRow> Variables { get; set; } = [];
 
     public async Task<IActionResult> OnGet(Guid id)
     {
@@ -123,6 +127,8 @@ public class DetailModel(
             Details = e.Details
         }).ToList();
 
+        Variables = await LoadVariablesAsync(instance, tokens);
+
         return Page();
     }
 
@@ -210,4 +216,113 @@ public class DetailModel(
         public string? Actor { get; init; }
         public string? Details { get; init; }
     }
+
+    public record VariableRow(string Source, string Key, string DisplayValue);
+
+    private async Task<List<VariableRow>> LoadVariablesAsync(
+        WorkflowInstance instance,
+        List<WorkflowToken> tokens)
+    {
+        var rows = new List<VariableRow>();
+        var externalKeys = new HashSet<string>(); // record + custom keys, excluded from Instance
+
+        // --- Record fields and custom data ---
+        if (instance.RecordId != Guid.Empty)
+        {
+            var version = instance.VersionId != Guid.Empty
+                ? await _ctx.WorkflowVersions.AsNoTracking()
+                    .FirstOrDefaultAsync(v => v.Id == instance.VersionId)
+                : null;
+
+            var objectKey = version?.Definition?.Nodes
+                .OfType<StartEvent>()
+                .FirstOrDefault()?.ObjectKey;
+
+            if (!string.IsNullOrEmpty(objectKey))
+            {
+                var domainObj = await _ctx.DomainObjects.AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Key == objectKey);
+
+                if (domainObj != null)
+                {
+                    var record = await _ctx.DomainObjectRecords.AsNoTracking()
+                        .FirstOrDefaultAsync(r => r.DomainObjectId == domainObj.Id
+                                               && r.Id == instance.RecordId);
+
+                    if (record?.Values != null)
+                        foreach (var kvp in record.Values)
+                        {
+                            externalKeys.Add(kvp.Key);
+                            rows.Add(new VariableRow("Record", kvp.Key, FormatValue(UnwrapValue(kvp.Value))));
+                        }
+                }
+            }
+
+            var customData = await _ctx.FormCustomData.AsNoTracking()
+                .Where(f => f.RecordId == instance.RecordId)
+                .ToListAsync();
+
+            foreach (var cd in customData)
+                foreach (var kvp in cd.Values)
+                {
+                    externalKeys.Add(kvp.Key);
+                    // Custom data can overlap with record fields (same key, form-specific override)
+                    rows.RemoveAll(r => r.Source == "Record" && r.Key == kvp.Key);
+                    rows.Add(new VariableRow("Custom", kvp.Key, FormatValue(UnwrapValue(kvp.Value))));
+                }
+        }
+
+        // --- Instance variables from token payloads ---
+        // Exclude keys already covered by Record/Custom — old payloads may have been
+        // written with enriched data before the engine was fixed to keep them separate.
+        var relevantTokens = tokens.Where(t => t.State != TokenState.Consumed).ToList();
+        if (relevantTokens.Count == 0)
+            relevantTokens = tokens.OrderByDescending(t => t.ConsumedAt ?? t.CreatedAt).Take(1).ToList();
+
+        var seenInstanceKeys = new HashSet<string>();
+        foreach (var token in relevantTokens.OrderByDescending(t => t.CreatedAt))
+        {
+            foreach (var kvp in DeserializePayload(token.Payload))
+                if (!externalKeys.Contains(kvp.Key) && seenInstanceKeys.Add(kvp.Key))
+                    rows.Add(new VariableRow("Instance", kvp.Key, FormatValue(kvp.Value)));
+        }
+
+        return rows;
+    }
+
+    private static Dictionary<string, object?> DeserializePayload(string? payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload)) return [];
+        try
+        {
+            var raw = JsonSerializer.Deserialize<Dictionary<string, object?>>(payload);
+            if (raw == null) return [];
+            var result = new Dictionary<string, object?>(raw.Count);
+            foreach (var kvp in raw)
+                result[kvp.Key] = UnwrapValue(kvp.Value);
+            return result;
+        }
+        catch { return []; }
+    }
+
+    private static object? UnwrapValue(object? value)
+    {
+        if (value is not JsonElement el) return value;
+        return el.ValueKind switch
+        {
+            JsonValueKind.String => el.GetString(),
+            JsonValueKind.Number => el.TryGetInt64(out var l) ? l : el.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null or JsonValueKind.Undefined => null,
+            _ => el.ToString()
+        };
+    }
+
+    private static string FormatValue(object? value) => value switch
+    {
+        null => "(null)",
+        string s => s,
+        _ => value.ToString() ?? "(null)"
+    };
 }

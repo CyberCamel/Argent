@@ -54,6 +54,12 @@ else
                                 <a class="btn btn-outline-secondary btn-sm" href="/Workflows/Edit/@wf.Id">
                                     <i class="bi bi-pencil-fill"></i> Edit
                                 </a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@wf.Id" style="display:inline"
+                                      onsubmit="return confirm('Delete this form?')">
+                                    <button class="btn btn-outline-danger btn-sm">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                     }

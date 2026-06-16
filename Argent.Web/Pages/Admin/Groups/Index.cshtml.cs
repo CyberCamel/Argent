@@ -20,9 +20,9 @@ public class IndexModel(ArgentDbContext _ctx) : PageModel
             .ToDictionaryAsync(x => x.GroupId, x => x.Count);
 
         Groups = groups
-            .Select(g => new GroupRow(g.Id, g.Name, g.Description, counts.GetValueOrDefault(g.Id)))
+            .Select(g => new GroupRow(g.Id, g.Name, g.Description, g.IsSystem, counts.GetValueOrDefault(g.Id)))
             .ToList();
     }
 
-    public record GroupRow(Guid Id, string Name, string? Description, int MemberCount);
+    public record GroupRow(Guid Id, string Name, string? Description, bool IsSystem, int MemberCount);
 }

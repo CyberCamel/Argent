@@ -396,7 +396,7 @@
 
     private async Task Publish(bool isMajor)
     {
-        State.PublishVersion(isMajor);
+        await State.PublishVersionAsync(isMajor);
         _publishing = false;
         await RefreshVersions();
         await OnVersionLoaded.InvokeAsync();
@@ -404,7 +404,7 @@
 
     private async Task Deploy(Guid versionId)
     {
-        State.DeployVersion(versionId);
+        await State.DeployVersionAsync(versionId);
         await RefreshVersions();
         await OnVersionLoaded.InvokeAsync();
     }

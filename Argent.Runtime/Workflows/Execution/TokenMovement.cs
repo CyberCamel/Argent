@@ -101,6 +101,15 @@ public class TokenMovement : ITokenMovement
                 {
                     instance.State = InstanceState.Completed;
                     instance.EndTime = DateTime.UtcNow;
+
+                    _context.WorkflowJournalEntries.Add(new WorkflowJournalEntry
+                    {
+                        Category = "Workflow",
+                        EventType = nameof(WorkflowAuditEventType.InstanceCompleted),
+                        InstanceId = request.InstanceId,
+                        TokenId = request.ConsumedTokenId,
+                        TimeStamp = DateTime.UtcNow
+                    });
                 }
             }
         }
@@ -130,7 +139,7 @@ public class TokenMovement : ITokenMovement
         catch { return []; }
     }
 
-    private static object? UnwrapJsonElement(object? value)
+    internal static object? UnwrapJsonElement(object? value)
     {
         if (value is not JsonElement element)
             return value;

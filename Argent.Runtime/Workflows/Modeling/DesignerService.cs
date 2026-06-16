@@ -1,7 +1,9 @@
 ﻿using Argent.Contracts.Workflows;
+using Argent.Contracts.Workflows.Execution;
 using Argent.Runtime.Workflows.Execution;
 using Argent.Models.Enums;
 using Argent.Models.Workflows;
+using Argent.Models.Workflows.Auditing;
 using Argent.Models.Workflows.Modeler;
 using Argent.Runtime.Workflows.Modeling.Routing;
 using Microsoft.AspNetCore.Http;
@@ -15,7 +17,8 @@ namespace Argent.Runtime.Workflows.Modeling;
 public class DesignerService(
     IHttpContextAccessor _httpContextAccessor,
     IDbContextFactory<ArgentDbContext> _dbContextFactory,
-    IWorkflowNodeRegistry _registry)
+    IWorkflowNodeRegistry _registry,
+    IAuditService _auditService)
 {
     public List<DesignerNode> Nodes { get; } = [];
     public List<DesignerConnection> Connections { get; } = [];
@@ -301,7 +304,7 @@ public class DesignerService(
         HasUnsavedChanges = false;
     }
 
-    public void PublishVersion(bool isMajor)
+    public async Task PublishVersionAsync(bool isMajor)
     {
         using var dbContext =  _dbContextFactory.CreateDbContext();
         if (!LoadedDraftId.HasValue) return;
@@ -347,9 +350,15 @@ public class DesignerService(
         LoadedDraftId = null;
         LoadDefinition(versionEntry.Definition);
         HasUnsavedChanges = false;
+
+        await _auditService.RecordAsync(
+            category: "Admin",
+            eventType: nameof(WorkflowAuditEventType.WorkflowPublished),
+            actor: _httpContextAccessor.HttpContext?.User?.Identity?.Name,
+            details: new { WorkflowName = versionEntry.Name, Version = versionEntry.Version.ToString(), VersionId = versionEntry.Id });
     }
 
-    public void DeployVersion(Guid versionId)
+    public async Task DeployVersionAsync(Guid versionId)
     {
         using var dbContext =  _dbContextFactory.CreateDbContext();
         var version = dbContext.WorkflowVersions.Find(versionId);
@@ -372,6 +381,12 @@ public class DesignerService(
         LoadedDraftId = null;
         LoadDefinition(version.Definition);
         HasUnsavedChanges = false;
+
+        await _auditService.RecordAsync(
+            category: "Admin",
+            eventType: nameof(WorkflowAuditEventType.WorkflowDeployed),
+            actor: _httpContextAccessor.HttpContext?.User?.Identity?.Name,
+            details: new { WorkflowName = version.Name, Version = version.Version.ToString(), VersionId = versionId });
     }
 
     public void CreateDraftFromVersion(Guid versionId)

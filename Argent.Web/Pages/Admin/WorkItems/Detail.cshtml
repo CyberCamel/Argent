@@ -1,0 +1,182 @@
+@page "/Admin/WorkItems/{id:guid}"
+@model Argent.Web.Pages.Admin.WorkItems.DetailModel
+@using Argent.Models.Workflows.Execution
+@{
+    var wi = Model.WorkItem;
+    ViewData["Title"] = $"Work Item: {wi.NodeName ?? wi.NodeType}";
+
+    var stateBadge = wi.State switch
+    {
+        WorkItemState.Pending   => "bg-secondary",
+        WorkItemState.Running   => "bg-primary",
+        WorkItemState.Completed => "bg-success",
+        WorkItemState.Failed    => "bg-danger",
+        WorkItemState.Waiting   => "bg-warning text-dark",
+        _                       => "bg-secondary"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">@(wi.NodeName ?? wi.NodeType)</h4>
+        <p class="text-muted small mb-0">
+            Work Item <code>@wi.Id</code>
+            @if (wi.WorkflowName != null)
+            {
+                <span class="mx-1">·</span>
+                <a asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@wi.WorkflowInstanceId"
+                   class="text-decoration-none">
+                    @wi.WorkflowName
+                </a>
+            }
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary btn-sm"
+           asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@wi.WorkflowInstanceId">
+            <i class="bi bi-arrow-left"></i> Back to Instance
+        </a>
+        @if (wi.State == WorkItemState.Failed)
+        {
+            <form method="post" asp-page-handler="Retry" asp-route-id="@wi.Id">
+                <button type="submit" class="btn btn-warning btn-sm">
+                    <i class="bi bi-arrow-clockwise"></i> Retry
+                </button>
+            </form>
+        }
+    </div>
+</div>
+
+@* Metadata cards *@
+<div class="row g-3 mb-4">
+    <div class="col-md-2">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted mb-1">State</div>
+                <span class="badge @stateBadge rounded-pill fs-6">@wi.State</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted mb-1">Node Type</div>
+                <div class="fw-semibold small">@wi.NodeType</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted mb-1">Retries</div>
+                <div class="fw-semibold">@wi.RetryCount <span class="text-muted fw-normal">/ @wi.MaxRetries</span></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted mb-1">Priority</div>
+                <div class="fw-semibold">@wi.Priority</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted mb-1">Created</div>
+                <div class="fw-semibold small">@wi.CreatedAt.ToString("g")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted mb-1">Locked By</div>
+                <div class="small @(wi.LockedBy != null ? "fw-semibold" : "text-muted")">
+                    @(wi.LockedBy ?? "—")
+                    @if (wi.LockExpirationUtc != null)
+                    {
+                        <div class="text-muted fw-normal">exp. @wi.LockExpirationUtc.Value.ToString("t")</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* IDs *@
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 small">
+            <div class="col-md-4">
+                <span class="text-muted">Token ID</span><br />
+                <code>@wi.TokenId</code>
+            </div>
+            <div class="col-md-4">
+                <span class="text-muted">Node ID</span><br />
+                <code>@wi.NodeId</code>
+            </div>
+            <div class="col-md-4">
+                <span class="text-muted">Definition ID</span><br />
+                <code>@wi.DefinitionId</code>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Token Payload *@
+<div class="card mb-4">
+    <div class="card-header fw-semibold small">
+        <i class="bi bi-braces me-1"></i> Token Payload (Variables)
+    </div>
+    <div class="card-body p-0">
+        @if (string.IsNullOrWhiteSpace(Model.FormattedPayload) || Model.FormattedPayload == "{}")
+        {
+            <div class="p-3 text-muted small">No variables.</div>
+        }
+        else
+        {
+            <pre class="m-0 p-3 small" style="max-height: 320px; overflow: auto;"><code>@Model.FormattedPayload</code></pre>
+        }
+    </div>
+</div>
+
+@* Audit trail *@
+<div class="card">
+    <div class="card-header fw-semibold small">
+        <i class="bi bi-journal-text me-1"></i> Audit Trail (@Model.AuditEntries.Count)
+    </div>
+    @if (Model.AuditEntries.Count == 0)
+    {
+        <div class="card-body text-muted small">No audit entries for this token.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Category</th>
+                        <th>Event</th>
+                        <th>Actor</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.AuditEntries)
+                    {
+                        <tr>
+                            <td class="text-nowrap text-muted">@e.TimeStamp.ToString("g")</td>
+                            <td><span class="badge bg-secondary rounded-pill">@e.Category</span></td>
+                            <td class="fw-medium">@e.EventType</td>
+                            <td class="text-muted">@(e.Actor ?? "—")</td>
+                            <td><code class="small">@(e.Details ?? "—")</code></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

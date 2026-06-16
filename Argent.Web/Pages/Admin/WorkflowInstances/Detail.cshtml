@@ -113,6 +113,11 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
+        <button class="nav-link" id="variables-tab" data-bs-toggle="tab" data-bs-target="#variables" type="button" role="tab">
+            <i class="bi bi-braces me-1"></i> Variables (@Model.Variables.Count)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
         <button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#audit" type="button" role="tab">
             <i class="bi bi-journal-text me-1"></i> Audit (@Model.AuditEntries.Count)
         </button>
@@ -203,7 +208,12 @@
                             @foreach (var w in Model.WorkItems)
                             {
                                 <tr>
-                                    <td><code>@w.Id.ToString()[..8]…</code></td>
+                                    <td>
+                                        <a asp-page="/Admin/WorkItems/Detail" asp-route-id="@w.Id"
+                                           class="font-monospace text-decoration-none small">
+                                            @w.Id.ToString()[..8]…
+                                        </a>
+                                    </td>
                                     <td>@w.NodeType</td>
                                     <td>
                                         @{
@@ -274,6 +284,51 @@
                                     <td>@t.Priority</td>
                                     <td class="text-muted">@t.CreatedAt.ToString("g")</td>
                                     <td class="text-muted">@(t.CompletedAt?.ToString("g") ?? "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+
+    @* Variables *@
+    <div class="tab-pane fade" id="variables" role="tabpanel">
+        @if (Model.Variables.Count == 0)
+        {
+            <div class="card"><div class="card-body text-center py-4 text-muted">No variables.</div></div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px">Source</th>
+                                <th>Key</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var v in Model.Variables.OrderBy(v => v.Source).ThenBy(v => v.Key))
+                            {
+                                <tr>
+                                    <td>
+                                        @{
+                                            var srcBadge = v.Source switch
+                                            {
+                                                "Instance" => "bg-primary",
+                                                "Record"   => "bg-success",
+                                                "Custom"   => "bg-warning text-dark",
+                                                _          => "bg-secondary"
+                                            };
+                                        }
+                                        <span class="badge @srcBadge rounded-pill">@v.Source</span>
+                                    </td>
+                                    <td class="fw-medium font-monospace">@v.Key</td>
+                                    <td>@v.DisplayValue</td>
                                 </tr>
                             }
                         </tbody>

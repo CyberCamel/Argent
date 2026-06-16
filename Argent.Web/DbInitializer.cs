@@ -75,7 +75,21 @@ public static class DbInitializer
             }
         }
 
-        // 4. Create groups and assign random users
+        // 4. Seed system groups
+        if (!dbContext.Groups.Any(g => g.Id == SystemGroups.AllUsersId))
+        {
+            dbContext.Groups.Add(new Group
+            {
+                Id = SystemGroups.AllUsersId,
+                Name = SystemGroups.AllUsersName,
+                Description = "Automatically includes every user in the system.",
+                IsSystem = true,
+                CreatedAt = DateTime.UtcNow
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        // 5. Create groups and assign random users
         var groups = new List<Group>
         {
             new() { Name = "Engineering", Description = "Engineering department" },

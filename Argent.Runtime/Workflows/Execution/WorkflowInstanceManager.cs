@@ -120,6 +120,12 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
 
         instance.State = InstanceState.Suspended;
         await _context.SaveChangesAsync(ct);
+
+        await _audit.RecordAsync(
+            category: "Workflow",
+            eventType: nameof(WorkflowAuditEventType.InstanceSuspended),
+            instanceId: instanceId,
+            ct: ct);
     }
 
     public async Task ResumeAsync(Guid instanceId, CancellationToken ct)
@@ -130,6 +136,12 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
 
         instance.State = InstanceState.Running;
         await _context.SaveChangesAsync(ct);
+
+        await _audit.RecordAsync(
+            category: "Workflow",
+            eventType: nameof(WorkflowAuditEventType.InstanceResumed),
+            instanceId: instanceId,
+            ct: ct);
     }
 
     public async Task CancelAsync(Guid instanceId, CancellationToken ct)
@@ -163,6 +175,13 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
 
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+
+        await _audit.RecordAsync(
+            category: "Workflow",
+            eventType: nameof(WorkflowAuditEventType.InstanceCancelled),
+            instanceId: instanceId,
+            details: new { CancelledTokens = activeTokens.Count },
+            ct: ct);
     }
 
     public async Task<InstanceSnapshot> GetStateAsync(Guid instanceId, CancellationToken ct)

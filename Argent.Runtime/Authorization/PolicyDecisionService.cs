@@ -5,6 +5,7 @@ using Argent.Contracts.Forms;
 using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
 using Argent.Models.Authorization;
+using Argent.Models.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -228,6 +229,9 @@ public class PolicyDecisionService : IPolicyDecisionService
                 foreach (var p in parents)
                     queue.Enqueue(p);
         }
+
+        // All Users is a virtual group — every authenticated user is a member.
+        effective.Add(SystemGroups.AllUsersId);
 
         var groups = effective.Select(g => g.ToString()).ToList();
         _groupCache[userId] = groups;

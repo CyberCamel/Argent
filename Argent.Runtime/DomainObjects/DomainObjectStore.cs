@@ -5,11 +5,13 @@ using System.Text.Json;
 using Argent.Contracts.Authorization;
 using Argent.Contracts.DataSources;
 using Argent.Contracts.DomainObjects;
+using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
 using Argent.Models.Authorization;
 using Argent.Models.DataSources;
 using Argent.Models.DomainObjects;
 using Argent.Models.DomainObjects.Querying;
+using Argent.Models.Workflows.Auditing;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +28,8 @@ public class DomainObjectStore(
     IDbContextFactory<ArgentDbContext> _dbContextFactory,
     IHttpContextAccessor _httpContextAccessor,
     IDataSourceRunner _dataSourceRunner,
-    IPolicyDecisionService _policyService) : IDomainObjectStore
+    IPolicyDecisionService _policyService,
+    IAuditService _auditService) : IDomainObjectStore
 {
     private string CurrentUser => _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
 
@@ -150,6 +153,12 @@ public class DomainObjectStore(
         dbContext.DomainObjectRecords.Add(entity);
         await dbContext.SaveChangesAsync();
 
+        await _auditService.RecordAsync(
+            category: "DomainObject",
+            eventType: nameof(WorkflowAuditEventType.DomainObjectCreated),
+            actor: author,
+            details: new { ObjectKey = objectKey, RecordId = entity.Id });
+
         return ToRecord(entity, objectKey, def);
     }
 
@@ -172,6 +181,12 @@ public class DomainObjectStore(
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = user ?? CurrentUser;
         await dbContext.SaveChangesAsync();
+
+        await _auditService.RecordAsync(
+            category: "DomainObject",
+            eventType: nameof(WorkflowAuditEventType.DomainObjectUpdated),
+            actor: entity.UpdatedBy,
+            details: new { ObjectKey = objectKey, RecordId = id });
 
         return ToRecord(entity, objectKey, def);
     }
@@ -196,6 +211,12 @@ public class DomainObjectStore(
 
         dbContext.DomainObjectRecords.Remove(entity);
         await dbContext.SaveChangesAsync();
+
+        await _auditService.RecordAsync(
+            category: "DomainObject",
+            eventType: nameof(WorkflowAuditEventType.DomainObjectDeleted),
+            actor: CurrentUser,
+            details: new { ObjectKey = objectKey, RecordId = id });
     }
 
     // ── Resolution & mapping ───────────────────────────────────────

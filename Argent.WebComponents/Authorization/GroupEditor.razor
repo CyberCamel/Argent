@@ -9,34 +9,49 @@
     <div class="card-body">
         <h5 class="fw-bold mb-3">@(GroupId == null ? "New Group" : "Edit Group")</h5>
 
-        @if (!string.IsNullOrEmpty(_error))
+        @if (_isSystem)
         {
-            <div class="alert alert-danger">@_error</div>
+            <div class="alert alert-warning d-flex align-items-center gap-2">
+                <i class="bi bi-shield-lock-fill"></i>
+                <span>This is a system group and cannot be modified.</span>
+            </div>
+        }
+        else
+        {
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="alert alert-danger">@_error</div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label small fw-medium">Name</label>
+                <input type="text" class="form-control" @bind="Name" placeholder="e.g. Finance" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label small fw-medium">Description</label>
+                <textarea class="form-control" @bind="Description" rows="2"></textarea>
+            </div>
+
+            <MemberSelector Label="Members" EmptyText="No members yet."
+                            Options="_userOptions" Selected="_selectedUsers"
+                            Searchable="true" ItemUrl="@UserViewUrl" />
+
+            <MemberSelector Label="Member groups" EmptyText="No nested groups."
+                            Options="_groupOptions" Selected="_selectedGroups" />
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" @onclick="Save" disabled="@_saving">
+                    @(_saving ? "Saving..." : "Save Group")
+                </button>
+                <a class="btn btn-outline-secondary" href="/Admin/Groups">Cancel</a>
+            </div>
         }
 
-        <div class="mb-3">
-            <label class="form-label small fw-medium">Name</label>
-            <input type="text" class="form-control" @bind="Name" placeholder="e.g. Finance" />
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label small fw-medium">Description</label>
-            <textarea class="form-control" @bind="Description" rows="2"></textarea>
-        </div>
-
-        <MemberSelector Label="Members" EmptyText="No members yet."
-                        Options="_userOptions" Selected="_selectedUsers"
-                        Searchable="true" ItemUrl="@UserViewUrl" />
-
-        <MemberSelector Label="Member groups" EmptyText="No nested groups."
-                        Options="_groupOptions" Selected="_selectedGroups" />
-
-        <div class="d-flex gap-2">
-            <button class="btn btn-primary" @onclick="Save" disabled="@_saving">
-                @(_saving ? "Saving..." : "Save Group")
-            </button>
-            <a class="btn btn-outline-secondary" href="/Admin/Groups">Cancel</a>
-        </div>
+        @if (_isSystem)
+        {
+            <a class="btn btn-outline-secondary" href="/Admin/Groups">Back</a>
+        }
     </div>
 </div>
 
@@ -46,6 +61,7 @@
     private string Name = "";
     private string? Description;
     private bool _saving;
+    private bool _isSystem;
     private string? _error;
 
     private List<MemberSelector.MemberOption> _userOptions = [];
@@ -79,6 +95,7 @@
             {
                 Name = group.Name;
                 Description = group.Description;
+                _isSystem = group.IsSystem;
             }
 
             var userMembers = await db.GroupMemberships
@@ -99,6 +116,8 @@
 
     private async Task Save()
     {
+        if (_isSystem) return;
+
         _saving = true;
         _error = null;
 

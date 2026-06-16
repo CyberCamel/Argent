@@ -1,7 +1,9 @@
 using Argent.Contracts.Workflows;
 using Argent.Contracts.Workflows.Execution;
 using Argent.Infrastructure.Data;
+using Argent.Models.DomainObjects;
 using Argent.Models.Enums;
+using Argent.Models.Forms;
 using Argent.Models.Workflows;
 using Argent.Runtime.Workflows;
 using Argent.Models.Workflows.Auditing;
@@ -125,7 +127,14 @@ public class TokenRunner : ITokenRunner
             }
 
             // Build execution context
-            var variables = TokenMovement.DeserializePayload(claimed.TokenPayload);
+            // Keep engine-set variables (token payload) separate from the enriched set.
+            // Record/custom fields are loaded purely for in-memory evaluation — they must
+            // NOT be written into the next token's payload, or they show up as "Instance"
+            // variables and duplicate what Record/Custom sources already surface.
+            var engineVariables = TokenMovement.DeserializePayload(claimed.TokenPayload);
+            var enrichedVariables = await LoadRecordVariablesAsync(db, definition, instance, ct);
+            foreach (var kvp in engineVariables)
+                enrichedVariables[kvp.Key] = kvp.Value; // engine vars win over record fields
 
             var candidates = definition.Connections
                 .Where(c => c.From.Id == node.Id)
@@ -144,7 +153,7 @@ public class TokenRunner : ITokenRunner
                 claimed.InstanceId,
                 claimed.TokenId,
                 claimed.NodeId,
-                new TokenVariableBag(variables),
+                new TokenVariableBag(enrichedVariables),
                 candidates,
                 currentToken?.GroupId,
                 currentToken?.TokenCount);
@@ -202,6 +211,21 @@ public class TokenRunner : ITokenRunner
                     // error (e.g. no matching gateway path) — retrying yields the same
                     // result, so dead-letter it immediately. Transient faults surface as
                     // exceptions and are retried via the catch block below.
+                    db.WorkflowJournalEntries.Add(new WorkflowJournalEntry
+                    {
+                        Category = "Workflow",
+                        EventType = nameof(WorkflowAuditEventType.NodeFailed),
+                        InstanceId = claimed.InstanceId,
+                        TokenId = claimed.TokenId,
+                        TimeStamp = DateTime.UtcNow,
+                        Details = JsonSerializer.Serialize(new
+                        {
+                            Node = node.Name,
+                            NodeType = node.GetType().Name,
+                            Error = result.ErrorMessage
+                        })
+                    });
+                    await db.SaveChangesAsync(ct);
                     await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
                     _logger.LogWarning(
                         "WorkItem {Id} failed permanently at node '{NodeName}': {Error}",
@@ -210,7 +234,12 @@ public class TokenRunner : ITokenRunner
 
                 default:
                     // Completed — determine targets and commit
-                    var targets = DetermineTargets(node, definition, result, ctx);
+                    var targets = DetermineTargets(node, definition, result, engineVariables);
+
+                    var isGateway = node is ExclusiveGateway or InclusiveGateway or ParallelGateway;
+                    var targetNames = targets
+                        .Select(t => definition.Nodes.FirstOrDefault(n => n.Id == t.NodeId)?.Name ?? t.NodeType)
+                        .ToList();
 
                     var journalEntry = new WorkflowJournalEntry
                     {
@@ -218,16 +247,26 @@ public class TokenRunner : ITokenRunner
                         Category = "Workflow",
                         InstanceId = claimed.InstanceId,
                         TokenId = claimed.TokenId,
-                        EventType = nameof(WorkflowAuditEventType.TokenMoved),
+                        EventType = isGateway
+                            ? nameof(WorkflowAuditEventType.GatewayEvaluated)
+                            : nameof(WorkflowAuditEventType.TokenMoved),
                         Actor = null,
                         TimeStamp = DateTime.UtcNow,
-                        Details = JsonSerializer.Serialize(new
-                        {
-                            FromNode = node.Name,
-                            FromNodeType = node.GetType().Name,
-                            TargetCount = targets.Count,
-                            Success = result.Success
-                        })
+                        Details = JsonSerializer.Serialize(isGateway
+                            ? (object)new
+                            {
+                                Gateway = node.Name,
+                                GatewayType = node.GetType().Name,
+                                SelectedPaths = targetNames,
+                                PathCount = targets.Count
+                            }
+                            : new
+                            {
+                                FromNode = node.Name,
+                                FromNodeType = node.GetType().Name,
+                                Targets = targetNames,
+                                TargetCount = targets.Count
+                            })
                     };
 
                     var request = new TokenMovementRequest(
@@ -399,7 +438,7 @@ public class TokenRunner : ITokenRunner
         NodeBase node,
         WorkflowDefinition definition,
         NodeResult result,
-        ITokenExecutionContext ctx)
+        IReadOnlyDictionary<string, object?> engineVariables)
     {
         if (result.ExplicitTargetNodeIds is { Count: > 0 })
         {
@@ -414,7 +453,7 @@ public class TokenRunner : ITokenRunner
         }
 
         var mergedVars = TokenMovement.MergeVariables(
-            ctx.Variables.Snapshot(),
+            engineVariables,
             result.OutputVariables);
 
         var outbound = definition.Connections
@@ -448,5 +487,42 @@ public class TokenRunner : ITokenRunner
             .Where(w => w.Id == workItemId)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(w => w.State, state), ct);
+    }
+
+    private static async Task<Dictionary<string, object?>> LoadRecordVariablesAsync(
+        ArgentDbContext db,
+        WorkflowDefinition definition,
+        WorkflowInstance? instance,
+        CancellationToken ct)
+    {
+        var result = new Dictionary<string, object?>();
+        if (instance == null || instance.RecordId == Guid.Empty) return result;
+
+        var startEvent = definition.Nodes.OfType<StartEvent>().FirstOrDefault();
+        if (startEvent == null || string.IsNullOrEmpty(startEvent.ObjectKey)) return result;
+
+        var domainObj = await db.DomainObjects
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Key == startEvent.ObjectKey, ct);
+        if (domainObj == null) return result;
+
+        var record = await db.DomainObjectRecords
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.DomainObjectId == domainObj.Id && r.Id == instance.RecordId, ct);
+
+        if (record?.Values != null)
+            foreach (var kvp in record.Values)
+                result[kvp.Key] = TokenMovement.UnwrapJsonElement(kvp.Value);
+
+        var customDataList = await db.FormCustomData
+            .AsNoTracking()
+            .Where(f => f.RecordId == instance.RecordId)
+            .ToListAsync(ct);
+
+        foreach (var customData in customDataList)
+            foreach (var kvp in customData.Values)
+                result.TryAdd(kvp.Key, TokenMovement.UnwrapJsonElement(kvp.Value));
+
+        return result;
     }
 }

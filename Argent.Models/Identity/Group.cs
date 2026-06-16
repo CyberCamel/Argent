@@ -10,4 +10,6 @@ public class Group
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    /// <summary>System groups are seeded at startup and cannot be modified or deleted.</summary>
+    public bool IsSystem { get; set; }
 }

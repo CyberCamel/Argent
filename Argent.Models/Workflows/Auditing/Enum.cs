@@ -14,5 +14,16 @@ public enum WorkflowAuditEventType
     TaskCompleted = 8,
     TaskFailed = 9,
     TaskCancelled = 10,
-    TaskStarted = 11
+    TaskStarted = 11,
+    NodeFailed = 12,
+    InstanceSuspended = 13,
+    InstanceResumed = 14,
+    InstanceCancelled = 15,
+    DomainObjectCreated = 16,
+    DomainObjectUpdated = 17,
+    DomainObjectDeleted = 18,
+    WorkflowPublished = 19,
+    WorkflowDeployed = 20,
+    GatewayEvaluated = 21,
+    TaskReleased = 22
 }

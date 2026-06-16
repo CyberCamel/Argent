@@ -57,4 +57,15 @@ public class IndexModel(ArgentDbContext _ctx, IResourceOwnershipService _ownersh
 
         return RedirectToPage("/Workflows/Model/Edit", new { id = workflow.Id });
     }
+    public async Task<IActionResult> OnPostDelete(Guid id)
+    {
+        var workflow = await _ctx.WorkflowDefinitions.FindAsync(id);
+        if (workflow != null)
+        {
+            _ctx.WorkflowDefinitions.Remove(workflow);
+            await _ctx.SaveChangesAsync();
+        }
+
+        return RedirectToPage();
+    }
 }
