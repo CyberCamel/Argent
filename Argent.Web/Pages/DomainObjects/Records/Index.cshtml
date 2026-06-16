@@ -1,0 +1,81 @@
+@page "/DomainObjects/{Key}/Records"
+@model Argent.Web.Pages.DomainObjects.Records.IndexModel
+@{
+    ViewData["Title"] = $"{Model.Definition.DisplayName} — Records";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb" class="mb-1">
+            <ol class="breadcrumb mb-0 small">
+                <li class="breadcrumb-item"><a href="/DomainObjects">Domain Objects</a></li>
+                <li class="breadcrumb-item active">@Model.Definition.DisplayName</li>
+            </ol>
+        </nav>
+        <h4 class="fw-bold mb-0">@Model.Definition.DisplayName — Records</h4>
+        <p class="text-muted small mb-0">@Model.TotalCount record@(Model.TotalCount == 1 ? "" : "s")</p>
+    </div>
+    <a class="btn btn-primary" href="/DomainObjects/@Model.Key/Records/Form">
+        <i class="bi bi-plus-lg"></i> New Record
+    </a>
+</div>
+
+@if (Model.Records.Count == 0)
+{
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-inbox fs-1 text-muted mb-3 d-block"></i>
+            <p class="text-muted mb-0">No records yet. <a href="/DomainObjects/@Model.Key/Records/Form">Create the first one</a>.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        @foreach (var prop in Model.Definition.Properties.Take(5))
+                        {
+                            <th>@prop.DisplayName</th>
+                        }
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var record in Model.Records)
+                    {
+                        <tr>
+                            @foreach (var prop in Model.Definition.Properties.Take(5))
+                            {
+                                <td class="small">
+                                    @{
+                                        record.Values.TryGetValue(prop.Key, out var val);
+                                        var display = val?.ToString();
+                                        if (display != null && display.Length > 60)
+                                            display = display[..57] + "…";
+                                    }
+                                    @(display ?? "—")
+                                </td>
+                            }
+                            <td class="text-end">
+                                <a class="btn btn-outline-secondary btn-sm"
+                                   href="/DomainObjects/@Model.Key/Records/Form?id=@record.Id">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@record.Id"
+                                      asp-route-key="@Model.Key" style="display:inline"
+                                      onsubmit="return confirm('Delete this record?')">
+                                    <button class="btn btn-outline-danger btn-sm">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

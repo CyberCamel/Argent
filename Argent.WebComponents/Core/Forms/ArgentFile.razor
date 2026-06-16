@@ -1,0 +1,91 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using Argent.Models.Forms
+@inherits FormInputComponentBase
+
+@if (IsVisible)
+{
+    <div class="mb-3 @Metadata.CssClass">
+        @{var _errors = Errors.ToList();}
+        <label class="form-label">
+            @Metadata.FieldLabel
+            @if (Context.IsRequired(Metadata))
+            {
+                <span class="text-danger">*</span>
+            }
+        </label>
+        @{var _fileCls = "form-control" + (_errors.Count > 0 ? " is-invalid" : "");}
+        <InputFile class="@_fileCls"
+                   OnChange="OnFileChanged"
+                   accept="@Metadata.InputType"
+                   multiple="@Metadata.MultiSelect"
+                   disabled="@Metadata.Disabled" />
+        @if (_currentFiles.Count > 0)
+        {
+            <ul class="list-unstyled mt-1 mb-0 small text-muted">
+                @foreach (var f in _currentFiles)
+                {
+                    <li><i class="bi bi-file-earmark me-1"></i>@f.FileName <span class="text-muted">(@FormatSize(f.Size))</span></li>
+                }
+            </ul>
+        }
+        @if (Metadata.Description != null)
+        {
+            <div class="form-text">@Metadata.Description</div>
+        }
+        @if (_errors.Count > 0)
+        {
+            <div class="invalid-feedback d-block">
+                @foreach (var err in _errors) { <div>@err</div> }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool IsVisible => Context.IsVisible(Metadata);
+    private IEnumerable<string> Errors => Context.GetErrors(Metadata);
+    private List<FileData> _currentFiles = [];
+    // 10 MB per file
+    private const long MaxFileSize = 10 * 1024 * 1024;
+
+    private async Task OnFileChanged(InputFileChangeEventArgs e)
+    {
+        _currentFiles = [];
+        var key = Metadata.Name ?? Metadata.Id;
+
+        if (Metadata.MultiSelect)
+        {
+            var files = new List<FileData>();
+            foreach (var file in e.GetMultipleFiles())
+                files.Add(await ReadFileAsync(file));
+            _currentFiles = files;
+            Context.SetValue(key, files);
+        }
+        else
+        {
+            var data = await ReadFileAsync(e.File);
+            _currentFiles = [data];
+            Context.SetValue(key, data);
+        }
+    }
+
+    private static async Task<FileData> ReadFileAsync(IBrowserFile file)
+    {
+        using var ms = new MemoryStream();
+        await file.OpenReadStream(MaxFileSize).CopyToAsync(ms);
+        return new FileData
+        {
+            FileName = file.Name,
+            ContentType = file.ContentType,
+            Size = file.Size,
+            Base64Content = Convert.ToBase64String(ms.ToArray())
+        };
+    }
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
+        _ => $"{bytes / (1024.0 * 1024):F1} MB"
+    };
+}

@@ -85,10 +85,15 @@ componentRegistry.Register("Fieldset", typeof(ArgentFieldset));
 componentRegistry.Register("Tabs", typeof(ArgentTabs));
 componentRegistry.Register("Accordion", typeof(ArgentAccordion));
 componentRegistry.Register("HtmlBox", typeof(ArgentHtml));
-componentRegistry.Register("TextField", typeof(ArgentText));
+componentRegistry.Register("TextField",     typeof(ArgentText));
+componentRegistry.Register("NumericField",  typeof(ArgentNumeric));
+componentRegistry.Register("DecimalField",  typeof(ArgentDecimal));
+componentRegistry.Register("DateField",     typeof(ArgentDate));
+componentRegistry.Register("SliderField",   typeof(ArgentSlider));
 componentRegistry.Register("DropdownField", typeof(ArgentDropdown));
-componentRegistry.Register("NumericField", typeof(ArgentNumeric));
+componentRegistry.Register("RadioField",    typeof(ArgentRadio));
 componentRegistry.Register("CheckboxField", typeof(ArgentCheckbox));
+componentRegistry.Register("FileField",     typeof(ArgentFile));
 
 builder.Services.AddSingleton<IFormComponentRegistry>(componentRegistry);
 builder.Services.AddSingleton<IConditionEvaluator, ConditionEvaluator>();

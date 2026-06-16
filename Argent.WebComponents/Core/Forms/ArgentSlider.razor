@@ -1,0 +1,65 @@
+@inherits FormInputComponentBase
+
+@if (IsVisible)
+{
+    <div class="mb-3 @Metadata.CssClass">
+        @{var _errors = Errors.ToList();}
+        <label class="form-label d-flex justify-content-between">
+            <span>
+                @Metadata.FieldLabel
+                @if (Context.IsRequired(Metadata))
+                {
+                    <span class="text-danger">*</span>
+                }
+            </span>
+            <span class="fw-semibold">@CurrentDisplay</span>
+        </label>
+        <input type="range"
+               class="form-range @(_errors.Count > 0 ? "is-invalid" : "")"
+               value="@CurrentValue"
+               @oninput="(e) => OnValueChanged(e.Value)"
+               min="@(Metadata.Min ?? 0)"
+               max="@(Metadata.Max ?? 100)"
+               step="@(Metadata.Step ?? 1)"
+               disabled="@Metadata.Disabled" />
+        @if (Metadata.Description != null)
+        {
+            <div class="form-text">@Metadata.Description</div>
+        }
+        @if (_errors.Count > 0)
+        {
+            <div class="invalid-feedback d-block">
+                @foreach (var err in _errors) { <div>@err</div> }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool IsVisible => Context.IsVisible(Metadata);
+    private IEnumerable<string> Errors => Context.GetErrors(Metadata);
+
+    private double CurrentValue
+    {
+        get
+        {
+            var raw = Context.GetValue(Metadata.Name ?? Metadata.Id);
+            return raw switch
+            {
+                double d => d,
+                _ when double.TryParse(raw?.ToString(), out var d) => d,
+                _ => Metadata.Min ?? 0
+            };
+        }
+    }
+
+    private string CurrentDisplay => Metadata.Precision.HasValue
+        ? CurrentValue.ToString("F" + Metadata.Precision.Value)
+        : CurrentValue.ToString("G");
+
+    private void OnValueChanged(object? val)
+    {
+        if (double.TryParse(val?.ToString(), out var d))
+            Context.SetValue(Metadata.Name ?? Metadata.Id, d);
+    }
+}

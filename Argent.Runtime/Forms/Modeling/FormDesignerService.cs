@@ -57,11 +57,16 @@ public class FormDesignerService(
     public static readonly List<ToolboxItem> ToolboxItems =
     [
         // Fields
-        new() { TypeName = "TextField",     Category = "Fields", DisplayName = "Text",      Icon = "bi-input-cursor-text",    Factory = () => new FormField { Xtype = "TextField", Name = "", FieldLabel = "Text" } },
-        new() { TypeName = "TextArea",      Category = "Fields", DisplayName = "Text Area", Icon = "bi-textarea-resize",      Factory = () => new FormField { Xtype = "TextField", Name = "", FieldLabel = "Text Area", Rows = 4, Grow = true } },
-        new() { TypeName = "NumericField",  Category = "Fields", DisplayName = "Number",    Icon = "bi-123",                  Factory = () => new FormField { Xtype = "NumericField", Name = "", FieldLabel = "Number" } },
-        new() { TypeName = "DropdownField", Category = "Fields", DisplayName = "Dropdown",  Icon = "bi-menu-down",            Factory = () => new FormField { Xtype = "DropdownField", Name = "", FieldLabel = "Dropdown", Items = [new SelectOption { Label = "Option 1", Value = "opt1" }, new SelectOption { Label = "Option 2", Value = "opt2" }] } },
-        new() { TypeName = "CheckboxField", Category = "Fields", DisplayName = "Checkbox",  Icon = "bi-check-square",         Factory = () => new FormField { Xtype = "CheckboxField", Name = "", FieldLabel = "Checkbox", Value = false } },
+        new() { TypeName = "TextField",     Category = "Fields", DisplayName = "Text",        Icon = "bi-input-cursor-text",     Factory = () => new FormField { Xtype = "TextField",     Name = "", FieldLabel = "Text" } },
+        new() { TypeName = "TextArea",      Category = "Fields", DisplayName = "Text Area",   Icon = "bi-textarea-resize",       Factory = () => new FormField { Xtype = "TextField",     Name = "", FieldLabel = "Text Area", Rows = 4, Grow = true } },
+        new() { TypeName = "NumericField",  Category = "Fields", DisplayName = "Number",      Icon = "bi-123",                   Factory = () => new FormField { Xtype = "NumericField",  Name = "", FieldLabel = "Number" } },
+        new() { TypeName = "DecimalField",  Category = "Fields", DisplayName = "Decimal",     Icon = "bi-hash",                  Factory = () => new FormField { Xtype = "DecimalField",  Name = "", FieldLabel = "Decimal", Precision = 2 } },
+        new() { TypeName = "DateField",     Category = "Fields", DisplayName = "Date",        Icon = "bi-calendar3",             Factory = () => new FormField { Xtype = "DateField",     Name = "", FieldLabel = "Date" } },
+        new() { TypeName = "SliderField",   Category = "Fields", DisplayName = "Slider",      Icon = "bi-sliders",               Factory = () => new FormField { Xtype = "SliderField",   Name = "", FieldLabel = "Slider", Min = 0, Max = 100, Step = 1 } },
+        new() { TypeName = "DropdownField", Category = "Fields", DisplayName = "Dropdown",    Icon = "bi-menu-down",             Factory = () => new FormField { Xtype = "DropdownField", Name = "", FieldLabel = "Dropdown", Items = [new SelectOption { Label = "Option 1", Value = "opt1" }, new SelectOption { Label = "Option 2", Value = "opt2" }] } },
+        new() { TypeName = "RadioField",    Category = "Fields", DisplayName = "Radio",       Icon = "bi-record-circle",         Factory = () => new FormField { Xtype = "RadioField",    Name = "", FieldLabel = "Radio",    Items = [new SelectOption { Label = "Option 1", Value = "opt1" }, new SelectOption { Label = "Option 2", Value = "opt2" }] } },
+        new() { TypeName = "CheckboxField", Category = "Fields", DisplayName = "Checkbox",    Icon = "bi-check-square",          Factory = () => new FormField { Xtype = "CheckboxField", Name = "", FieldLabel = "Checkbox", Value = false } },
+        new() { TypeName = "FileField",     Category = "Fields", DisplayName = "File Upload", Icon = "bi-paperclip",             Factory = () => new FormField { Xtype = "FileField",     Name = "", FieldLabel = "File" } },
 
         // Layout
         new() { TypeName = "Row",       Category = "Layout", DisplayName = "Row",       Icon = "bi-layout-three-columns", Factory = () => new FormLayout { Xtype = "Row", Direction = "row" } },

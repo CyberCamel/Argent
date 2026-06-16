@@ -52,7 +52,7 @@ else if (State.SelectedComponent is FormField field)
             {
                 <label class="small text-muted mb-1">Domain property</label>
                 <select class="form-control form-control-sm font-monospace mb-1"
-                        @onchange="(e) => BindToDomainProperty(field, e.Value?.ToString())">
+                        @onchange="async (e) => await BindToDomainProperty(field, e.Value?.ToString())">
                     <option value="">— custom —</option>
                     @foreach (var prop in _boundObjectDef.Properties)
                     {
@@ -360,9 +360,148 @@ else if (State.SelectedComponent is FormField field)
                 </div>
             </div>
             break;
+
+        case "DateField":
+            <div class="property-section">
+                <div class="property-label">Date options</div>
+                <div class="row g-1">
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Min date</label>
+                        <input type="date" class="form-control form-control-sm"
+                               value="@field.MinDate"
+                               @onchange="(e) => { field.MinDate = e.Value?.ToString(); State.MarkDirty(); }" />
+                    </div>
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Max date</label>
+                        <input type="date" class="form-control form-control-sm"
+                               value="@field.MaxDate"
+                               @onchange="(e) => { field.MaxDate = e.Value?.ToString(); State.MarkDirty(); }" />
+                    </div>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="pp-showtime"
+                           checked="@field.ShowTime"
+                           @onchange="() => { field.ShowTime = !field.ShowTime; State.MarkDirty(); }" />
+                    <label class="form-check-label small" for="pp-showtime">Include time</label>
+                </div>
+            </div>
+            break;
+
+        case "SliderField":
+            <div class="property-section">
+                <div class="property-label">Slider options</div>
+                <div class="row g-1">
+                    <div class="col-4 mb-2">
+                        <label class="small text-muted mb-1">Min</label>
+                        <input type="number" class="form-control form-control-sm"
+                               value="@field.Min"
+                               @onchange="(e) => { field.Min = ParseDouble(e.Value); State.MarkDirty(); }" />
+                    </div>
+                    <div class="col-4 mb-2">
+                        <label class="small text-muted mb-1">Max</label>
+                        <input type="number" class="form-control form-control-sm"
+                               value="@field.Max"
+                               @onchange="(e) => { field.Max = ParseDouble(e.Value); State.MarkDirty(); }" />
+                    </div>
+                    <div class="col-4 mb-2">
+                        <label class="small text-muted mb-1">Step</label>
+                        <input type="number" class="form-control form-control-sm"
+                               value="@field.Step"
+                               @onchange="(e) => { field.Step = ParseDouble(e.Value); State.MarkDirty(); }" />
+                    </div>
+                </div>
+                <div class="col-6 mb-2">
+                    <label class="small text-muted mb-1">Decimal places</label>
+                    <input type="number" class="form-control form-control-sm" min="0" max="10"
+                           value="@field.Precision"
+                           @onchange="(e) => { field.Precision = ParseInt(e.Value); State.MarkDirty(); }" />
+                </div>
+            </div>
+            break;
+
+        case "RadioField":
+            <div class="property-section">
+                <div class="property-label">Options</div>
+                @for (int i = 0; i < field.Items.Count; i++)
+                {
+                    var idx = i;
+                    var option = field.Items[idx];
+                    <div class="d-flex gap-1 mb-1 align-items-center">
+                        <input type="text" class="form-control form-control-sm"
+                               value="@option.Label" placeholder="Label"
+                               @oninput="(e) => option.Label = e.Value?.ToString() ?? string.Empty"
+                               @onchange="() => State.MarkDirty()" />
+                        <input type="text" class="form-control form-control-sm"
+                               value="@option.Value?.ToString()" placeholder="Value"
+                               @oninput="(e) => option.Value = e.Value?.ToString()"
+                               @onchange="() => State.MarkDirty()" />
+                        <button class="btn btn-sm py-0 px-1" title="Remove option"
+                                @onclick="() => { field.Items.RemoveAt(idx); State.MarkDirty(); }">
+                            <i class="bi bi-x text-danger"></i>
+                        </button>
+                    </div>
+                }
+                <button class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.7rem;"
+                        @onclick="() => AddOption(field)">
+                    <i class="bi bi-plus"></i> Add option
+                </button>
+            </div>
+            break;
+
+        case "DecimalField":
+            <div class="property-section">
+                <div class="property-label">Decimal options</div>
+                <div class="row g-1">
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Min</label>
+                        <input type="number" class="form-control form-control-sm"
+                               value="@field.Min"
+                               @onchange="(e) => { field.Min = ParseDouble(e.Value); State.MarkDirty(); }" />
+                    </div>
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Max</label>
+                        <input type="number" class="form-control form-control-sm"
+                               value="@field.Max"
+                               @onchange="(e) => { field.Max = ParseDouble(e.Value); State.MarkDirty(); }" />
+                    </div>
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Step</label>
+                        <input type="number" class="form-control form-control-sm" step="any"
+                               value="@field.Step"
+                               @onchange="(e) => { field.Step = ParseDouble(e.Value); State.MarkDirty(); }" />
+                    </div>
+                    <div class="col-6 mb-2">
+                        <label class="small text-muted mb-1">Decimal places</label>
+                        <input type="number" class="form-control form-control-sm" min="0" max="10"
+                               value="@field.Precision"
+                               @onchange="(e) => { field.Precision = ParseInt(e.Value); State.MarkDirty(); }" />
+                    </div>
+                </div>
+            </div>
+            break;
+
+        case "FileField":
+            <div class="property-section">
+                <div class="property-label">File options</div>
+                <div class="mb-2">
+                    <label class="small text-muted mb-1">Accepted types</label>
+                    <input type="text" class="form-control form-control-sm"
+                           placeholder="e.g. image/*, .pdf, .docx"
+                           value="@field.InputType"
+                           @oninput="(e) => field.InputType = e.Value?.ToString()"
+                           @onchange="() => State.MarkDirty()" />
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="pp-multifile"
+                           checked="@field.MultiSelect"
+                           @onchange="() => { field.MultiSelect = !field.MultiSelect; State.MarkDirty(); }" />
+                    <label class="form-check-label small" for="pp-multifile">Allow multiple files</label>
+                </div>
+            </div>
+            break;
     }
 
-    @if (field.Xtype != "CheckboxField")
+    @if (field.Xtype is not ("CheckboxField" or "FileField" or "SliderField"))
     {
         <div class="property-section">
             <div class="property-label">Default value</div>
@@ -582,7 +721,7 @@ else if (State.SelectedComponent is FormLayout container)
             : await Definitions.GetPublishedDefinitionAsync(formObjectKey);
     }
 
-    private void BindToDomainProperty(FormField field, string? propertyKey)
+    private async Task BindToDomainProperty(FormField field, string? propertyKey)
     {
         _nameWarning = null;
         if (string.IsNullOrEmpty(propertyKey)) { State.MarkDirty(); return; }
@@ -597,16 +736,44 @@ else if (State.SelectedComponent is FormLayout container)
 
         var inferred = InferXtype(prop.Type);
         if (inferred != field.Xtype)
-        {
             field.Xtype = inferred;
-            if (inferred == "TextField" && prop.Type == DomainPropertyType.MultiLineText)
-            { field.Grow = true; field.Rows = 4; }
-        }
 
-        if (prop.Type == DomainPropertyType.Choice)
+        // Reset type-specific state before applying new type's defaults.
+        field.DataProvider = null;
+        field.Items = [];
+        field.Grow = false;
+        field.Rows = null;
+        field.ShowTime = false;
+
+        switch (prop.Type)
         {
-            field.DataProvider = null;
-            field.Items = prop.Choices.Select(c => new SelectOption { Label = c.Label, Value = c.Value }).ToList();
+            case DomainPropertyType.MultiLineText:
+            case DomainPropertyType.Json:
+                field.Grow = true;
+                field.Rows = 4;
+                break;
+
+            case DomainPropertyType.DateTime:
+                field.ShowTime = true;
+                break;
+
+            case DomainPropertyType.Choice:
+                field.Items = prop.Choices.Select(c => new SelectOption { Label = c.Label, Value = c.Value }).ToList();
+                break;
+
+            case DomainPropertyType.Reference when !string.IsNullOrEmpty(prop.ReferenceTargetKey):
+                var refDef = await Definitions.GetPublishedDefinitionAsync(prop.ReferenceTargetKey);
+                var labelField = prop.ReferenceDisplayProperty
+                    ?? refDef?.TitleProperty
+                    ?? refDef?.Properties.FirstOrDefault()?.Key
+                    ?? "id";
+                field.DataProvider = new DataProviderConfig
+                {
+                    DomainObjectId = prop.ReferenceTargetKey,
+                    ValueField = "id",
+                    LabelField = labelField
+                };
+                break;
         }
 
         State.MarkDirty();
@@ -617,6 +784,9 @@ else if (State.SelectedComponent is FormLayout container)
         DomainPropertyType.Number => "NumericField",
         DomainPropertyType.Boolean => "CheckboxField",
         DomainPropertyType.Choice => "DropdownField",
+        DomainPropertyType.Reference => "DropdownField",
+        DomainPropertyType.Date => "DateField",
+        DomainPropertyType.DateTime => "DateField",
         _ => "TextField"
     };
 

@@ -1,0 +1,51 @@
+@inherits FormInputComponentBase
+
+@if (IsVisible)
+{
+    <div class="mb-3 @Metadata.CssClass">
+        @{var _errors = Errors.ToList();}
+        <label class="form-label">
+            @Metadata.FieldLabel
+            @if (Context.IsRequired(Metadata))
+            {
+                <span class="text-danger">*</span>
+            }
+        </label>
+        <div class="@(_errors.Count > 0 ? "is-invalid" : "")">
+            @foreach (var opt in Metadata.Items)
+            {
+                var optVal = opt.Value?.ToString() ?? string.Empty;
+                <div class="form-check">
+                    <input type="radio"
+                           class="form-check-input"
+                           id="@($"{Metadata.Id}_{optVal}")"
+                           name="@(Metadata.Name ?? Metadata.Id)"
+                           value="@optVal"
+                           checked="@(CurrentValue == optVal)"
+                           @onchange="() => OnValueChanged(optVal)"
+                           disabled="@(Metadata.Disabled || opt.Disabled)" />
+                    <label class="form-check-label" for="@($"{Metadata.Id}_{optVal}")">@opt.Label</label>
+                </div>
+            }
+        </div>
+        @if (Metadata.Description != null)
+        {
+            <div class="form-text">@Metadata.Description</div>
+        }
+        @if (_errors.Count > 0)
+        {
+            <div class="invalid-feedback d-block">
+                @foreach (var err in _errors) { <div>@err</div> }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool IsVisible => Context.IsVisible(Metadata);
+    private string CurrentValue => Context.GetValue(Metadata.Name ?? Metadata.Id)?.ToString() ?? string.Empty;
+    private IEnumerable<string> Errors => Context.GetErrors(Metadata);
+
+    private void OnValueChanged(string val)
+        => Context.SetValue(Metadata.Name ?? Metadata.Id, val);
+}
