@@ -84,12 +84,10 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
         {
             Id = Guid.NewGuid(),
             TokenId = tokenId,
-            WorkflowInstanceId = instanceId,
-            DefinitionId = definitionId,
             NodeId = startNode.Id,
             NodeType = startNode.GetType().Name,
             State = WorkItemState.Pending,
-            TokenPayload = payload,
+
             CreatedAt = DateTime.UtcNow
         };
         _context.WorkItems.Add(workItem);
@@ -164,11 +162,16 @@ public class WorkflowInstanceManager : IWorkflowInstanceManager
         {
             token.State = TokenState.Consumed;
             token.ConsumedAt = DateTime.UtcNow;
+            await _context.WorkItems
+                .Where(w => w.TokenId == token.Id
+                            && w.State == WorkItemState.Pending)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(w => w.State, WorkItemState.Failed), ct); 
         }
 
         // Cancel all pending work items
         await _context.WorkItems
-            .Where(w => w.WorkflowInstanceId == instanceId
+            .Where(w => w.TokenId == instanceId
                      && w.State == WorkItemState.Pending)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(w => w.State, WorkItemState.Failed), ct);

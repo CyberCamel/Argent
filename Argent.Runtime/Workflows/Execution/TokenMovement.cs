@@ -64,12 +64,9 @@ public class TokenMovement : ITokenMovement
             {
                 Id = Guid.NewGuid(),
                 TokenId = newToken.Id,
-                WorkflowInstanceId = request.InstanceId,
-                DefinitionId = request.DefinitionId,
                 NodeId = target.NodeId,
                 NodeType = target.NodeType,
                 State = WorkItemState.Pending,
-                TokenPayload = newToken.Payload,
                 CreatedAt = DateTime.UtcNow
             };
             _context.WorkItems.Add(workItem);

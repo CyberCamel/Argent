@@ -11,7 +11,6 @@ public record TokenTarget(
 public record TokenMovementRequest(
     Guid InstanceId,
     Guid ConsumedTokenId,
-    Guid DefinitionId,
     IReadOnlyList<TokenTarget> Targets,
     WorkflowJournalEntry? JournalEntry,
     // True only when the consuming node is a terminal (EndEvent) node. Instance completion

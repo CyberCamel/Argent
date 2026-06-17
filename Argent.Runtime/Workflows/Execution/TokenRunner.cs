@@ -45,15 +45,27 @@ public class TokenRunner : ITokenRunner
 
         try
         {
-            // Resolve the workflow version this INSTANCE is pinned to. A running instance must
-            // keep executing the definition it started on, even after a newer version is deployed
-            // (deploying un-deploys the previous version). Resolving "latest deployed" here would
-            // silently swap the definition mid-flight — different node ids, different routing —
-            // corrupting in-flight instances. The version is loaded by id regardless of its
-            // current deploy state.
+            // Load the token first — it is the source of truth for InstanceId and Payload,
+            // and we check it early to avoid unnecessary work on already-consumed tokens.
+            var currentToken = await db.WorkflowTokens.FindAsync([claimed.TokenId], ct);
+
+            if (currentToken == null || currentToken.State == TokenState.Consumed)
+            {
+                WorkflowMeter.ItemsClaimed.Add(1);
+                _logger.LogWarning(
+                    "Token {TokenId} already consumed — completing work item {WorkItemId} without processing",
+                    claimed.TokenId, claimed.WorkItemId);
+                await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
+                return;
+            }
+
+            var instanceId = currentToken.InstanceId;
+
+            // Resolve the workflow version this instance is pinned to. A running instance must
+            // keep executing the definition it started on, even after a newer version is deployed.
             var instance = await db.WorkflowInstances
                 .AsNoTracking()
-                .FirstOrDefaultAsync(i => i.InstanceId == claimed.InstanceId, ct);
+                .FirstOrDefaultAsync(i => i.InstanceId == instanceId, ct);
 
             WorkflowVersion? version;
             if (instance != null && instance.VersionId != Guid.Empty)
@@ -62,24 +74,28 @@ public class TokenRunner : ITokenRunner
                     .AsNoTracking()
                     .FirstOrDefaultAsync(v => v.Id == instance.VersionId, ct);
             }
-            else
+            else if (instance != null)
             {
-                // No pinned version (no instance row / legacy data) — best-effort latest deployed.
+                // Instance exists but has no pinned version (legacy data) — best-effort latest deployed.
                 version = await db.WorkflowVersions
                     .AsNoTracking()
-                    .Where(v => v.WorkflowId == claimed.DefinitionId
+                    .Where(v => v.WorkflowId == instance.WorkflowId
                              && v.State == WorkflowDefinitionState.Deployed)
                     .OrderByDescending(v => v.CreatedAt)
                     .FirstOrDefaultAsync(ct);
             }
+            else
+            {
+                version = null;
+            }
 
             if (version?.Definition == null)
             {
-                    _logger.LogWarning(
-                        "WorkItem {Id}: no definition resolved for instance {InstanceId} (pinned version {VersionId})",
-                        claimed.WorkItemId, claimed.InstanceId, instance?.VersionId);
-                    await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
-                    return;
+                _logger.LogWarning(
+                    "WorkItem {Id}: no definition resolved for instance {InstanceId} (pinned version {VersionId})",
+                    claimed.WorkItemId, instanceId, instance?.VersionId);
+                await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
+                return;
             }
 
             var definition = version.Definition;
@@ -94,26 +110,13 @@ public class TokenRunner : ITokenRunner
                 return;
             }
 
-            // Load the current token for correlation metadata
-            var currentToken = await db.WorkflowTokens.FindAsync([claimed.TokenId], ct);
-
-            if (currentToken == null || currentToken.State == TokenState.Consumed)
-            {
-                WorkflowMeter.ItemsClaimed.Add(1);
-                _logger.LogWarning(
-                    "Token {TokenId} already consumed — completing work item {WorkItemId} without processing",
-                    claimed.TokenId, claimed.WorkItemId);
-                await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
-                return;
-            }
-
             // --- Gateway JOIN detection ---
             var inboundCount = definition.Connections.Count(c => c.To.Id == node.Id);
 
             if (inboundCount > 1 && (node is InclusiveGateway or ParallelGateway)
-                && currentToken?.GroupId != null && currentToken.TokenCount > 0)
+                && currentToken.GroupId != null && currentToken.TokenCount > 0)
             {
-                var arrival = await ResolveJoinArrivalAsync(db, claimed, node, currentToken, ct);
+                var arrival = await ResolveJoinArrivalAsync(db, claimed, instanceId, node, currentToken, ct);
                 if (arrival == JoinArrival.Waiting)
                 {
                     await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
@@ -131,7 +134,7 @@ public class TokenRunner : ITokenRunner
             // Record/custom fields are loaded purely for in-memory evaluation — they must
             // NOT be written into the next token's payload, or they show up as "Instance"
             // variables and duplicate what Record/Custom sources already surface.
-            var engineVariables = TokenMovement.DeserializePayload(claimed.TokenPayload);
+            var engineVariables = TokenMovement.DeserializePayload(currentToken.Payload);
             var enrichedVariables = await LoadRecordVariablesAsync(db, definition, instance, ct);
             foreach (var kvp in engineVariables)
                 enrichedVariables[kvp.Key] = kvp.Value; // engine vars win over record fields
@@ -150,13 +153,13 @@ public class TokenRunner : ITokenRunner
                 .ToList();
 
             var ctx = new TokenExecutionContext(
-                claimed.InstanceId,
+                instanceId,
                 claimed.TokenId,
                 claimed.NodeId,
                 new TokenVariableBag(enrichedVariables),
                 candidates,
-                currentToken?.GroupId,
-                currentToken?.TokenCount);
+                currentToken.GroupId,
+                currentToken.TokenCount);
 
             // Resolve handler
             var handlers = scope.ServiceProvider.GetRequiredService<IEnumerable<INodeHandler>>();
@@ -174,7 +177,7 @@ public class TokenRunner : ITokenRunner
                 {
                     _logger.LogInformation(
                         "Executing {NodeType} '{NodeName}' on instance {InstanceId}",
-                        node.GetType().Name, node.Name, claimed.InstanceId);
+                        node.GetType().Name, node.Name, instanceId);
 
                     result = await handler.ExecuteAsync(node, ctx, ct);
                 }
@@ -215,7 +218,7 @@ public class TokenRunner : ITokenRunner
                     {
                         Category = "Workflow",
                         EventType = nameof(WorkflowAuditEventType.NodeFailed),
-                        InstanceId = claimed.InstanceId,
+                        InstanceId = instanceId,
                         TokenId = claimed.TokenId,
                         TimeStamp = DateTime.UtcNow,
                         Details = JsonSerializer.Serialize(new
@@ -245,7 +248,7 @@ public class TokenRunner : ITokenRunner
                     {
                         Id = Guid.NewGuid(),
                         Category = "Workflow",
-                        InstanceId = claimed.InstanceId,
+                        InstanceId = instanceId,
                         TokenId = claimed.TokenId,
                         EventType = isGateway
                             ? nameof(WorkflowAuditEventType.GatewayEvaluated)
@@ -270,9 +273,8 @@ public class TokenRunner : ITokenRunner
                     };
 
                     var request = new TokenMovementRequest(
-                        claimed.InstanceId,
+                        instanceId,
                         claimed.TokenId,
-                        claimed.DefinitionId,
                         targets,
                         journalEntry,
                         IsTerminal: node is EndEvent);
@@ -292,8 +294,8 @@ public class TokenRunner : ITokenRunner
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "Failed to process WorkItem {Id} for instance {InstanceId}",
-                claimed.WorkItemId, claimed.InstanceId);
+                "Failed to process WorkItem {Id}",
+                claimed.WorkItemId);
             await HandleFailureAsync(db, claimed, ex.Message, ct);
         }
     }
@@ -317,6 +319,7 @@ public class TokenRunner : ITokenRunner
     private async Task<JoinArrival> ResolveJoinArrivalAsync(
         ArgentDbContext db,
         ClaimedWork claimed,
+        Guid instanceId,
         NodeBase node,
         WorkflowToken currentToken,
         CancellationToken ct)
@@ -339,7 +342,7 @@ public class TokenRunner : ITokenRunner
                 }
 
                 var consumedSiblings = await db.WorkflowTokens
-                    .CountAsync(t => t.InstanceId == claimed.InstanceId
+                    .CountAsync(t => t.InstanceId == instanceId
                                   && t.GroupId == currentToken.GroupId
                                   && t.NodeId == node.Id
                                   && t.State == TokenState.Consumed, ct);

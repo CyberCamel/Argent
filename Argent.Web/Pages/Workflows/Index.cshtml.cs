@@ -19,7 +19,7 @@ public class IndexModel(ArgentDbContext _ctx, IResourceOwnershipService _ownersh
 
     public async Task<IActionResult> OnGet()
     {
-        Defs = await _ctx.WorkflowDefinitions.Select(workflow => new WorkflowListItemDto()
+        Defs = await _ctx.Workflows.Select(workflow => new WorkflowListItemDto()
             { Id=workflow.Id, Name = workflow.Name, Description = workflow.Description }).ToListAsync();
 
         DeployedWorkflowIds = (await _ctx.WorkflowVersions
@@ -48,7 +48,7 @@ public class IndexModel(ArgentDbContext _ctx, IResourceOwnershipService _ownersh
             UpdatedOn = DateTime.UtcNow,
             Tags = []
         };
-        _ctx.WorkflowDefinitions.Add(workflow);
+        _ctx.Workflows.Add(workflow);
         await _ctx.SaveChangesAsync();
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
@@ -59,10 +59,10 @@ public class IndexModel(ArgentDbContext _ctx, IResourceOwnershipService _ownersh
     }
     public async Task<IActionResult> OnPostDelete(Guid id)
     {
-        var workflow = await _ctx.WorkflowDefinitions.FindAsync(id);
+        var workflow = await _ctx.Workflows.FindAsync(id);
         if (workflow != null)
         {
-            _ctx.WorkflowDefinitions.Remove(workflow);
+            _ctx.Workflows.Remove(workflow);
             await _ctx.SaveChangesAsync();
         }
 

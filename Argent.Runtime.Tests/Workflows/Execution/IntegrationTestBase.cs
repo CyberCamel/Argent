@@ -96,7 +96,7 @@ public abstract class IntegrationTestBase : IDisposable
             StartTime = DateTime.UtcNow,
         };
 
-        db.WorkflowDefinitions.Add(workflow);
+        db.Workflows.Add(workflow);
         db.WorkflowVersions.Add(version);
         db.WorkflowInstances.Add(instance);
 
@@ -120,12 +120,9 @@ public abstract class IntegrationTestBase : IDisposable
         {
             Id = workItemId,
             TokenId = tokenId,
-            WorkflowInstanceId = instanceId,
-            DefinitionId = workflowId,
             NodeId = startNode.Id,
             NodeType = nameof(StartEvent),
             State = WorkItemState.Pending,
-            TokenPayload = payload,
             CreatedAt = DateTime.UtcNow,
         });
 
@@ -187,7 +184,8 @@ public abstract class IntegrationTestBase : IDisposable
         await using var db = CreateContext();
 
         var pending = await db.WorkItems
-            .Where(wi => wi.WorkflowInstanceId == instanceId && wi.State == WorkItemState.Pending)
+            .Where(wi => db.WorkflowTokens.Any(t => t.Id == wi.TokenId && t.InstanceId == instanceId)
+                      && wi.State == WorkItemState.Pending)
             .OrderBy(wi => wi.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
@@ -200,7 +198,7 @@ public abstract class IntegrationTestBase : IDisposable
         // A timestamp-based diff is unreliable: with parallel branches a sibling
         // branch's still-pending work item was created later and would be miscounted.
         var existingIds = await db.WorkItems
-            .Where(wi => wi.WorkflowInstanceId == instanceId)
+            .Where(wi => db.WorkflowTokens.Any(t => t.Id == wi.TokenId && t.InstanceId == instanceId))
             .Select(wi => wi.Id)
             .ToListAsync(ct);
         var existingIdSet = existingIds.ToHashSet();
@@ -211,13 +209,10 @@ public abstract class IntegrationTestBase : IDisposable
         var claimed = new ClaimedWork(
             pending.Id,
             pending.TokenId,
-            instanceId,
             pending.NodeId,
             pending.NodeType,
-            workflowId,
             0,
-            3,
-            pending.TokenPayload);
+            3);
 
         await runner.RunAsync(claimed, ct);
 
@@ -226,7 +221,7 @@ public abstract class IntegrationTestBase : IDisposable
         var updatedWorkItem = await verifyDb.WorkItems.FindAsync([pending.Id], ct);
 
         var created = await verifyDb.WorkItems
-            .Where(wi => wi.WorkflowInstanceId == instanceId
+            .Where(wi => verifyDb.WorkflowTokens.Any(t => t.Id == wi.TokenId && t.InstanceId == instanceId)
                       && !existingIdSet.Contains(wi.Id)
                       && wi.State == WorkItemState.Pending)
             .OrderBy(wi => wi.CreatedAt)

@@ -21,8 +21,8 @@ public class IndexModel : PageModel
 
     public async Task OnGet()
     {
-        WorkflowCount = await _ctx.WorkflowDefinitions.CountAsync();
-        RecentWorkflows = await _ctx.WorkflowDefinitions
+        WorkflowCount = await _ctx.Workflows.CountAsync();
+        RecentWorkflows = await _ctx.Workflows
             .OrderByDescending(w => w.Id)
             .Take(5)
             .Select(w => new WorkflowItem { Id = w.Id, Name = w.Name, Description = w.Description })

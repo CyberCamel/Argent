@@ -15,7 +15,7 @@ namespace Argent.Web.Pages.Workflows.Model
         {
             var ctx = HttpContext.RequestServices.GetRequiredService<IDbContextFactory<ArgentDbContext>>();
             await using var db = await ctx.CreateDbContextAsync();
-            var workflow = await db.WorkflowDefinitions.AsNoTracking().FirstOrDefaultAsync(w => w.Id == id);
+            var workflow = await db.Workflows.AsNoTracking().FirstOrDefaultAsync(w => w.Id == id);
             if (workflow == null) return NotFound();
 
             WorkflowId = id;

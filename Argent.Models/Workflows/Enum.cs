@@ -10,4 +10,12 @@ namespace Argent.Models.Workflows
         Waiting,
         Consumed
     }
+
+    public enum TimerState
+    {
+        Pending,    // persisted, not yet scheduled in memory
+        Enqueued,   // Task.Delay running in memory
+        Fired,      // delay elapsed, WorkItem created
+        Cancelled   // token was consumed before the timer fired
+    }
 }

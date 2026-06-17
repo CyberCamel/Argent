@@ -35,7 +35,8 @@ public class RecoveryPassTests : IDisposable
         var factory = new Mock<IDbContextFactory<ArgentDbContext>>();
         factory.Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateContext);
-        return new RecoveryPass(factory.Object, Mock.Of<ILogger<RecoveryPass>>());
+        var timerManager = new TimerManager(factory.Object, Mock.Of<ILogger<TimerManager>>());
+        return new RecoveryPass(factory.Object, timerManager, Mock.Of<ILogger<RecoveryPass>>());
     }
 
     private static WorkItem WorkItem(Guid instanceId, WorkItemState state, Action<WorkItem>? mutate = null)
@@ -43,8 +44,6 @@ public class RecoveryPassTests : IDisposable
         var wi = new WorkItem
         {
             Id = Guid.NewGuid(),
-            WorkflowInstanceId = instanceId,
-            DefinitionId = Guid.NewGuid(),
             NodeId = Guid.NewGuid(),
             NodeType = "JintActivity",
             TokenId = Guid.NewGuid(),

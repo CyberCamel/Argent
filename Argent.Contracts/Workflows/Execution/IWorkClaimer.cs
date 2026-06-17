@@ -3,13 +3,10 @@ namespace Argent.Contracts.Workflows.Execution;
 public record ClaimedWork(
     Guid WorkItemId,
     Guid TokenId,
-    Guid InstanceId,
     Guid NodeId,
     string NodeType,
-    Guid DefinitionId,
     byte RetryCount,
-    byte MaxRetries,
-    string? TokenPayload
+    byte MaxRetries
 );
 
 public interface IWorkClaimer

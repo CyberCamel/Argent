@@ -10,19 +10,24 @@ namespace Argent.Runtime.Workflows.Execution;
 public class RecoveryPass
 {
     private readonly IDbContextFactory<ArgentDbContext> _contextFactory;
+    private readonly TimerManager _timerManager;
     private readonly ILogger<RecoveryPass> _logger;
 
     public RecoveryPass(
         IDbContextFactory<ArgentDbContext> contextFactory,
+        TimerManager timerManager,
         ILogger<RecoveryPass> logger)
     {
         _contextFactory = contextFactory;
+        _timerManager = timerManager;
         _logger = logger;
     }
 
     public async Task RunAsync(CancellationToken ct)
     {
         _logger.LogInformation("Recovery pass started");
+
+        await _timerManager.ResetEnqueuedAsync(ct);
 
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
@@ -93,12 +98,9 @@ public class RecoveryPass
             {
                 Id = Guid.NewGuid(),
                 TokenId = token.Id,
-                WorkflowInstanceId = token.InstanceId,
-                DefinitionId = instance.WorkflowId,
                 NodeId = token.NodeId,
                 NodeType = "Unknown",
                 State = WorkItemState.Pending,
-                TokenPayload = token.Payload,
                 CreatedAt = DateTime.UtcNow
             });
             recoveredCount++;

@@ -35,7 +35,7 @@ public class WorkflowTraversalIntegrationTests : IntegrationTestBase
         // Verify seed data persisted
         await using (var check = CreateContext())
         {
-            var items = await check.WorkItems.Where(wi => wi.WorkflowInstanceId == seed.InstanceId).ToListAsync();
+            var items = await check.WorkItems.Where(wi => check.WorkflowTokens.Any(t => t.Id == wi.TokenId && t.InstanceId == seed.InstanceId)).ToListAsync();
             Assert.True(items.Count > 0, $"Expected at least 1 WorkItem after seed, found {items.Count}");
         }
 
@@ -44,7 +44,7 @@ public class WorkflowTraversalIntegrationTests : IntegrationTestBase
         // Verify still there after CreateRunnerAsync
         await using (var check2 = CreateContext())
         {
-            var items2 = await check2.WorkItems.Where(wi => wi.WorkflowInstanceId == seed.InstanceId).ToListAsync();
+            var items2 = await check2.WorkItems.Where(wi => check2.WorkflowTokens.Any(t => t.Id == wi.TokenId && t.InstanceId == seed.InstanceId)).ToListAsync();
             Assert.True(items2.Count > 0, $"Expected at least 1 WorkItem after CreateRunnerAsync, found {items2.Count}");
         }
 
@@ -121,7 +121,7 @@ public class WorkflowTraversalIntegrationTests : IntegrationTestBase
                 Id = workflowId, Name = "Versioned", Description = "",
                 CreatedOn = DateTime.UtcNow, UpdatedOn = DateTime.UtcNow, Tags = [],
             };
-            db.WorkflowDefinitions.Add(workflow);
+            db.Workflows.Add(workflow);
 
             // v1 has since been un-deployed by the v2 deploy.
             db.WorkflowVersions.Add(new WorkflowVersion
@@ -148,9 +148,9 @@ public class WorkflowTraversalIntegrationTests : IntegrationTestBase
             });
             db.WorkItems.Add(new WorkItem
             {
-                Id = workItemId, TokenId = tokenId, WorkflowInstanceId = instanceId,
-                DefinitionId = workflowId, NodeId = s1.Id, NodeType = nameof(StartEvent),
-                State = WorkItemState.Pending, TokenPayload = "{}", CreatedAt = DateTime.UtcNow,
+                Id = workItemId, TokenId = tokenId, 
+                NodeId = s1.Id, NodeType = nameof(StartEvent),
+                State = WorkItemState.Pending, CreatedAt = DateTime.UtcNow,
             });
             await db.SaveChangesAsync();
         }

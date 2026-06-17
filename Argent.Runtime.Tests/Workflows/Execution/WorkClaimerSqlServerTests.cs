@@ -34,12 +34,9 @@ public class WorkClaimerSqlServerTests
             {
                 Id = workItemId,
                 TokenId = tokenId,
-                WorkflowInstanceId = instanceId,
-                DefinitionId = Guid.NewGuid(),
                 NodeId = Guid.NewGuid(),
                 NodeType = "StartEvent",
                 State = WorkItemState.Pending,
-                TokenPayload = "{}",
                 CreatedAt = DateTime.UtcNow,
             });
             await db.SaveChangesAsync();
@@ -52,7 +49,7 @@ public class WorkClaimerSqlServerTests
         var mine = claimed.FirstOrDefault(c => c.WorkItemId == workItemId);
         Assert.NotNull(mine);
         Assert.Equal(tokenId, mine!.TokenId);
-        Assert.Equal(instanceId, mine.InstanceId);
+        // InstanceId is no longer on ClaimedWork — derive it from the token if needed.
         Assert.Equal("StartEvent", mine.NodeType);
 
         await using (var check = _fx.CreateContext())

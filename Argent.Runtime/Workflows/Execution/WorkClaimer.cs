@@ -16,8 +16,8 @@ public class WorkClaimer : IWorkClaimer
     {
         const string sql = @"
             WITH claim_cte AS (
-                SELECT TOP (@BatchSize) Id, TokenId, WorkflowInstanceId, NodeId, NodeType,
-                       DefinitionId, RetryCount, MaxRetries, TokenPayload,
+                SELECT TOP (@BatchSize) Id, TokenId, NodeId, NodeType,
+                       RetryCount, MaxRetries,
                        State, LockedBy, LockExpirationUtc
                 FROM WorkItems WITH (ROWLOCK, READPAST)
                 WHERE State = 0 AND (ScheduledAt IS NULL OR ScheduledAt <= GETUTCDATE())
@@ -27,9 +27,9 @@ public class WorkClaimer : IWorkClaimer
             SET State = 1,
                 LockedBy = @Machine,
                 LockExpirationUtc = DATEADD(MINUTE, 5, GETUTCDATE())
-            OUTPUT INSERTED.Id, INSERTED.TokenId, INSERTED.WorkflowInstanceId,
-                   INSERTED.NodeId, INSERTED.NodeType, INSERTED.DefinitionId,
-                   INSERTED.RetryCount, INSERTED.MaxRetries, INSERTED.TokenPayload;";
+            OUTPUT INSERTED.Id, INSERTED.TokenId,
+                   INSERTED.NodeId, INSERTED.NodeType,
+                   INSERTED.RetryCount, INSERTED.MaxRetries;";
 
         var results = new List<ClaimedWork>();
 
@@ -46,13 +46,10 @@ public class WorkClaimer : IWorkClaimer
             results.Add(new ClaimedWork(
                 WorkItemId: reader.GetGuid(0),
                 TokenId: reader.GetGuid(1),
-                InstanceId: reader.GetGuid(2),
-                NodeId: reader.GetGuid(3),
-                NodeType: reader.GetString(4),
-                DefinitionId: reader.GetGuid(5),
-                RetryCount: reader.GetByte(6),
-                MaxRetries: reader.GetByte(7),
-                TokenPayload: reader.IsDBNull(8) ? null : reader.GetString(8)
+                NodeId: reader.GetGuid(2),
+                NodeType: reader.GetString(3),
+                RetryCount: reader.GetByte(4),
+                MaxRetries: reader.GetByte(5)
             ));
         }
 

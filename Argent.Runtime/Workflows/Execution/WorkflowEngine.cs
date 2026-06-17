@@ -8,7 +8,8 @@ namespace Argent.Runtime.Workflows.Execution;
 public class WorkflowEngine(
     ILogger<WorkflowEngine> logger,
     IServiceProvider serviceProvider,
-    RecoveryPass recoveryPass) : BackgroundService
+    RecoveryPass recoveryPass,
+    TimerManager timerManager) : BackgroundService
 {
     private readonly SemaphoreSlim _semaphore = new(50);
 
@@ -26,6 +27,8 @@ public class WorkflowEngine(
         {
             try
             {
+                await timerManager.SchedulePendingAsync(stoppingToken);
+
                 IReadOnlyList<ClaimedWork> claimed;
 
                 using (var scope = serviceProvider.CreateScope())

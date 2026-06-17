@@ -69,7 +69,7 @@ public class DetailModel(
 
         var workItems = await _ctx.WorkItems
             .AsNoTracking()
-            .Where(w => w.WorkflowInstanceId == id)
+            .Where(w => _ctx.WorkflowTokens.Any(t => t.Id == w.TokenId && t.InstanceId == id))
             .OrderBy(w => w.CreatedAt)
             .ToListAsync();
 

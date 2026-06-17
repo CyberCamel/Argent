@@ -117,6 +117,7 @@ builder.Services.AddSingleton<ITokenRunner, TokenRunner>();
 builder.Services.AddScoped<ITokenMovement, TokenMovement>();
 builder.Services.AddScoped<IWorkflowInstanceManager, WorkflowInstanceManager>();
 builder.Services.AddTransient<RecoveryPass>();
+builder.Services.AddSingleton<TimerManager>();
 builder.Services.AddSingleton<IUserTaskManager, UserTaskManager>();
 builder.Services.AddSingleton<IAuditService, AuditService>();
 builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics

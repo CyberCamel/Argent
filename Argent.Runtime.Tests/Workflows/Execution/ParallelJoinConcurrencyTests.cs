@@ -74,7 +74,7 @@ public class ParallelJoinConcurrencyTests
                 UpdatedOn = DateTime.UtcNow,
                 Tags = [],
             };
-            db.WorkflowDefinitions.Add(workflow);
+            db.Workflows.Add(workflow);
             db.WorkflowVersions.Add(new WorkflowVersion
             {
                 Id = versionId,
@@ -112,12 +112,9 @@ public class ParallelJoinConcurrencyTests
                 {
                     Id = wiId,
                     TokenId = tokenId,
-                    WorkflowInstanceId = instanceId,
-                    DefinitionId = workflowId,
                     NodeId = join.Id,
                     NodeType = nameof(ParallelGateway),
                     State = WorkItemState.Pending,
-                    TokenPayload = "{}",
                     CreatedAt = DateTime.UtcNow,
                 });
             }
@@ -127,8 +124,8 @@ public class ParallelJoinConcurrencyTests
 
         var runner = CreateRunner();
 
-        var claim1 = new ClaimedWork(wi1Id, token1Id, instanceId, join.Id, nameof(ParallelGateway), workflowId, 0, 3, "{}");
-        var claim2 = new ClaimedWork(wi2Id, token2Id, instanceId, join.Id, nameof(ParallelGateway), workflowId, 0, 3, "{}");
+        var claim1 = new ClaimedWork(wi1Id, token1Id, join.Id, nameof(ParallelGateway), 0, 3);
+        var claim2 = new ClaimedWork(wi2Id, token2Id, join.Id, nameof(ParallelGateway), 0, 3);
 
         // Run both arrivals concurrently — the heart of the race.
         await Task.WhenAll(
@@ -142,7 +139,7 @@ public class ParallelJoinConcurrencyTests
         Assert.Equal(1, endTokens); // exactly one downstream token — not 0 (stalled), not 2 (double-fired)
 
         var endWorkItems = await check.WorkItems
-            .CountAsync(w => w.WorkflowInstanceId == instanceId && w.NodeId == end.Id);
+            .CountAsync(w => check.WorkflowTokens.Any(t => t.Id == w.TokenId && t.InstanceId == instanceId) && w.NodeId == end.Id);
         Assert.Equal(1, endWorkItems);
 
         var joinConsumed = await check.WorkflowTokens

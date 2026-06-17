@@ -30,7 +30,7 @@ public class StartModel(ArgentDbContext _ctx, IPolicyDecisionService _policyServ
 
         if (WorkflowId.HasValue)
         {
-            var workflow = await _ctx.WorkflowDefinitions
+            var workflow = await _ctx.Workflows
                 .AsNoTracking()
                 .FirstOrDefaultAsync(w => w.Id == WorkflowId.Value);
 
@@ -51,7 +51,7 @@ public class StartModel(ArgentDbContext _ctx, IPolicyDecisionService _policyServ
 
         var deployedVersions = await _ctx.WorkflowVersions
             .Where(v => v.State == WorkflowDefinitionState.Deployed)
-            .Join(_ctx.WorkflowDefinitions,
+            .Join(_ctx.Workflows,
                 v => v.WorkflowId,
                 w => w.Id,
                 (v, w) => new { v.Definition, w.Id, w.Name, w.Description })

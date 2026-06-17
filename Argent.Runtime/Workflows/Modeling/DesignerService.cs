@@ -129,7 +129,7 @@ public class DesignerService(
         LoadedDraftId = null;
         LoadedVersionId = null;
 
-        var workflow = await dbContext.WorkflowDefinitions
+        var workflow = await dbContext.Workflows
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == workflowId);
 
@@ -255,12 +255,12 @@ public class DesignerService(
                 UpdatedOn = now,
                 Tags = []
             };
-            dbContext.WorkflowDefinitions.Add(wf);
+            dbContext.Workflows.Add(wf);
             CurrentWorkflowId = wf.Id;
         }
         else
         {
-            var existing = dbContext.WorkflowDefinitions.Find(CurrentWorkflowId.Value);
+            var existing = dbContext.Workflows.Find(CurrentWorkflowId.Value);
             if (existing != null)
             {
                 existing.Name = CurrentWorkflowName;

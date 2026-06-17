@@ -13,6 +13,7 @@ using Argent.Models.DataSources;
 using Argent.Models.Forms.Components.Configuration;
 using Argent.Models.Forms;
 using Argent.Infrastructure.Serialization;
+using Timer = Argent.Models.Workflows.Shared.Timer;
 
 namespace Argent.Infrastructure.Data;
 
@@ -35,7 +36,7 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
     public DbSet<UserTask> UserTasks { get; set; }
 
-    public DbSet<Workflow> WorkflowDefinitions { get; set; }
+    public DbSet<Workflow> Workflows { get; set; }
 
     public DbSet<WorkflowVersion> WorkflowVersions { get; set; }
 
@@ -58,6 +59,8 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
     public DbSet<GroupMembership> GroupMemberships { get; set; }
 
     public DbSet<GroupGroupMembership> GroupGroupMemberships { get; set; }
+    
+    public DbSet<Timer> Timers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -378,6 +381,13 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
             // Index for the child→parent walk used to resolve transitive membership.
             entity.HasIndex(e => e.MemberGroupId)
                 .HasDatabaseName("IX_GroupGroupMemberships_MemberGroupId");
+        });
+
+        builder.Entity<Timer>(entity =>
+        {
+            entity.ToTable("Timers");
+            entity.HasIndex(e => new { e.State, e.TriggerTime })
+                .HasDatabaseName("IX_Timers_State_TriggerTime");
         });
     }
 }

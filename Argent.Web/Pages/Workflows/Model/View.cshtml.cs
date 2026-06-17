@@ -13,7 +13,7 @@ public class ViewModel(ArgentDbContext _ctx) : PageModel
 
     public async Task<IActionResult> OnGetAsync(Guid id)
     {
-        var workflow = await _ctx.WorkflowDefinitions
+        var workflow = await _ctx.Workflows
             .Where(w => w.Id == id)
             .Select(w => new { w.Name, w.Description })
             .FirstOrDefaultAsync();

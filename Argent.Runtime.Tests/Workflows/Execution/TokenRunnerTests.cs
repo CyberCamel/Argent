@@ -40,14 +40,13 @@ public class TokenRunnerTests : IDisposable
         });
         db.WorkItems.Add(new WorkItem
         {
-            Id = workItemId, TokenId = tokenId, WorkflowInstanceId = instanceId,
-            DefinitionId = workflowId, NodeId = nodeId, NodeType = "StartEvent",
+            Id = workItemId, TokenId = tokenId,
+            NodeId = nodeId, NodeType = "StartEvent",
             State = WorkItemState.Running, CreatedAt = DateTime.UtcNow,
         });
         await db.SaveChangesAsync();
 
-        var claimed = new ClaimedWork(workItemId, tokenId, instanceId, nodeId,
-            "StartEvent", workflowId, 0, 3, null);
+        var claimed = new ClaimedWork(workItemId, tokenId, nodeId, "StartEvent", 0, 3);
 
         // Verify DI context sees the seed data
         using (var scope = _serviceProvider!.CreateScope())
@@ -88,14 +87,13 @@ public class TokenRunnerTests : IDisposable
         });
         db.WorkItems.Add(new WorkItem
         {
-            Id = workItemId, TokenId = tokenId, WorkflowInstanceId = instanceId,
-            DefinitionId = workflowId, NodeId = nodeId, NodeType = "StartEvent",
+            Id = workItemId, TokenId = tokenId,
+            NodeId = nodeId, NodeType = "StartEvent",
             State = WorkItemState.Running, CreatedAt = DateTime.UtcNow,
         });
         await db.SaveChangesAsync();
 
-        var claimed = new ClaimedWork(workItemId, tokenId, instanceId, nodeId,
-            "StartEvent", workflowId, 0, 3, null);
+        var claimed = new ClaimedWork(workItemId, tokenId, nodeId, "StartEvent", 0, 3);
 
         await runner.RunAsync(claimed, default);
 
@@ -123,10 +121,9 @@ public class TokenRunnerTests : IDisposable
         });
         db.WorkItems.Add(new WorkItem
         {
-            Id = workItemId, TokenId = tokenId, WorkflowInstanceId = instanceId,
-            DefinitionId = workflowId, NodeId = nodeId, NodeType = "StartEvent",
+            Id = workItemId, TokenId = tokenId,
+            NodeId = nodeId, NodeType = "StartEvent",
             State = WorkItemState.Running, CreatedAt = DateTime.UtcNow,
-            TokenPayload = "{}",
         });
         await db.SaveChangesAsync();
 
@@ -134,8 +131,7 @@ public class TokenRunnerTests : IDisposable
             .Setup(m => m.CommitAsync(It.IsAny<TokenMovementRequest>(), default))
             .Returns(Task.CompletedTask);
 
-        var claimed = new ClaimedWork(workItemId, tokenId, instanceId, nodeId,
-            "StartEvent", workflowId, 0, 3, "{}");
+        var claimed = new ClaimedWork(workItemId, tokenId, nodeId, "StartEvent", 0, 3);
 
         await runner.RunAsync(claimed, default);
 
@@ -171,15 +167,13 @@ public class TokenRunnerTests : IDisposable
         });
         db.WorkItems.Add(new WorkItem
         {
-            Id = workItemId, TokenId = tokenId, WorkflowInstanceId = instanceId,
-            DefinitionId = workflowId, NodeId = nodeId, NodeType = "StartEvent",
-            State = WorkItemState.Running, CreatedAt = DateTime.UtcNow,
-            TokenPayload = "{}",
+            Id = workItemId, TokenId = tokenId,
+            NodeId = nodeId, NodeType = "StartEvent",
+            State = WorkItemState.Running, CreatedAt = DateTime.UtcNow
         });
         await db.SaveChangesAsync();
 
-        var claimed = new ClaimedWork(workItemId, tokenId, instanceId, nodeId,
-            "StartEvent", workflowId, 0, 3, "{}");
+        var claimed = new ClaimedWork(workItemId, tokenId, nodeId, "StartEvent", 0, 3);
 
         await runner.RunAsync(claimed, default);
 
@@ -213,15 +207,14 @@ public class TokenRunnerTests : IDisposable
         });
         db.WorkItems.Add(new WorkItem
         {
-            Id = workItemId, TokenId = tokenId, WorkflowInstanceId = instanceId,
-            DefinitionId = workflowId, NodeId = nodeId, NodeType = "StartEvent",
+            Id = workItemId, TokenId = tokenId,
+            NodeId = nodeId, NodeType = "StartEvent",
             State = WorkItemState.Running, CreatedAt = DateTime.UtcNow,
             RetryCount = 0, MaxRetries = 3,
         });
         await db.SaveChangesAsync();
 
-        var claimed = new ClaimedWork(workItemId, tokenId, instanceId, nodeId,
-            "StartEvent", workflowId, 0, 3, "{}");
+        var claimed = new ClaimedWork(workItemId, tokenId, nodeId, "StartEvent", 0, 3);
 
         await runner.RunAsync(claimed, default);
 

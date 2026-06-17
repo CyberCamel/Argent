@@ -24,7 +24,7 @@
             @if (wi.WorkflowName != null)
             {
                 <span class="mx-1">·</span>
-                <a asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@wi.WorkflowInstanceId"
+                <a asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@wi.InstanceId"
                    class="text-decoration-none">
                     @wi.WorkflowName
                 </a>
@@ -32,10 +32,13 @@
         </p>
     </div>
     <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary btn-sm"
-           asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@wi.WorkflowInstanceId">
-            <i class="bi bi-arrow-left"></i> Back to Instance
-        </a>
+        @if (wi.InstanceId.HasValue)
+        {
+            <a class="btn btn-outline-secondary btn-sm"
+               asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@wi.InstanceId">
+                <i class="bi bi-arrow-left"></i> Back to Instance
+            </a>
+        }
         @if (wi.State == WorkItemState.Failed)
         {
             <form method="post" asp-page-handler="Retry" asp-route-id="@wi.Id">
@@ -109,36 +112,15 @@
 <div class="card mb-4">
     <div class="card-body">
         <div class="row g-3 small">
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <span class="text-muted">Token ID</span><br />
                 <code>@wi.TokenId</code>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <span class="text-muted">Node ID</span><br />
                 <code>@wi.NodeId</code>
             </div>
-            <div class="col-md-4">
-                <span class="text-muted">Definition ID</span><br />
-                <code>@wi.DefinitionId</code>
-            </div>
         </div>
-    </div>
-</div>
-
-@* Token Payload *@
-<div class="card mb-4">
-    <div class="card-header fw-semibold small">
-        <i class="bi bi-braces me-1"></i> Token Payload (Variables)
-    </div>
-    <div class="card-body p-0">
-        @if (string.IsNullOrWhiteSpace(Model.FormattedPayload) || Model.FormattedPayload == "{}")
-        {
-            <div class="p-3 text-muted small">No variables.</div>
-        }
-        else
-        {
-            <pre class="m-0 p-3 small" style="max-height: 320px; overflow: auto;"><code>@Model.FormattedPayload</code></pre>
-        }
     </div>
 </div>
 
