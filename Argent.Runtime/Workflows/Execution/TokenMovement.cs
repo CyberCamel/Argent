@@ -81,27 +81,32 @@ public class TokenMovement : ITokenMovement
             _context.WorkflowJournalEntries.Add(request.JournalEntry);
         }
 
-        // 5. Check if instance should complete — only a terminating EndEvent (a terminal
-        // node that produces no further targets) can complete an instance, and only once
-        // no other active tokens remain. A non-end node with zero targets cannot silently
-        // complete the instance; the recovery pass flags it instead.
-        if (request.IsTerminal && request.Targets.Count == 0)
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        // 5. Post-commit completion check. Running this AFTER the commit means the consumed
+        // token is now visible to all concurrent threads. When two EndEvents finish in the same
+        // engine batch both run concurrently: checking inside the transaction causes both to see
+        // the other's token as still active and both skip completion. Post-commit, at least the
+        // later-querying thread will see zero remaining and win the atomic update below.
+        if (request.Targets.Count == 0)
         {
             var remaining = await _context.WorkflowTokens
                 .CountAsync(t => t.InstanceId == request.InstanceId
-                              && t.Id != request.ConsumedTokenId
                               && t.State != TokenState.Consumed, ct);
 
             if (remaining == 0)
             {
-                var instance = await _context.WorkflowInstances
-                    .FindAsync([request.InstanceId], ct);
+                // Atomic update: only one concurrent caller can flip Running → Completed.
+                var completed = await _context.WorkflowInstances
+                    .Where(i => i.InstanceId == request.InstanceId
+                             && i.State == InstanceState.Running)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(i => i.State, InstanceState.Completed)
+                        .SetProperty(i => i.EndTime, DateTime.UtcNow), ct);
 
-                if (instance != null)
+                if (completed > 0)
                 {
-                    instance.State = InstanceState.Completed;
-                    instance.EndTime = DateTime.UtcNow;
-
                     _context.WorkflowJournalEntries.Add(new WorkflowJournalEntry
                     {
                         Category = "Workflow",
@@ -110,12 +115,10 @@ public class TokenMovement : ITokenMovement
                         TokenId = request.ConsumedTokenId,
                         TimeStamp = DateTime.UtcNow
                     });
+                    await _context.SaveChangesAsync(ct);
                 }
             }
         }
-
-        await _context.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
     }
 
     internal static Dictionary<string, object?> DeserializePayload(string? payload)

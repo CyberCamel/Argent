@@ -38,7 +38,7 @@ else
         {
             <div class="alert alert-success mt-3">@(SuccessMessage ?? "Form submitted successfully.")</div>
         }
-        else
+        else if (!HideSubmit)
         {
             <div class="d-flex justify-content-end gap-2 mt-4">
                 <button type="button" class="btn btn-primary px-4" @onclick="Submit">@(SubmitLabel ?? "Submit")</button>
@@ -62,6 +62,9 @@ else
     [Parameter] public string? SubmitLabel { get; set; }
     [Parameter] public string? SuccessMessage { get; set; }
     [Parameter] public string? CssClass { get; set; }
+
+    /// <summary>Hides the built-in submit button. The parent is responsible for triggering submission via <see cref="TrySaveAsync"/>.</summary>
+    [Parameter] public bool HideSubmit { get; set; }
 
     /// <summary>Raised with the saved <see cref="DomainRecord"/> after a valid submission.</summary>
     [Parameter] public EventCallback<DomainRecord> OnValidSubmit { get; set; }
@@ -131,15 +134,32 @@ else
 
     public void Dispose() => Context.OnStateChanged -= HandleContextChanged;
 
+    // Called by the built-in submit button.
     private async Task Submit()
     {
-        if (_definition == null) return;
+        var record = await TrySaveAsync();
+        if (record == null) return;
+        _submitted = true;
+        if (OnValidSubmit.HasDelegate)
+            await OnValidSubmit.InvokeAsync(record);
+    }
+
+    // Called by a parent that wants to validate+save without triggering OnValidSubmit
+    // (e.g. a TaskDetail that has its own action buttons for routing). Returns the saved
+    // record on success, null on validation or save failure.
+    public async Task<DomainRecord?> TrySaveAsync()
+    {
+        if (_definition == null) return null;
 
         _submitError = null;
         var ctx = Context as ArgentFormContext;
         ctx?.RevealAllErrors();
         _errors = Validator.ValidateForm(_definition, Context);
-        if (_errors.Count > 0) return;
+        if (_errors.Count > 0)
+        {
+            StateHasChanged();
+            return null;
+        }
 
         var allValues = Context.GetAllData();
 
@@ -194,21 +214,20 @@ else
         }
         catch (DomainValidationException dvx)
         {
-            // Push per-field so errors appear inline next to each offending field.
             var perField = dvx.Errors
                 .GroupBy(e => e.Property)
                 .ToDictionary(g => g.Key, g => g.Select(e => e.Message).ToList());
             ctx?.SetServerErrors(perField);
-            return;
+            StateHasChanged();
+            return null;
         }
         catch (Exception ex)
         {
             _submitError = ex.Message;
-            return;
+            StateHasChanged();
+            return null;
         }
 
-        _submitted = true;
-        if (OnValidSubmit.HasDelegate)
-            await OnValidSubmit.InvokeAsync(record);
+        return record;
     }
 }

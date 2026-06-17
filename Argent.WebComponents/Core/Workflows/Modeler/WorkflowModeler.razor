@@ -5,6 +5,7 @@
 @using Argent.Runtime.Workflows.Modeling
 @using Argent.Runtime.Workflows.Modeling.Routing
 @using Argent.Models.Workflows
+@using Argent.Models.Workflows.Activities
 @using Microsoft.JSInterop
 @using Argent.WebComponents.Core.Workflows.Modeler.Utils
 @implements IAsyncDisposable
@@ -134,6 +135,7 @@
                         var isSel = State.SelectedConnection == conn;
                         var path = RoutingService.WaypointsToSvgPath(wps);
                         var isGwConn = conn.Source.NodeData is ExclusiveGateway or InclusiveGateway;
+                        var isUserActivity = conn.Source.NodeData is UserActivity;
                         var isDefault = conn.EngineConnection.IsDefault;
                         var connLabel = GetConnectionLabel(conn);
 
@@ -147,12 +149,16 @@
                             <path d="@path" class="modeler2-conn-path" fill="none"
                                   marker-end="url(#g2-arrowhead)" />
 
-                            @if (isGwConn && !string.IsNullOrEmpty(connLabel))
+                            @if (!string.IsNullOrEmpty(connLabel))
                             {
                                 var mid = wps.Count / 2;
                                 var lx = (wps[mid - 1].X + wps[mid].X) / 2.0;
                                 var ly = (wps[mid - 1].Y + wps[mid].Y) / 2.0 - 8;
-                                var connLabelCls = isDefault ? "modeler2-conn-label modeler2-conn-label-default" : "modeler2-conn-label";
+                                var connLabelCls = isDefault
+                                    ? "modeler2-conn-label modeler2-conn-label-default"
+                                    : isUserActivity
+                                        ? "modeler2-conn-label modeler2-conn-label-action"
+                                        : "modeler2-conn-label";
                                 <svg:text x="@lx" y="@ly" class="@connLabelCls">@connLabel</svg:text>
                             }
 
@@ -432,16 +438,14 @@
                                         Registry="@Registry"
                                         OnClose="@ClosePropertiesPanel" />
             }
-            else if (!EffectiveReadOnly
-                && State.SelectedConnection is { } gwConn
-                && gwConn.Source.NodeData is ExclusiveGateway or InclusiveGateway)
+            else if (!EffectiveReadOnly && State.SelectedConnection is { } selectedConn)
             {
                 <div class="modeler2-resizer modeler2-resizer-v"
                      data-resize-prop="--properties-height"
                      data-resize-axis="y"
                      data-resize-invert="true"
                      data-resize-min="80"></div>
-                <ConnectionEditorPanel Connection="@gwConn"
+                <ConnectionEditorPanel Connection="@selectedConn"
                                        State="@State"
                                        OnClose="@CloseConnectionEditor" />
             }

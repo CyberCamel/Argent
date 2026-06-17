@@ -142,7 +142,7 @@ public class TokenRunner : ITokenRunner
                 {
                     var targetNode = definition.Nodes.FirstOrDefault(n => n.Id == c.To.Id);
                     return targetNode != null
-                        ? new CandidateTarget(targetNode.Id, targetNode.GetType().Name, ResolveExpression(c))
+                        ? new CandidateTarget(targetNode.Id, targetNode.GetType().Name, ResolveExpression(c), c.Label)
                         : null;
                 })
                 .Where(c => c != null)

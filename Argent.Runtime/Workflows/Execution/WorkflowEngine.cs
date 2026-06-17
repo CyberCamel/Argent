@@ -20,6 +20,8 @@ public class WorkflowEngine(
 
         logger.LogInformation("Workflow engine started (polling every 1s, max concurrency: 50)");
 
+        var lastRecovery = DateTime.UtcNow;
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -58,6 +60,14 @@ public class WorkflowEngine(
                             _semaphore.Release();
                         }
                     });
+                }
+
+                // Run recovery every 60 seconds to catch any instances left stuck by the
+                // concurrent EndEvent race that the post-commit check didn't resolve.
+                if ((DateTime.UtcNow - lastRecovery).TotalSeconds >= 60)
+                {
+                    await recoveryPass.RunAsync(stoppingToken);
+                    lastRecovery = DateTime.UtcNow;
                 }
             }
             catch (OperationCanceledException)

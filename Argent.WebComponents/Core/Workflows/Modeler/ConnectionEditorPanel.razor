@@ -32,21 +32,24 @@
                        value="@_conn.Label"
                        @oninput="@(e => { _conn.Label = e.Value?.ToString(); State.MarkDirty(); })" />
             </div>
-            <div class="modeler2-properties-field modeler2-properties-field-inline">
-                <label class="modeler2-properties-label">Default path</label>
-                <label class="modeler2-properties-switch">
-                    <input type="checkbox" checked="@_conn.IsDefault"
-                           @onchange="OnIsDefaultChanged" />
-                    <span class="modeler2-properties-switch-slider"></span>
-                </label>
-                @if (_conn.IsDefault)
-                {
-                    <span class="modeler2-conn-default-hint">Used when no other path matches</span>
-                }
-            </div>
+            @if (_isGateway)
+            {
+                <div class="modeler2-properties-field modeler2-properties-field-inline">
+                    <label class="modeler2-properties-label">Default path</label>
+                    <label class="modeler2-properties-switch">
+                        <input type="checkbox" checked="@_conn.IsDefault"
+                               @onchange="OnIsDefaultChanged" />
+                        <span class="modeler2-properties-switch-slider"></span>
+                    </label>
+                    @if (_conn.IsDefault)
+                    {
+                        <span class="modeler2-conn-default-hint">Used when no other path matches</span>
+                    }
+                </div>
+            }
         </div>
 
-        @if (!_conn.IsDefault)
+        @if (_isGateway && !_conn.IsDefault)
         {
             <div class="modeler2-properties-section modeler2-properties-section-dyn">
                 <div class="modeler2-properties-label mb-1">Condition</div>
@@ -73,17 +76,23 @@
     [Parameter] public required EventCallback OnClose { get; set; }
 
     private Connection _conn = null!;
+    private bool _isGateway;
     private List<string>? _fields;
 
     protected override async Task OnInitializedAsync()
     {
         _conn = Connection.EngineConnection;
+        _isGateway = Connection.Source.NodeData is ExclusiveGateway or InclusiveGateway;
         await LoadFieldsAsync();
     }
 
     protected override async Task OnParametersSetAsync()
     {
+        // Skip the expensive DB reload on every parent re-render (pointer moves during
+        // rerouting cause continuous re-renders). Only reload when the connection changes.
+        if (ReferenceEquals(Connection.EngineConnection, _conn)) return;
         _conn = Connection.EngineConnection;
+        _isGateway = Connection.Source.NodeData is ExclusiveGateway or InclusiveGateway;
         await LoadFieldsAsync();
     }
 

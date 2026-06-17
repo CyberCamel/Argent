@@ -5,7 +5,7 @@
 
 @if (FormId.HasValue)
 {
-    <ArgentForm FormId="@FormId.Value" RecordId="@RecordId" OnValidSubmit="HandleSubmit" />
+    <ArgentForm @ref="_form" FormId="@FormId.Value" RecordId="@RecordId" HideSubmit="@HideSubmit" OnValidSubmit="HandleSubmit" />
 }
 else
 {
@@ -17,12 +17,24 @@ else
     [Parameter] public Guid? RecordId { get; set; }
     [Parameter] public string? UserId { get; set; }
 
+    /// <summary>When true, hides the form's built-in submit button. Use <see cref="TrySaveAsync"/> to validate and persist externally.</summary>
+    [Parameter] public bool HideSubmit { get; set; }
+
     [Parameter] public EventCallback<DomainRecord> OnSubmit { get; set; }
+
+    private ArgentForm? _form;
 
     protected override void OnInitialized()
     {
         if (!string.IsNullOrEmpty(UserId))
             Context.UserId = UserId;
+    }
+
+    /// <summary>Validates and saves the form. Returns false if validation fails or save errors; the form renders inline errors automatically.</summary>
+    public async Task<bool> TrySaveAsync()
+    {
+        if (_form == null) return true;
+        return await _form.TrySaveAsync() != null;
     }
 
     private async Task HandleSubmit(DomainRecord record)

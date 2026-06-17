@@ -1,8 +1,12 @@
 @using Argent.Contracts.Workflows.Execution
+@using Argent.Infrastructure.Data
 @using Argent.Models.DomainObjects
+@using Argent.Models.Workflows
 @using Argent.WebComponents.Core.Forms
+@using Microsoft.EntityFrameworkCore
 @inject IUserTaskManager TaskManager
 @inject IWorkflowInstanceManager InstanceManager
+@inject IDbContextFactory<ArgentDbContext> DbFactory
 
 @if (_task == null)
 {
@@ -39,7 +43,44 @@ else
         {
             <div class="alert alert-danger">@_error</div>
         }
-        <FormHost FormId="@_task.FormId" RecordId="@_instanceRecordId" UserId="@UserId" OnSubmit="CompleteTask" />
+
+        @* Show the form when present. When action buttons also exist, hide the form's
+           built-in submit button — the action buttons call TrySaveAsync() themselves
+           so the form data is still persisted before completion. *@
+        @if (_task.FormId.HasValue)
+        {
+            <FormHost @ref="_formHost"
+                      FormId="@_task.FormId"
+                      RecordId="@_instanceRecordId"
+                      UserId="@UserId"
+                      HideSubmit="@(_actions.Count > 0)"
+                      OnSubmit="HandleFormSubmit" />
+        }
+
+        @* Action buttons — shown when the outgoing connections are named *@
+        @if (_actions.Count > 0)
+        {
+            <div class="card mt-3">
+                <div class="card-body">
+                    <p class="text-muted small mb-2">Select an action to complete this task:</p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        @foreach (var action in _actions)
+                        {
+                            <button class="btn btn-outline-primary" @onclick="() => CompleteWithAction(action)">
+                                @action
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+        else if (!_task.FormId.HasValue)
+        {
+            @* No form and no named actions — show a generic complete button *@
+            <button class="btn btn-primary" @onclick="() => CompleteWithAction(null)">
+                <i class="bi bi-check-lg me-1"></i>Complete Task
+            </button>
+        }
     }
 }
 
@@ -52,6 +93,8 @@ else
     private Guid? _instanceRecordId;
     private bool _completed;
     private string? _error;
+    private List<string> _actions = [];
+    private FormHost? _formHost;
 
     protected override async Task OnInitializedAsync()
     {
@@ -61,16 +104,60 @@ else
             var snapshot = await InstanceManager.GetStateAsync(_task.InstanceId, default);
             if (snapshot.RecordId != Guid.Empty)
                 _instanceRecordId = snapshot.RecordId;
+
+            _actions = await LoadActionsAsync(_task);
         }
     }
 
-    private async Task CompleteTask(DomainRecord record)
+    private async Task<List<string>> LoadActionsAsync(Argent.Models.Workflows.Execution.UserTask task)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var instance = await db.WorkflowInstances
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.InstanceId == task.InstanceId);
+        if (instance == null) return [];
+
+        var version = await db.WorkflowVersions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == instance.VersionId);
+        if (version?.Definition == null) return [];
+
+        return version.Definition.Connections
+            .Where(c => c.From.Id == task.NodeId && !string.IsNullOrEmpty(c.Label))
+            .Select(c => c.Label!)
+            .ToList();
+    }
+
+    private async Task HandleFormSubmit(DomainRecord record)
+    {
+        // Only reached when HideSubmit=false (no action buttons), so the form's own
+        // Submit button drove validation+save. Just complete the task with no routing.
+        await FinishTaskAsync(null);
+    }
+
+    private async Task CompleteWithAction(string? action)
     {
         if (_task == null) return;
         _error = null;
+
+        // When a form is present, save it first. Action buttons replace the form's
+        // submit button, so we drive save here before completing the task.
+        if (_task.FormId.HasValue && _formHost != null)
+        {
+            var saved = await _formHost.TrySaveAsync();
+            if (!saved) return;
+        }
+
+        await FinishTaskAsync(action);
+    }
+
+    private async Task FinishTaskAsync(string? action)
+    {
+        if (_task == null) return;
         try
         {
-            await TaskManager.CompleteTaskAsync(TaskId, UserId ?? "unknown", Roles ?? [], default);
+            await TaskManager.CompleteTaskAsync(TaskId, UserId ?? "unknown", Roles ?? [], action, default);
             _completed = true;
         }
         catch (Exception ex)

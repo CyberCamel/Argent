@@ -64,6 +64,13 @@ public class UserActivityHandler : INodeHandler
 
         if (existingTask.State == UserTaskState.Completed)
         {
+            // If the user chose a named action, route exclusively to that connection's target.
+            if (!string.IsNullOrEmpty(existingTask.ResultData))
+            {
+                var match = ctx.CandidateTargets.FirstOrDefault(t => t.Label == existingTask.ResultData);
+                if (match != null)
+                    return new NodeResult(true, ExplicitTargetNodeIds: [match.NodeId]);
+            }
             return new NodeResult(true);
         }
 

@@ -214,7 +214,7 @@ public class UserTaskManager : IUserTaskManager
             ct: ct);
     }
 
-    public async Task CompleteTaskAsync(Guid taskId, string completedBy, List<string> roles, CancellationToken ct)
+    public async Task CompleteTaskAsync(Guid taskId, string completedBy, List<string> roles, string? action = null, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
@@ -232,6 +232,8 @@ public class UserTaskManager : IUserTaskManager
         task.CompletedAt = DateTime.UtcNow;
         task.CompletedBy = completedBy;
         task.RowVersion = Guid.NewGuid();
+        if (!string.IsNullOrEmpty(action))
+            task.ResultData = action;
 
         await context.WorkItems
             .Where(w => w.TokenId == task.TokenId && w.State == WorkItemState.Waiting)

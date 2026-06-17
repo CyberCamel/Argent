@@ -1,5 +1,6 @@
 using Argent.Infrastructure.Data;
 using Argent.Models.Workflows;
+using Argent.Models.Workflows.Auditing;
 using Argent.Models.Workflows.Execution;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -109,12 +110,10 @@ public class RecoveryPass
                 "Recovered {Count} orphan tokens — created work items", recoveredCount);
         }
 
-        // Step 3: Detect stuck instances. Completion is now committed atomically when a
-        // terminal (EndEvent) token is consumed (see TokenMovement), so a Running instance
-        // with no active tokens indicates lost work (e.g. a stalled join), not a normal
-        // finish. Surface it for investigation rather than silently marking it Completed —
-        // doing so would mask the underlying defect. Orphan-token recovery (Step 2) runs
-        // first, so anything flagged here has genuinely lost its tokens.
+        // Step 3: Complete instances that finished but were not marked due to the concurrent
+        // EndEvent race (two terminal tokens consumed in the same engine batch can both skip
+        // the post-commit check if they interleave unluckily). Orphan-token recovery runs first
+        // so any token that should still be active will have gotten a work item by now.
         var runningInstances = await context.WorkflowInstances
             .Where(i => i.State == InstanceState.Running)
             .ToListAsync(ct);
@@ -128,9 +127,18 @@ public class RecoveryPass
 
             if (activeTokenCount == 0)
             {
+                instance.State = InstanceState.Completed;
+                instance.EndTime = DateTime.UtcNow;
+                context.WorkflowJournalEntries.Add(new WorkflowJournalEntry
+                {
+                    Category = "Workflow",
+                    EventType = nameof(WorkflowAuditEventType.InstanceCompleted),
+                    InstanceId = instance.InstanceId,
+                    TimeStamp = DateTime.UtcNow
+                });
                 stuckCount++;
-                _logger.LogError(
-                    "Instance {InstanceId} is Running with zero active tokens — possible lost work (stalled join or dropped token). Left in place for inspection.",
+                _logger.LogWarning(
+                    "Instance {InstanceId} recovered: Running with zero active tokens — completing now.",
                     instance.InstanceId);
             }
         }

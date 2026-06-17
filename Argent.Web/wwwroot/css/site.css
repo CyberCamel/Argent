@@ -2166,6 +2166,10 @@ svg > rect[fill="url(#gridPattern)"] {
     fill: #94e2d5;
 }
 
+.modeler2-conn-label-action {
+    fill: #cba6f7;
+}
+
 /* ── Connection editor panel ─────────────────────────────────────── */
 .modeler2-conn-condition-wrap {
     background: #f8f9fa;

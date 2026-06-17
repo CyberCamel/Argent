@@ -34,5 +34,5 @@ public interface IUserTaskManager
 
     Task ReassignAsync(Guid taskId, string toUser, CancellationToken ct = default);
 
-    Task CompleteTaskAsync(Guid taskId, string completedBy, List<string> roles, CancellationToken ct);
+    Task CompleteTaskAsync(Guid taskId, string completedBy, List<string> roles, string? action = null, CancellationToken ct = default);
 }
