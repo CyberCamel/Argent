@@ -301,7 +301,8 @@ public class TokenRunnerTests : IDisposable
             .Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateContext());
 
-        var runner = new TestableTokenRunner(scopeFactory, null!, _ctxFactoryMock.Object, _loggerMock.Object);
+        var timerManager = new TimerManager(_ctxFactoryMock.Object, Mock.Of<ILogger<TimerManager>>());
+        var runner = new TestableTokenRunner(scopeFactory, null!, _ctxFactoryMock.Object, timerManager, _loggerMock.Object);
         return (runner, db);
     }
 
@@ -315,8 +316,9 @@ public class TokenRunnerTests : IDisposable
             IServiceScopeFactory scopeFactory,
             IWorkflowNodeRegistry nodeRegistry,
             IDbContextFactory<ArgentDbContext> contextFactory,
+            TimerManager timerManager,
             ILogger<TokenRunner> logger)
-            : base(scopeFactory, nodeRegistry, contextFactory, logger) { }
+            : base(scopeFactory, nodeRegistry, contextFactory, timerManager, logger) { }
 
         protected internal override async Task SetWorkItemStateCoreAsync(
             ArgentDbContext db, Guid workItemId, WorkItemState state, CancellationToken ct)

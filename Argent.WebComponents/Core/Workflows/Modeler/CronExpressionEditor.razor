@@ -1,0 +1,404 @@
+@using Argent.Runtime.Workflows.Execution
+@using Cronos
+
+<div class="cve">
+    @* ── Mode toggle ──────────────────────────────────────────────── *@
+    <div class="cve-mode-bar">
+        <button class="cve-mode-btn @(_rawMode ? "" : "active")" @onclick="() => SetRawMode(false)">
+            <i class="bi bi-toggles"></i> Visual
+        </button>
+        <button class="cve-mode-btn @(_rawMode ? "active" : "")" @onclick="() => SetRawMode(true)">
+            <i class="bi bi-code-slash"></i> Raw
+        </button>
+        @if (!_rawMode && _tooComplex)
+        {
+            <span class="cve-complex-hint" title="Switch to Raw mode to edit this expression">
+                <i class="bi bi-exclamation-circle"></i> Too complex
+            </span>
+        }
+    </div>
+
+    @* ── Visual editor ────────────────────────────────────────────── *@
+    @if (!_rawMode)
+    {
+        <div class="cve-body">
+
+            @* Second *@
+            <div class="cve-row">
+                <div class="cve-row-label">Second</div>
+                <div class="cve-row-content">
+                    <button class="cve-opt @(_secMode == SecMode.At ? "active" : "")"
+                            @onclick="() => { _secMode = SecMode.At; Commit(); }">At</button>
+                    <button class="cve-opt @(_secMode == SecMode.Every ? "active" : "")"
+                            @onclick="() => { _secMode = SecMode.Every; Commit(); }">Every</button>
+                    @if (_secMode == SecMode.At)
+                    {
+                        <input type="number" class="cve-num" min="0" max="59" value="@_secAt"
+                               @oninput="e => { if (int.TryParse(e.Value?.ToString(), out var n)) { _secAt = Math.Clamp(n,0,59); Commit(); } }" />
+                        <span class="cve-unit">sec</span>
+                    }
+                    else
+                    {
+                        <input type="number" class="cve-num" min="1" max="59" value="@_secEvery"
+                               @oninput="e => { if (int.TryParse(e.Value?.ToString(), out var n)) { _secEvery = Math.Clamp(n,1,59); Commit(); } }" />
+                        <span class="cve-unit">sec</span>
+                    }
+                </div>
+            </div>
+
+            @* Minute *@
+            <div class="cve-row">
+                <div class="cve-row-label">Minute</div>
+                <div class="cve-row-content">
+                    <button class="cve-opt @(_minMode == SelectMode.Any ? "active" : "")"
+                            @onclick="() => { _minMode = SelectMode.Any; Commit(); }">Any</button>
+                    <button class="cve-opt @(_minMode == SelectMode.Every ? "active" : "")"
+                            @onclick="() => { _minMode = SelectMode.Every; Commit(); }">Every</button>
+                    <button class="cve-opt @(_minMode == SelectMode.Specific ? "active" : "")"
+                            @onclick="() => { _minMode = SelectMode.Specific; Commit(); }">At</button>
+                    @if (_minMode == SelectMode.Every)
+                    {
+                        <input type="number" class="cve-num" min="1" max="59" value="@_minEvery"
+                               @oninput="e => { if (int.TryParse(e.Value?.ToString(), out var n)) { _minEvery = Math.Clamp(n,1,59); Commit(); } }" />
+                        <span class="cve-unit">min</span>
+                    }
+                    @if (_minMode == SelectMode.Specific)
+                    {
+                        <div class="cve-chips">
+                            @foreach (var m in s_minChips)
+                            {
+                                var mv = m;
+                                <button class="cve-chip @(_minAt.Contains(mv) ? "active" : "")"
+                                        @onclick="() => Toggle(_minAt, mv)">@mv.ToString("D2")</button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* Hour *@
+            <div class="cve-row">
+                <div class="cve-row-label">Hour</div>
+                <div class="cve-row-content">
+                    <button class="cve-opt @(_hrMode == SelectMode.Any ? "active" : "")"
+                            @onclick="() => { _hrMode = SelectMode.Any; Commit(); }">Any</button>
+                    <button class="cve-opt @(_hrMode == SelectMode.Every ? "active" : "")"
+                            @onclick="() => { _hrMode = SelectMode.Every; Commit(); }">Every</button>
+                    <button class="cve-opt @(_hrMode == SelectMode.Specific ? "active" : "")"
+                            @onclick="() => { _hrMode = SelectMode.Specific; Commit(); }">At</button>
+                    @if (_hrMode == SelectMode.Every)
+                    {
+                        <input type="number" class="cve-num" min="1" max="23" value="@_hrEvery"
+                               @oninput="e => { if (int.TryParse(e.Value?.ToString(), out var n)) { _hrEvery = Math.Clamp(n,1,23); Commit(); } }" />
+                        <span class="cve-unit">hr</span>
+                    }
+                    @if (_hrMode == SelectMode.Specific)
+                    {
+                        <div class="cve-chips cve-chips-hours">
+                            @for (var h = 0; h < 24; h++)
+                            {
+                                var hv = h;
+                                <button class="cve-chip @(_hrAt.Contains(hv) ? "active" : "")"
+                                        title="@(hv < 12 ? $"{(hv == 0 ? 12 : hv)} AM" : $"{(hv == 12 ? 12 : hv - 12)} PM")"
+                                        @onclick="() => Toggle(_hrAt, hv)">@hv.ToString("D2")</button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* Day *@
+            <div class="cve-row">
+                <div class="cve-row-label">Day</div>
+                <div class="cve-row-content">
+                    <button class="cve-opt @(_dayMode == DayMode.Any ? "active" : "")"
+                            @onclick="() => { _dayMode = DayMode.Any; Commit(); }">Any</button>
+                    <button class="cve-opt @(_dayMode == DayMode.DayOfMonth ? "active" : "")"
+                            @onclick="() => { _dayMode = DayMode.DayOfMonth; Commit(); }">Day of month</button>
+                    <button class="cve-opt @(_dayMode == DayMode.DayOfWeek ? "active" : "")"
+                            @onclick="() => { _dayMode = DayMode.DayOfWeek; Commit(); }">Weekdays</button>
+                    @if (_dayMode == DayMode.DayOfMonth)
+                    {
+                        <input type="number" class="cve-num" min="1" max="31" value="@_domDay"
+                               @oninput="e => { if (int.TryParse(e.Value?.ToString(), out var n)) { _domDay = Math.Clamp(n,1,31); Commit(); } }" />
+                    }
+                    @if (_dayMode == DayMode.DayOfWeek)
+                    {
+                        <div class="cve-chips">
+                            @foreach (var (label, val) in s_dowChips)
+                            {
+                                var dv = val;
+                                <button class="cve-chip @(_dow.Contains(dv) ? "active" : "")"
+                                        @onclick="() => Toggle(_dow, dv)">@label</button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* Month *@
+            <div class="cve-row">
+                <div class="cve-row-label">Month</div>
+                <div class="cve-row-content">
+                    <button class="cve-opt @(_monMode == SelectMode.Any ? "active" : "")"
+                            @onclick="() => { _monMode = SelectMode.Any; Commit(); }">Any</button>
+                    <button class="cve-opt @(_monMode == SelectMode.Specific ? "active" : "")"
+                            @onclick="() => { _monMode = SelectMode.Specific; Commit(); }">Specific</button>
+                    @if (_monMode == SelectMode.Specific)
+                    {
+                        <div class="cve-chips">
+                            @foreach (var (label, val) in s_monChips)
+                            {
+                                var mv = val;
+                                <button class="cve-chip @(_mon.Contains(mv) ? "active" : "")"
+                                        @onclick="() => Toggle(_mon, mv)">@label</button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+        </div>
+    }
+
+    @* ── Expression + preview (always visible) ────────────────────── *@
+    <div class="cve-footer">
+        <input class="cve-expr" spellcheck="false"
+               value="@Expression"
+               @oninput="e => OnRawInput(e.Value?.ToString() ?? string.Empty)" />
+        @if (!string.IsNullOrEmpty(_preview))
+        {
+            <div class="cve-preview"><i class="bi bi-arrow-right-circle"></i> Next: @_preview</div>
+        }
+        else if (!string.IsNullOrEmpty(_previewError))
+        {
+            <div class="cve-preview cve-preview-error"><i class="bi bi-exclamation-triangle-fill"></i> @_previewError</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Expression { get; set; } = "0 0 9 * * *";
+    [Parameter] public EventCallback<string> ExpressionChanged { get; set; }
+    [Parameter] public string TimeZoneId { get; set; } = "UTC";
+
+    // ── Visual state ─────────────────────────────────────────────────
+
+    private enum SecMode    { At, Every }
+    private enum SelectMode { Any, Every, Specific }
+    private enum DayMode    { Any, DayOfMonth, DayOfWeek }
+
+    private SecMode      _secMode  = SecMode.At;
+    private int          _secAt    = 0;
+    private int          _secEvery = 10;
+
+    private SelectMode   _minMode  = SelectMode.Specific;
+    private int          _minEvery = 15;
+    private HashSet<int> _minAt    = [0];
+
+    private SelectMode   _hrMode   = SelectMode.Specific;
+    private int          _hrEvery  = 6;
+    private HashSet<int> _hrAt     = [9];
+
+    private DayMode      _dayMode  = DayMode.Any;
+    private int          _domDay   = 1;
+    private HashSet<int> _dow      = [];
+
+    private SelectMode   _monMode  = SelectMode.Any;
+    private HashSet<int> _mon      = [];
+
+    private bool   _rawMode        = false;
+    private bool   _tooComplex     = false;
+    private string _preview        = string.Empty;
+    private string _previewError   = string.Empty;
+    private string _lastExpression = string.Empty;
+
+    // ── Static lookup data ───────────────────────────────────────────
+
+    private static readonly int[] s_minChips = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+    private static readonly (string Label, int Value)[] s_dowChips =
+        [("Mon",1),("Tue",2),("Wed",3),("Thu",4),("Fri",5),("Sat",6),("Sun",7)];
+
+    private static readonly (string Label, int Value)[] s_monChips =
+        [("Jan",1),("Feb",2),("Mar",3),("Apr",4),("May",5),("Jun",6),
+         ("Jul",7),("Aug",8),("Sep",9),("Oct",10),("Nov",11),("Dec",12)];
+
+    // ── Lifecycle ────────────────────────────────────────────────────
+
+    protected override void OnParametersSet()
+    {
+        if (Expression != _lastExpression)
+        {
+            _lastExpression = Expression;
+            _tooComplex = !TryParseExpression(Expression);
+        }
+        RefreshPreview();
+    }
+
+    // ── Interaction ──────────────────────────────────────────────────
+
+    private void SetRawMode(bool raw)
+    {
+        if (!raw) _tooComplex = !TryParseExpression(Expression);
+        _rawMode = raw;
+    }
+
+    private void Toggle(HashSet<int> set, int value)
+    {
+        if (!set.Remove(value)) set.Add(value);
+        Commit();
+    }
+
+    private void Commit()
+    {
+        var expr = Build();
+        _lastExpression = expr;
+        ExpressionChanged.InvokeAsync(expr);
+        RefreshPreview(expr);
+    }
+
+    private void OnRawInput(string raw)
+    {
+        _lastExpression = raw;
+        _tooComplex = !TryParseExpression(raw);
+        ExpressionChanged.InvokeAsync(raw);
+        RefreshPreview(raw);
+    }
+
+    // ── Expression building ──────────────────────────────────────────
+
+    private string Build()
+    {
+        var sec = _secMode == SecMode.Every ? $"*/{_secEvery}" : _secAt.ToString();
+
+        var min = _minMode switch
+        {
+            SelectMode.Any      => "*",
+            SelectMode.Every    => $"*/{_minEvery}",
+            SelectMode.Specific => _minAt.Count == 0 ? "0" : string.Join(",", _minAt.Order()),
+            _                   => "*"
+        };
+
+        var hr = _hrMode switch
+        {
+            SelectMode.Any      => "*",
+            SelectMode.Every    => $"*/{_hrEvery}",
+            SelectMode.Specific => _hrAt.Count == 0 ? "*" : string.Join(",", _hrAt.Order()),
+            _                   => "*"
+        };
+
+        var (dom, dow) = _dayMode switch
+        {
+            DayMode.DayOfMonth => (_domDay.ToString(), "*"),
+            DayMode.DayOfWeek  => ("*", _dow.Count == 0 ? "*" : string.Join(",", _dow.Order())),
+            _                  => ("*", "*")
+        };
+
+        var mon = _monMode == SelectMode.Specific && _mon.Count > 0
+            ? string.Join(",", _mon.Order())
+            : "*";
+
+        return $"{sec} {min} {hr} {dom} {mon} {dow}";
+    }
+
+    // ── Expression parsing ───────────────────────────────────────────
+
+    private bool TryParseExpression(string expr)
+    {
+        var parts = expr.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 6) return false;
+
+        // Seconds
+        if (parts[0].StartsWith("*/") && int.TryParse(parts[0][2..], out var se))
+            (_secMode, _secEvery) = (SecMode.Every, se);
+        else if (int.TryParse(parts[0], out var sa))
+            (_secMode, _secAt) = (SecMode.At, sa);
+        else if (parts[0] == "*")
+            (_secMode, _secAt) = (SecMode.At, 0);
+        else return false;
+
+        // Minutes
+        if (!TryParseSelect(parts[1], out _minMode, out _minEvery, _minAt)) return false;
+
+        // Hours
+        if (!TryParseSelect(parts[2], out _hrMode, out _hrEvery, _hrAt)) return false;
+
+        // Day of month / Day of week
+        var domStr = parts[3];
+        var dowStr = parts[5];
+
+        if (domStr == "*" && dowStr == "*")
+        {
+            _dayMode = DayMode.Any;
+        }
+        else if (domStr != "*" && dowStr == "*")
+        {
+            if (!int.TryParse(domStr, out _domDay)) return false;
+            _dayMode = DayMode.DayOfMonth;
+        }
+        else if (domStr == "*" && dowStr != "*")
+        {
+            if (!TryParseIntList(dowStr, _dow)) return false;
+            _dayMode = DayMode.DayOfWeek;
+        }
+        else return false;
+
+        // Month
+        if (parts[4] == "*")
+        {
+            _monMode = SelectMode.Any;
+        }
+        else
+        {
+            if (!TryParseIntList(parts[4], _mon)) return false;
+            _monMode = SelectMode.Specific;
+        }
+
+        return true;
+    }
+
+    private static bool TryParseSelect(string field, out SelectMode mode, out int every, HashSet<int> at)
+    {
+        every = 1;
+        at.Clear();
+
+        if (field == "*")                                                      { mode = SelectMode.Any;      return true; }
+        if (field.StartsWith("*/") && int.TryParse(field[2..], out every))   { mode = SelectMode.Every;    return true; }
+        if (TryParseIntList(field, at))                                        { mode = SelectMode.Specific; return true; }
+
+        mode = SelectMode.Any;
+        return false;
+    }
+
+    private static bool TryParseIntList(string field, HashSet<int> target)
+    {
+        target.Clear();
+        foreach (var part in field.Split(','))
+        {
+            if (!int.TryParse(part.Trim(), out var n)) return false;
+            target.Add(n);
+        }
+        return target.Count > 0;
+    }
+
+    // ── Preview ──────────────────────────────────────────────────────
+
+    private void RefreshPreview(string? expr = null)
+    {
+        expr ??= Expression;
+        try
+        {
+            var tz   = TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
+            var cron = CronExpression.Parse(expr, CronFormat.IncludeSeconds);
+            var next = cron.GetNextOccurrence(DateTime.UtcNow, tz);
+            _preview      = next.HasValue ? next.Value.ToString("ddd d MMM yyyy HH:mm:ss") + $" {TimeZoneId}" : "No future occurrence";
+            _previewError = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _preview      = string.Empty;
+            _previewError = ex.Message;
+        }
+    }
+}

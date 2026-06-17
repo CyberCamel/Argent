@@ -5,9 +5,11 @@ using Argent.Models.DomainObjects;
 using Argent.Models.Enums;
 using Argent.Models.Forms;
 using Argent.Models.Workflows;
+using Argent.Models.Workflows.BoundaryEvents;
+using Argent.Models.Workflows.Execution;
+using Argent.Models.Workflows.Shared;
 using Argent.Runtime.Workflows;
 using Argent.Models.Workflows.Auditing;
-using Argent.Models.Workflows.Execution;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -23,17 +25,20 @@ public class TokenRunner : ITokenRunner
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IWorkflowNodeRegistry _nodeRegistry;
     private readonly IDbContextFactory<ArgentDbContext> _contextFactory;
+    private readonly TimerManager _timerManager;
     private readonly ILogger<TokenRunner> _logger;
 
     public TokenRunner(
         IServiceScopeFactory scopeFactory,
         IWorkflowNodeRegistry nodeRegistry,
         IDbContextFactory<ArgentDbContext> contextFactory,
+        TimerManager timerManager,
         ILogger<TokenRunner> logger)
     {
         _scopeFactory = scopeFactory;
         _nodeRegistry = nodeRegistry;
         _contextFactory = contextFactory;
+        _timerManager = timerManager;
         _logger = logger;
     }
 
@@ -203,6 +208,7 @@ public class TokenRunner : ITokenRunner
                 case NodeResultType.Waiting:
                     WorkflowMeter.ItemsClaimed.Add(1);
                     await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Waiting, ct);
+                    await ActivateBoundaryTimersAsync(db, definition, node, currentToken, ctx, ct);
                     _logger.LogInformation(
                         "WorkItem {Id} set to Waiting (node '{NodeName}')",
                         claimed.WorkItemId, node.Name);
@@ -281,6 +287,7 @@ public class TokenRunner : ITokenRunner
 
                     await movement.CommitAsync(request, ct);
                     await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);
+                    await CancelBoundaryTimersAsync(db, definition, node, instanceId, ct);
 
                     WorkflowMeter.TokensMoved.Add(targets.Count);
                     WorkflowMeter.ItemsClaimed.Add(1);
@@ -298,6 +305,109 @@ public class TokenRunner : ITokenRunner
                 claimed.WorkItemId);
             await HandleFailureAsync(db, claimed, ex.Message, ct);
         }
+    }
+
+    // When a node enters Waiting, create a boundary token + timer for each attached
+    // TimerBoundaryEvent. Idempotent: skips any boundary node that already has a token
+    // for this instance (e.g. recovery replay).
+    private async Task ActivateBoundaryTimersAsync(
+        ArgentDbContext db,
+        WorkflowDefinition definition,
+        NodeBase parentNode,
+        WorkflowToken parentToken,
+        ITokenExecutionContext ctx,
+        CancellationToken ct)
+    {
+        var boundaryTimers = definition.Nodes
+            .OfType<TimerBoundaryEvent>()
+            .Where(b => b.ParentNodeId == parentNode.Id)
+            .ToList();
+
+        if (boundaryTimers.Count == 0) return;
+
+        foreach (var boundary in boundaryTimers)
+        {
+            var alreadyExists = await db.WorkflowTokens
+                .AnyAsync(t => t.InstanceId == parentToken.InstanceId
+                            && t.NodeId == boundary.Id
+                            && t.State != TokenState.Consumed, ct);
+            if (alreadyExists) continue;
+
+            var anchor = ResolveBoundaryAnchor(boundary.Definition, parentToken.CreatedAt, ctx);
+            var triggerTime = TimerDefinitionResolver.Resolve(boundary.Definition, anchor);
+
+            var boundaryToken = new WorkflowToken
+            {
+                Id = Guid.NewGuid(),
+                InstanceId = parentToken.InstanceId,
+                NodeId = boundary.Id,
+                State = TokenState.Waiting,
+                CreatedAt = DateTime.UtcNow
+            };
+            db.WorkflowTokens.Add(boundaryToken);
+            await db.SaveChangesAsync(ct);
+
+            await _timerManager.CreateAsync(boundaryToken.Id, boundary.Id, "timer-boundary", triggerTime, ct);
+
+            _logger.LogInformation(
+                "Boundary timer activated for node '{Name}' on instance {InstanceId}, fires at {TriggerTime:O}",
+                boundary.Name, parentToken.InstanceId, triggerTime);
+        }
+    }
+
+    // When a node completes normally, cancel any pending boundary timers and consume
+    // their tokens so they don't fire after the parent is done.
+    private async Task CancelBoundaryTimersAsync(
+        ArgentDbContext db,
+        WorkflowDefinition definition,
+        NodeBase parentNode,
+        Guid instanceId,
+        CancellationToken ct)
+    {
+        var boundaryNodeIds = definition.Nodes
+            .OfType<TimerBoundaryEvent>()
+            .Where(b => b.ParentNodeId == parentNode.Id)
+            .Select(b => b.Id)
+            .ToList();
+
+        if (boundaryNodeIds.Count == 0) return;
+
+        var boundaryTokens = await db.WorkflowTokens
+            .Where(t => t.InstanceId == instanceId
+                     && boundaryNodeIds.Contains(t.NodeId)
+                     && t.State != TokenState.Consumed)
+            .ToListAsync(ct);
+
+        foreach (var bt in boundaryTokens)
+        {
+            bt.State = TokenState.Consumed;
+            bt.ConsumedAt = DateTime.UtcNow;
+
+            // Mark the timer Cancelled so SchedulePendingAsync skips it
+            await db.Timers
+                .Where(t => t.TokenId == bt.Id
+                         && (t.State == TimerState.Pending || t.State == TimerState.Enqueued))
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.State, TimerState.Cancelled), ct);
+        }
+
+        if (boundaryTokens.Count > 0)
+            await db.SaveChangesAsync(ct);
+    }
+
+    private static DateTime ResolveBoundaryAnchor(
+        TimerDefinition definition,
+        DateTime tokenArrival,
+        ITokenExecutionContext ctx)
+    {
+        if (definition is RelativeTimerDefinition { UseField: true, FieldKey: { } key })
+        {
+            var fieldVal = ctx.Variables.Get<DateTime?>(key);
+            if (fieldVal.HasValue)
+                return fieldVal.Value.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(fieldVal.Value, DateTimeKind.Utc)
+                    : fieldVal.Value.ToUniversalTime();
+        }
+        return tokenArrival;
     }
 
     private enum JoinArrival

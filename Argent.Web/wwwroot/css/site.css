@@ -2228,3 +2228,317 @@ svg > rect[fill="url(#gridPattern)"] {
 .modeler2-script-action-add .modeler2-properties-input {
     flex: 1;
 }
+
+/* ── Timer config editor ─────────────────────────────────────────── */
+.modeler2-timer-toggle {
+    display: flex;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.modeler2-timer-toggle-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #cdd6f4;
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.modeler2-timer-toggle-btn:hover {
+    background: #313244;
+}
+
+.modeler2-timer-toggle-btn.active {
+    background: #6c3483;
+    color: #fff;
+    font-weight: 600;
+}
+
+.modeler2-timer-row {
+    display: flex;
+    gap: 6px;
+}
+
+.modeler2-timer-amount {
+    width: 72px !important;
+    flex-shrink: 0;
+}
+
+.modeler2-cron-builder {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.modeler2-cron-field {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.modeler2-cron-field-label {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c7086;
+    margin-bottom: 2px;
+}
+
+.modeler2-cron-field-input {
+    width: 100%;
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    color: #cdd6f4;
+    font-size: 0.75rem;
+    font-family: monospace;
+    text-align: center;
+    padding: 3px 2px;
+    outline: none;
+}
+
+.modeler2-cron-field-input:focus {
+    border-color: #6c3483;
+}
+
+.modeler2-cron-raw {
+    font-family: monospace !important;
+    font-size: 0.8rem !important;
+    letter-spacing: 0.05em;
+}
+
+.modeler2-cron-feedback {
+    margin-top: 4px;
+    font-size: 0.72rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.modeler2-cron-preview {
+    color: #a6e3a1;
+}
+
+.modeler2-cron-error {
+    color: #f38ba8;
+}
+
+/* ── CronExpressionEditor visual editor ─────────────────────────── */
+.cve {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 4px;
+}
+
+.cve-mode-bar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 6px;
+}
+
+.cve-mode-btn {
+    background: transparent;
+    border: 1px solid #313244;
+    border-radius: 5px;
+    color: #6c7086;
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+}
+
+.cve-mode-btn:hover {
+    border-color: #585b70;
+    color: #cdd6f4;
+}
+
+.cve-mode-btn.active {
+    background: #313244;
+    border-color: #585b70;
+    color: #cdd6f4;
+    font-weight: 600;
+}
+
+.cve-complex-hint {
+    font-size: 0.68rem;
+    color: #f9e2af;
+    margin-left: 4px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.cve-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.cve-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    padding: 6px 8px;
+    border-bottom: 1px solid #181825;
+}
+
+.cve-row:last-child {
+    border-bottom: none;
+}
+
+.cve-row-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #585b70;
+    width: 42px;
+    flex-shrink: 0;
+    padding-top: 3px;
+}
+
+.cve-row-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.cve-opt {
+    padding: 2px 8px;
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    color: #cdd6f4;
+    font-size: 0.72rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.cve-opt:hover {
+    background: #2a2a3e;
+    border-color: #6c3483;
+}
+
+.cve-opt.active {
+    background: #4a1a6e;
+    border-color: #a855f7;
+    color: #fff;
+}
+
+.cve-num {
+    width: 46px;
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    color: #cdd6f4;
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 2px 4px;
+    outline: none;
+}
+
+.cve-num:focus {
+    border-color: #6c3483;
+}
+
+.cve-num:disabled {
+    opacity: 0.35;
+}
+
+.cve-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.cve-chips-hours {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+}
+
+.cve-chip {
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    color: #6c7086;
+    font-size: 0.68rem;
+    font-weight: 500;
+    padding: 2px 5px;
+    cursor: pointer;
+    transition: all 0.1s;
+    min-width: 28px;
+    text-align: center;
+    font-family: monospace;
+}
+
+.cve-chip:hover {
+    border-color: #585b70;
+    color: #cdd6f4;
+}
+
+.cve-chip.active {
+    background: #6c3483;
+    border-color: #a855f7;
+    color: #fff;
+    font-weight: 700;
+}
+
+.cve-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.cve-expr {
+    width: 100%;
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 5px;
+    color: #cdd6f4;
+    font-size: 0.78rem;
+    font-family: monospace;
+    letter-spacing: 0.06em;
+    padding: 5px 8px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.cve-expr:focus {
+    border-color: #6c3483;
+}
+
+.cve-preview {
+    font-size: 0.7rem;
+    color: #a6e3a1;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cve-preview-error {
+    color: #f38ba8;
+}

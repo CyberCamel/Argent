@@ -18,4 +18,16 @@ namespace Argent.Models.Workflows
         Fired,      // delay elapsed, WorkItem created
         Cancelled   // token was consumed before the timer fired
     }
+
+    public enum TimerUnit
+    {
+        Seconds,
+        Minutes,
+        Hours,
+        Days,
+        Weekdays,   // Mon–Fri only
+        Weeks,
+        Months,
+        Years
+    }
 }

@@ -168,7 +168,8 @@ public abstract class IntegrationTestBase : IDisposable
         var contextFactory = _serviceProvider.GetRequiredService<IDbContextFactory<ArgentDbContext>>();
         var logger = _serviceProvider.GetRequiredService<ILogger<TokenRunner>>();
 
-        return new TokenRunner(scopeFactory, null!, contextFactory, logger);
+        var timerManager = new TimerManager(contextFactory, Mock.Of<ILogger<TimerManager>>());
+        return new TokenRunner(scopeFactory, null!, contextFactory, timerManager, logger);
     }
 
     /// <summary>

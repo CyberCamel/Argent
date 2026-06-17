@@ -4,6 +4,9 @@
 @using Argent.Models.DomainObjects
 @using Argent.Models.Workflows
 @using Argent.Models.Workflows.Activities
+@using Argent.Models.Workflows.BoundaryEvents
+@using Argent.Models.Workflows.Intermediates
+@using Argent.Models.Workflows.Shared
 @using Argent.Runtime.Workflows
 @using Argent.Runtime.Workflows.Modeling
 @using Microsoft.EntityFrameworkCore
@@ -224,6 +227,112 @@
                     </div>
                 </div>
             }
+        @* ── CatchingTimerEvent / TimerBoundaryEvent: timer config ──── *@
+        @if (Node.NodeData is CatchingTimerEvent or TimerBoundaryEvent)
+        {
+            var def = GetTimerDefinition(Node.NodeData)!;
+
+            <div class="modeler2-properties-section modeler2-properties-section-dyn">
+                <div class="modeler2-properties-label mb-2">Timer Schedule</div>
+
+                <div class="modeler2-properties-field">
+                    <label class="modeler2-properties-label">Type</label>
+                    <div class="modeler2-timer-toggle">
+                        <button class="modeler2-timer-toggle-btn @(def is RelativeTimerDefinition ? "active" : "")"
+                                @onclick="() => OnTimerTypeChanged(Node.NodeData, false)">
+                            Relative
+                        </button>
+                        <button class="modeler2-timer-toggle-btn @(def is CronTimerDefinition ? "active" : "")"
+                                @onclick="() => OnTimerTypeChanged(Node.NodeData, true)">
+                            Schedule
+                        </button>
+                    </div>
+                </div>
+
+                @if (def is RelativeTimerDefinition rel)
+                {
+                    <div class="modeler2-properties-field">
+                        <label class="modeler2-properties-label">Delay</label>
+                        <div class="modeler2-timer-row">
+                            <input type="number" min="1" class="modeler2-properties-input modeler2-timer-amount"
+                                   value="@rel.Amount"
+                                   @oninput="e => { if (int.TryParse(e.Value?.ToString(), out var n) && n > 0) { rel.Amount = n; State.MarkDirty(); } }" />
+                            <select class="modeler2-properties-input"
+                                    @onchange="e => { if (Enum.TryParse<TimerUnit>(e.Value?.ToString(), out var u)) { rel.Unit = u; State.MarkDirty(); } }">
+                                @foreach (var unit in Enum.GetValues<TimerUnit>())
+                                {
+                                    <option value="@unit" selected="@(rel.Unit == unit)">@unit</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="modeler2-properties-field">
+                        <label class="modeler2-properties-label">Anchor</label>
+                        <div class="modeler2-timer-toggle">
+                            <button class="modeler2-timer-toggle-btn @(!rel.UseField ? "active" : "")"
+                                    @onclick="() => { rel.UseField = false; rel.FieldKey = null; State.MarkDirty(); }">
+                                After arriving
+                            </button>
+                            <button class="modeler2-timer-toggle-btn @(rel.UseField ? "active" : "")"
+                                    @onclick="() => { rel.UseField = true; State.MarkDirty(); }">
+                                After field date
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (rel.UseField)
+                    {
+                        <div class="modeler2-properties-field">
+                            <label class="modeler2-properties-label">
+                                Field Key
+                                <span class="modeler2-properties-tip" title="Domain object or form field key containing the base date">
+                                    <i class="bi bi-info-circle"></i>
+                                </span>
+                            </label>
+                            <input class="modeler2-properties-input" placeholder="e.g. submittedAt"
+                                   value="@rel.FieldKey"
+                                   @oninput="e => { rel.FieldKey = e.Value?.ToString(); State.MarkDirty(); }" />
+                        </div>
+                    }
+                }
+                else if (def is CronTimerDefinition cron)
+                {
+                    <CronExpressionEditor Expression="@cron.Expression"
+                                          ExpressionChanged="@(s => { cron.Expression = s; State.MarkDirty(); })"
+                                          TimeZoneId="@cron.TimeZoneId" />
+
+                    <div class="modeler2-properties-field">
+                        <label class="modeler2-properties-label">Timezone</label>
+                        <select class="modeler2-properties-input"
+                                @onchange="@(e => { cron.TimeZoneId = e.Value?.ToString() ?? "UTC"; State.MarkDirty(); })">
+                            @foreach (var tz in s_timeZones)
+                            {
+                                <option value="@tz.Id" selected="@(cron.TimeZoneId == tz.Id)">@tz.Label</option>
+                            }
+                        </select>
+                    </div>
+                }
+
+                @if (Node.NodeData is TimerBoundaryEvent boundary)
+                {
+                    <div class="modeler2-properties-field modeler2-properties-field-inline">
+                        <label class="modeler2-properties-label">
+                            Interrupting
+                            <span class="modeler2-properties-tip"
+                                  title="Cancels the parent activity when the timer fires">
+                                <i class="bi bi-info-circle"></i>
+                            </span>
+                        </label>
+                        <label class="modeler2-properties-switch">
+                            <input type="checkbox" checked="@boundary.IsInterrupting"
+                                   @onchange="e => { boundary.IsInterrupting = (bool)(e.Value ?? true); State.MarkDirty(); }" />
+                            <span class="modeler2-properties-switch-slider"></span>
+                        </label>
+                    </div>
+                }
+            </div>
+        }
         </div>
     </div>
 }
@@ -240,6 +349,32 @@
     private string _newActionType = string.Empty;
 
     private record FormOption(Guid Id, string Name);
+
+    private record TzOption(string Id, string Label);
+
+    private static readonly TzOption[] s_timeZones =
+    [
+        new("UTC",                   "UTC"),
+        new("Europe/London",         "London (GMT/BST)"),
+        new("Europe/Paris",          "Paris / Berlin (CET/CEST)"),
+        new("Europe/Stockholm",      "Stockholm (CET/CEST)"),
+        new("Europe/Helsinki",       "Helsinki (EET/EEST)"),
+        new("America/New_York",      "New York (ET)"),
+        new("America/Chicago",       "Chicago (CT)"),
+        new("America/Denver",        "Denver (MT)"),
+        new("America/Los_Angeles",   "Los Angeles (PT)"),
+        new("America/Sao_Paulo",     "São Paulo (BRT)"),
+        new("Africa/Johannesburg",   "Johannesburg (SAST)"),
+        new("Asia/Dubai",            "Dubai (GST)"),
+        new("Asia/Kolkata",          "Mumbai / Kolkata (IST)"),
+        new("Asia/Bangkok",          "Bangkok (ICT)"),
+        new("Asia/Singapore",        "Singapore (SGT)"),
+        new("Asia/Shanghai",         "Beijing / Shanghai (CST)"),
+        new("Asia/Tokyo",            "Tokyo (JST)"),
+        new("Asia/Seoul",            "Seoul (KST)"),
+        new("Australia/Sydney",      "Sydney (AEST/AEDT)"),
+        new("Pacific/Auckland",      "Auckland (NZST/NZDT)"),
+    ];
 
     protected override async Task OnInitializedAsync()
     {
@@ -301,6 +436,25 @@
             activity.UX = new RedirectExperience("https://example.com");
         State.MarkDirty();
     }
+
+    // ── Timer helpers ────────────────────────────────────────────────
+
+    private static TimerDefinition? GetTimerDefinition(NodeBase node) => node switch
+    {
+        CatchingTimerEvent e => e.Definition,
+        TimerBoundaryEvent e => e.Definition,
+        _ => null
+    };
+
+    private void OnTimerTypeChanged(NodeBase node, bool useCron)
+    {
+        TimerDefinition next = useCron ? new CronTimerDefinition() : new RelativeTimerDefinition();
+        if (node is CatchingTimerEvent e1) e1.Definition = next;
+        else if (node is TimerBoundaryEvent e2) e2.Definition = next;
+        State.MarkDirty();
+    }
+
+    // ── Generic property helper ──────────────────────────────────────
 
     private void UpdateValue(PropertyInfo prop, object? val)
     {

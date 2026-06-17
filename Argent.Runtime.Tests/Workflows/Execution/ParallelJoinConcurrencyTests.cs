@@ -168,10 +168,13 @@ public class ParallelJoinConcurrencyTests
 
         var provider = services.BuildServiceProvider();
 
+        var contextFactory = provider.GetRequiredService<IDbContextFactory<ArgentDbContext>>();
+        var timerManager = new TimerManager(contextFactory, Mock.Of<ILogger<TimerManager>>());
         return new TokenRunner(
             provider.GetRequiredService<IServiceScopeFactory>(),
             null!,
-            provider.GetRequiredService<IDbContextFactory<ArgentDbContext>>(),
+            contextFactory,
+            timerManager,
             provider.GetRequiredService<ILogger<TokenRunner>>());
     }
 }

@@ -1,10 +1,11 @@
 using Argent.Models.Attributes;
+using Argent.Models.Workflows.Shared;
 
 namespace Argent.Models.Workflows.Intermediates;
 
-[WorkflowCanvasElement("CatchingTimerEvent", "clock", "Intermediates", NodeShape.Circle, "A timer", "workflow-node node-timer", 80, 80)]
-public class CatchingTimerEvent
+[WorkflowCanvasElement("Timer Event", "alarm", "Events", NodeShape.Circle,
+    "Pauses the flow until a scheduled time", "node-timer", 80, 80)]
+public class CatchingTimerEvent : CatchingIntermediateEvent
 {
-    public DateTime TriggerTime { get; set; }
-    
+    public TimerDefinition Definition { get; set; } = new CronTimerDefinition();
 }

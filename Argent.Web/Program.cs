@@ -135,6 +135,8 @@ builder.Services.AddTransient<INodeHandler, RestActivityHandler>();
 builder.Services.AddTransient<INodeHandler, JintActivityHandler>();
 builder.Services.AddTransient<INodeHandler, UserActivityHandler>();
 builder.Services.AddTransient<INodeHandler, ScriptActivityHandler>();
+builder.Services.AddTransient<INodeHandler, CatchingTimerHandler>();
+builder.Services.AddTransient<INodeHandler, TimerBoundaryEventHandler>();
 
 builder.Services.AddScoped<IDomainObjectDefinitionService, DomainObjectDefinitionService>();
 builder.Services.AddScoped<IDomainObjectStore, DomainObjectStore>();
