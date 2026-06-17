@@ -254,9 +254,9 @@
                     <div class="modeler2-properties-field">
                         <label class="modeler2-properties-label">Delay</label>
                         <div class="modeler2-timer-row">
-                            <input type="number" min="1" class="modeler2-properties-input modeler2-timer-amount"
+                            <input type="number" min="0" class="modeler2-properties-input modeler2-timer-amount"
                                    value="@rel.Amount"
-                                   @oninput="e => { if (int.TryParse(e.Value?.ToString(), out var n) && n > 0) { rel.Amount = n; State.MarkDirty(); } }" />
+                                   @oninput="e => { if (int.TryParse(e.Value?.ToString(), out var n) && n >= 0) { rel.Amount = n; State.MarkDirty(); } }" />
                             <select class="modeler2-properties-input"
                                     @onchange="e => { if (Enum.TryParse<TimerUnit>(e.Value?.ToString(), out var u)) { rel.Unit = u; State.MarkDirty(); } }">
                                 @foreach (var unit in Enum.GetValues<TimerUnit>())

@@ -6,6 +6,8 @@
 @using Argent.Runtime.Workflows.Modeling.Routing
 @using Argent.Models.Workflows
 @using Argent.Models.Workflows.Activities
+@using Argent.Models.Workflows.BoundaryEvents
+@using Argent.Models.Workflows.Intermediates
 @using Microsoft.JSInterop
 @using Argent.WebComponents.Core.Workflows.Modeler.Utils
 @implements IAsyncDisposable
@@ -357,13 +359,54 @@
                                     break;
                             }
 
+                            @* Analog clock for timer nodes *@
+                            @if (node.NodeData is CatchingTimerEvent or TimerBoundaryEvent)
+                            {
+                                var _ckCx = node.Width / 2.0;
+                                var _ckCy = node.Height / 2.0;
+                                var _ckR  = Math.Min(node.Width, node.Height) / 2.0 - 5.0;
+                                var _ckHL = _ckR * 0.50;
+                                var _ckML = _ckR * 0.73;
+                                var _ckSL = _ckR * 0.84;
+                                var _ckBig  = Math.Min(node.Width, node.Height) >= 70;
+
+                                <g class="clock-overlay"
+                                   transform="translate(@_ckCx.ToString("F2", CultureInfo.InvariantCulture), @_ckCy.ToString("F2", CultureInfo.InvariantCulture))">
+
+                                    @for (int _t = 0; _t < 12; _t++)
+                                    {
+                                        var _ta  = _t * 30.0 * Math.PI / 180.0;
+                                        var _maj = _t % 3 == 0;
+                                        var _oR  = _ckR - 0.5;
+                                        var _iR  = _ckR - (_maj ? 4.5 : 2.5);
+                                        <line class="@(_maj ? "clock-tick-major" : "clock-tick")"
+                                              x1="@((Math.Sin(_ta) * _iR).ToString("F2", CultureInfo.InvariantCulture))"
+                                              y1="@((-Math.Cos(_ta) * _iR).ToString("F2", CultureInfo.InvariantCulture))"
+                                              x2="@((Math.Sin(_ta) * _oR).ToString("F2", CultureInfo.InvariantCulture))"
+                                              y2="@((-Math.Cos(_ta) * _oR).ToString("F2", CultureInfo.InvariantCulture))" />
+                                    }
+
+                                    <line class="clock-hand clock-hand-hour" x1="0" y1="0"
+                                          x2="0" y2="@((-_ckHL).ToString("F2", CultureInfo.InvariantCulture))" />
+                                    <line class="clock-hand clock-hand-minute" x1="0" y1="0"
+                                          x2="0" y2="@((-_ckML).ToString("F2", CultureInfo.InvariantCulture))" />
+                                    @if (_ckBig)
+                                    {
+                                        <line class="clock-hand clock-hand-second"
+                                              x1="0" y1="@((_ckSL * 0.22).ToString("F2", CultureInfo.InvariantCulture))"
+                                              x2="0" y2="@((-_ckSL).ToString("F2", CultureInfo.InvariantCulture))" />
+                                    }
+                                    <circle r="2" class="clock-center" />
+                                </g>
+                            }
+
                             @if (node.Shape == NodeShape.Diamond)
                             {
                                 <svg:text x="@(node.Width / 2)" y="@(node.Height + 14)"
                                           text-anchor="middle" class="modeler2-node-label"
                                           dominant-baseline="middle">@node.Title</svg:text>
                             }
-                            else
+                            else if (node.NodeData is not (CatchingTimerEvent or TimerBoundaryEvent))
                             {
                                 <svg:text x="@(node.Width / 2)" y="@(node.Height / 2 + 4)"
                                           text-anchor="middle" class="modeler2-node-label"
@@ -556,6 +599,7 @@
         {
             _dotNetRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("Modeler2.init", _canvasContainer, _dotNetRef);
+            await JS.InvokeVoidAsync("Modeler2.syncClocks");
         }
     }
 
@@ -756,8 +800,26 @@
 
         if (_pendingNodeDesc != null)
         {
-            _pendingNodeX = wx - _pendingNodeW / 2;
-            _pendingNodeY = wy - _pendingNodeH / 2;
+            if (typeof(BoundaryEvent).IsAssignableFrom(_pendingNodeDesc.NodeType))
+            {
+                var parentHint = FindParentCandidate(wx, wy);
+                if (parentHint != null)
+                {
+                    (_pendingNodeX, _pendingNodeY) = SnapToBoundaryEdge(parentHint, wx, wy, _pendingNodeW, _pendingNodeH);
+                    _snapResult = new SnapResult { TargetNode = parentHint };
+                }
+                else
+                {
+                    _pendingNodeX = wx - _pendingNodeW / 2;
+                    _pendingNodeY = wy - _pendingNodeH / 2;
+                    _snapResult = null;
+                }
+            }
+            else
+            {
+                _pendingNodeX = wx - _pendingNodeW / 2;
+                _pendingNodeY = wy - _pendingNodeH / 2;
+            }
             State.Notify();
             return;
         }
@@ -843,18 +905,35 @@
                     double dy = wy - sy;
                     double rawX = _startNodeX + dx;
                     double rawY = _startNodeY + dy;
-                    var snap = GetSnappedPosition(_activeNode, State.Nodes, rawX, rawY);
 
-                    double snappedX = snap.XSnapAxis != null ? snap.SnappedX : rawX;
-                    double snappedY = snap.YSnapAxis != null ? snap.SnappedY : rawY;
-
-                    _activeNode.X = snappedX;
-                    _activeNode.Y = snappedY;
-                    _snapResult = snap;
-
-                    UpdateNodeConnections(_activeNode, snappedX - _prevNodeX, snappedY - _prevNodeY);
-                    _prevNodeX = snappedX;
-                    _prevNodeY = snappedY;
+                    if (_activeNode.NodeData is BoundaryEvent be)
+                    {
+                        var parent = State.Nodes.FirstOrDefault(n => n.NodeData.Id == be.ParentNodeId);
+                        if (parent != null)
+                        {
+                            double cursorCx = rawX + _activeNode.Width / 2;
+                            double cursorCy = rawY + _activeNode.Height / 2;
+                            var (nx, ny) = SnapToBoundaryEdge(parent, cursorCx, cursorCy, _activeNode.Width, _activeNode.Height);
+                            UpdateNodeConnections(_activeNode, nx - _prevNodeX, ny - _prevNodeY);
+                            _activeNode.X = nx;
+                            _activeNode.Y = ny;
+                            _prevNodeX = nx;
+                            _prevNodeY = ny;
+                            _snapResult = new SnapResult { TargetNode = parent };
+                        }
+                    }
+                    else
+                    {
+                        var snap = GetSnappedPosition(_activeNode, State.Nodes, rawX, rawY);
+                        double snappedX = snap.XSnapAxis != null ? snap.SnappedX : rawX;
+                        double snappedY = snap.YSnapAxis != null ? snap.SnappedY : rawY;
+                        _activeNode.X = snappedX;
+                        _activeNode.Y = snappedY;
+                        _snapResult = snap;
+                        UpdateNodeConnections(_activeNode, snappedX - _prevNodeX, snappedY - _prevNodeY);
+                        _prevNodeX = snappedX;
+                        _prevNodeY = snappedY;
+                    }
                     State.MarkDirty();
                 }
                 break;
@@ -1192,6 +1271,16 @@
             {
                 State.Connections.RemoveAll(c => c.Source == n || c.Target == n);
                 State.Nodes.Remove(n);
+
+                // Cascade: remove boundary events whose parent is being deleted
+                var orphans = State.Nodes
+                    .Where(child => child.NodeData is BoundaryEvent be && be.ParentNodeId == n.NodeData.Id)
+                    .ToList();
+                foreach (var orphan in orphans)
+                {
+                    State.Connections.RemoveAll(c => c.Source == orphan || c.Target == orphan);
+                    State.Nodes.Remove(orphan);
+                }
             }
             _selectedNodes.Clear();
             State.DeselectAll();
@@ -1230,6 +1319,25 @@
         var instance = Activator.CreateInstance(_pendingNodeDesc.NodeType) as NodeBase;
         if (instance == null) return;
 
+        double nodeX = wx - _pendingNodeW / 2;
+        double nodeY = wy - _pendingNodeH / 2;
+        bool isBoundary = instance is BoundaryEvent;
+
+        if (instance is BoundaryEvent boundaryEvent)
+        {
+            var parent = FindParentCandidate(wx, wy);
+            if (parent == null)
+            {
+                // No parent node under cursor: cancel placement silently
+                _pendingNodeDesc = null;
+                _snapResult = null;
+                State.Notify();
+                return;
+            }
+            (nodeX, nodeY) = SnapToBoundaryEdge(parent, wx, wy, _pendingNodeW, _pendingNodeH);
+            boundaryEvent.ParentNodeId = parent.NodeData.Id;
+        }
+
         var node = new DesignerNode
         {
             NodeData = instance,
@@ -1240,14 +1348,16 @@
             Shape = _pendingNodeDesc.Shape,
             Width = _pendingNodeW,
             Height = _pendingNodeH,
-            X = wx - _pendingNodeW / 2,
-            Y = wy - _pendingNodeH / 2,
+            X = nodeX,
+            Y = nodeY,
         };
 
         State.Nodes.Add(node);
         State.Select(node);
         _pendingNodeDesc = null;
-        TrySplitConnectionForNode(node);
+        _snapResult = null;
+        if (!isBoundary)
+            TrySplitConnectionForNode(node);
         State.MarkDirty();
     }
 
@@ -1300,6 +1410,18 @@
             }
         }
 
+        // Re-project boundary events that are attached to the resized node
+        foreach (var child in State.Nodes)
+        {
+            if (child.NodeData is BoundaryEvent be && be.ParentNodeId == n.NodeData.Id)
+            {
+                double cx = child.X + child.Width / 2;
+                double cy = child.Y + child.Height / 2;
+                (child.X, child.Y) = SnapToBoundaryEdge(n, cx, cy, child.Width, child.Height);
+                UpdateNodeConnections(child, 0, 0);
+            }
+        }
+
         State.MarkDirty();
     }
 
@@ -1317,6 +1439,20 @@
                 conn.Waypoints = RoutingService.AutoRoute(
                     conn.Source, conn.SourceDir,
                     conn.Target, conn.TargetDir);
+            }
+        }
+
+        // Move boundary events attached to this node and update their connections too
+        if (node.NodeData is not BoundaryEvent)
+        {
+            foreach (var child in State.Nodes)
+            {
+                if (child.NodeData is BoundaryEvent be && be.ParentNodeId == node.NodeData.Id)
+                {
+                    child.X += dx;
+                    child.Y += dy;
+                    UpdateNodeConnections(child, dx, dy);
+                }
             }
         }
     }
@@ -1498,5 +1634,54 @@
         public double Top { get; set; }
         public double Width { get; set; }
         public double Height { get; set; }
+    }
+
+    // ======================== BOUNDARY EVENT HELPERS ========================
+
+    /// <summary>
+    /// Finds the topmost non-boundary node that contains or is near (wx, wy).
+    /// The tolerance allows placement when the cursor is slightly outside the node edge.
+    /// </summary>
+    private DesignerNode? FindParentCandidate(double wx, double wy, double tolerance = 24, DesignerNode? exclude = null)
+    {
+        return State.Nodes.LastOrDefault(n =>
+            n != exclude &&
+            n.NodeData is not BoundaryEvent &&
+            wx >= n.X - tolerance && wx <= n.X + n.Width + tolerance &&
+            wy >= n.Y - tolerance && wy <= n.Y + n.Height + tolerance);
+    }
+
+    /// <summary>
+    /// Projects the point (wx, wy) onto the perimeter of <paramref name="parent"/> and
+    /// returns the top-left position for a boundary event of size (bw × bh) centred there.
+    /// </summary>
+    private static (double X, double Y) SnapToBoundaryEdge(
+        DesignerNode parent, double wx, double wy, double bw, double bh)
+    {
+        double cx = parent.X + parent.Width / 2.0;
+        double cy = parent.Y + parent.Height / 2.0;
+        double rx = parent.Width / 2.0;
+        double ry = parent.Height / 2.0;
+
+        double relX = wx - cx;
+        double relY = wy - cy;
+
+        double edgeX, edgeY;
+        if (Math.Abs(relX) < 0.001 && Math.Abs(relY) < 0.001)
+        {
+            edgeX = cx;
+            edgeY = cy + ry;
+        }
+        else
+        {
+            // t = min(rx/|relX|, ry/|relY|) gives the scale factor to reach the perimeter
+            double tx = Math.Abs(relX) > 0.001 ? rx / Math.Abs(relX) : double.MaxValue;
+            double ty = Math.Abs(relY) > 0.001 ? ry / Math.Abs(relY) : double.MaxValue;
+            double t = Math.Min(tx, ty);
+            edgeX = cx + relX * t;
+            edgeY = cy + relY * t;
+        }
+
+        return (edgeX - bw / 2.0, edgeY - bh / 2.0);
     }
 }

@@ -27,6 +27,8 @@ public class CatchingTimerHandler(
         {
             var anchor = ResolveAnchor(timerNode.Definition, ctx);
             var triggerTime = TimerDefinitionResolver.Resolve(timerNode.Definition, anchor);
+            if (triggerTime <= DateTime.UtcNow)
+                return new NodeResult(true);
             await timerManager.CreateAsync(ctx.TokenId, ctx.NodeId, "timer-catch", triggerTime, ct);
             return new NodeResult(true, ResultType: NodeResultType.Waiting);
         }

@@ -81,5 +81,23 @@ window.Modeler2 = {
             width: rect.width,
             height: rect.height
         };
+    },
+
+    syncClocks() {
+        const now  = new Date();
+        const hDel = (now.getHours() % 12) * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        const mDel = now.getMinutes() * 60 + now.getSeconds();
+        const sDel = now.getSeconds();
+
+        let style = document.getElementById('modeler2-clock-sync');
+        if (!style) {
+            style = document.createElement('style');
+            style.id = 'modeler2-clock-sync';
+            document.head.appendChild(style);
+        }
+        style.textContent =
+            `.modeler2-canvas .clock-hand-hour   { animation-delay: -${hDel}s; }` +
+            `.modeler2-canvas .clock-hand-minute { animation-delay: -${mDel}s; }` +
+            `.modeler2-canvas .clock-hand-second { animation-delay: -${sDel}s; }`;
     }
 };

@@ -1744,9 +1744,46 @@ svg > rect[fill="url(#gridPattern)"] {
 .modeler2-node-shape.node-end     { fill: #ef4444; stroke: #dc2626; }
 .modeler2-node-shape.node-user    { fill: #3b82f6; stroke: #2563eb; }
 .modeler2-node-shape.node-script  { fill: #a855f7; stroke: #9333ea; }
+.modeler2-node-shape.node-timer   { fill: #f97316; stroke: #ea580c; }
+.modeler2-node-shape.node-boundary-timer {
+    fill: #eab308;
+    stroke: #a16207;
+    stroke-dasharray: 5 3;
+    stroke-width: 2.5;
+}
 .modeler2-node-shape.gw-inclusive,
 .modeler2-node-shape.gw-exclusive,
 .modeler2-node-shape.gw-parallel  { fill: #f59e0b; stroke: #d97706; }
+
+/* ── Analog clock inside timer nodes ────────────────────────────────── */
+@keyframes clock-rotate {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+.clock-overlay { pointer-events: none; }
+
+.clock-tick {
+    stroke: rgba(255,255,255,0.40);
+    stroke-width: 1;
+    stroke-linecap: round;
+}
+.clock-tick-major {
+    stroke: rgba(255,255,255,0.75);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+}
+
+.clock-hand {
+    stroke-linecap: round;
+    transform-origin: 0 0;
+    animation: clock-rotate linear infinite;
+}
+.clock-hand-hour   { stroke: #fff; stroke-width: 2;   animation-duration: 43200s; }
+.clock-hand-minute { stroke: #fff; stroke-width: 1.5; animation-duration: 3600s; }
+.clock-hand-second { stroke: #fff; stroke-width: 1; animation-duration: 60s; }
+
+.clock-center { fill: #fff; }
 
 .modeler2-gw-symbol {
     stroke: #fff;

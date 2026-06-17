@@ -93,18 +93,29 @@ public class TimerManager(
                 return;
             }
 
-            db.WorkItems.Add(new WorkItem
-            {
-                Id = Guid.NewGuid(),
-                TokenId = timer.TokenId,
-                NodeId = timer.NodeId,
-                NodeType = timer.NodeType,
-                State = WorkItemState.Pending,
-                CreatedAt = DateTime.UtcNow
-            });
-            await db.SaveChangesAsync(ct);
+            // Catching timers already have a Waiting work item — re-pend it so the handler
+            // re-runs and sees the Fired state.  Boundary timers have no work item yet
+            // (their token is Waiting with no associated WI) — create one for them.
+            var repended = await db.WorkItems
+                .Where(wi => wi.TokenId == timer.TokenId && wi.State == WorkItemState.Waiting)
+                .ExecuteUpdateAsync(s => s.SetProperty(wi => wi.State, WorkItemState.Pending), ct);
 
-            logger.LogInformation("Timer {TimerId} fired — WorkItem created for token {TokenId}", timer.Id, timer.TokenId);
+            if (repended == 0)
+            {
+                db.WorkItems.Add(new WorkItem
+                {
+                    Id = Guid.NewGuid(),
+                    TokenId = timer.TokenId,
+                    NodeId = timer.NodeId,
+                    NodeType = timer.NodeType,
+                    State = WorkItemState.Pending,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await db.SaveChangesAsync(ct);
+            }
+
+            logger.LogInformation("Timer {TimerId} fired — WorkItem {Action} for token {TokenId}",
+                timer.Id, repended > 0 ? "re-pended" : "created", timer.TokenId);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
