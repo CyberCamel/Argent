@@ -606,9 +606,6 @@ namespace Argent.Infrastructure.Migrations
                     b.Property<string>("AssignedTo")
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<string>("CandidateRoles")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("CandidateUsers")
                         .HasColumnType("nvarchar(max)");
 
@@ -948,6 +945,10 @@ namespace Argent.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RoleAudiences")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

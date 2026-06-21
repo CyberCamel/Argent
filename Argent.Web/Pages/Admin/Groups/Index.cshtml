@@ -4,72 +4,64 @@
     ViewData["Title"] = "Groups";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold mb-1">User Groups</h4>
-        <p class="text-muted small mb-0">Group users so policies can target them directly</p>
-    </div>
-    <a class="btn btn-primary" href="/Admin/Groups/Create">
-        <i class="bi bi-plus-lg"></i> New Group
-    </a>
-</div>
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = "User Groups",
+    Subtitle = "Group users so policies can target them directly",
+    ActionLink = new Argent.Web.Pages.Shared.LinkModel("New Group", "/Admin/Groups/Create", "bi-plus-lg")
+}' />
 
 @if (Model.Groups.Count == 0)
 {
-    <div class="card">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-people fs-1 text-muted mb-3 d-block"></i>
-            <p class="text-muted mb-0">No groups yet. Create one to group users.</p>
-        </div>
-    </div>
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = "bi-people",
+        Message = "No groups yet. Create one to group users."
+    }' />
 }
 else
 {
-    <div class="card">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Members</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var g in Model.Groups)
+                {
                     <tr>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Members</th>
-                        <th class="text-end">Actions</th>
+                        <td class="font-medium">
+                            @g.Name
+                            @if (g.IsSystem)
+                            {
+                                <span class="badge bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 ms-1">System</span>
+                            }
+                        </td>
+                        <td class="text-sm text-gray-500 dark:text-gray-400">@g.Description</td>
+                        <td>
+                            @if (g.IsSystem)
+                            {
+                                <span class="text-gray-400 text-sm">—</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">@g.MemberCount</span>
+                            }
+                        </td>
+                        <td class="text-right">
+                            @if (!g.IsSystem)
+                            {
+                                <a class="btn-action btn-action-secondary" href="/Admin/Groups/Edit/@g.Id" title="Edit">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </a>
+                            }
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach (var g in Model.Groups)
-                    {
-                        <tr>
-                            <td class="fw-medium">
-                                @g.Name
-                                @if (g.IsSystem)
-                                {
-                                    <span class="badge bg-primary rounded-pill ms-2 small">System</span>
-                                }
-                            </td>
-                            <td class="small text-muted">@g.Description</td>
-                            <td>
-                                @if (g.IsSystem)
-                                {
-                                    <span class="text-muted small">—</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-secondary">@g.MemberCount</span>
-                                }
-                            </td>
-                            <td class="text-end">
-                                @if (!g.IsSystem)
-                                {
-                                    <a class="btn btn-outline-primary btn-sm" href="/Admin/Groups/Edit/@g.Id">
-                                        <i class="bi bi-pencil-fill"></i> Edit
-                                    </a>
-                                }
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                }
+            </tbody>
+        </table>
     </div>
 }

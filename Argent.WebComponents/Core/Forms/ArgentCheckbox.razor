@@ -3,25 +3,25 @@
 
 @if (IsVisible)
 {
-    <div class="form-check mb-3 @Metadata.CssClass">
+    <div class="flex items-center mb-3 @Metadata.CssClass">
         @{var _cbErrors = Errors.ToList();}
-        <input class="form-check-input @(_cbErrors.Count > 0 ? "is-invalid" : "")"
+        <input class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500 @(_cbErrors.Count > 0 ? "border-red-500 ring-1 ring-red-500" : "")"
                type="checkbox"
                id="@Metadata.Id"
                checked="@CurrentValue"
                @onchange="(e) => OnValueChanged(e.Value)"
                disabled="@Metadata.Disabled"
                readOnly="@Metadata.ReadOnly" />
-        <label class="form-check-label" for="@Metadata.Id">
+        <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer" for="@Metadata.Id">
             @(Metadata.BoxLabel ?? Metadata.FieldLabel)
         </label>
         @if (Metadata.Description != null)
         {
-            <div class="form-text">@Metadata.Description</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">@Metadata.Description</div>
         }
         @if (_cbErrors.Count > 0)
         {
-            <div class="invalid-feedback d-block">
+            <div class="text-red-600 dark:text-red-400 text-sm mt-1">
                 @foreach (var err in _cbErrors) { <div>@err</div> }
             </div>
         }

@@ -3,12 +3,12 @@
 
 @if (Metadata.Columns > 1)
 {
-    <div class="row @Metadata.CssClass" style="@RowStyle">
+    <div class="flex flex-wrap @Metadata.CssClass" style="@RowStyle">
         @for (int col = 0; col < Metadata.Columns; col++)
         {
             var columnIndex = col;
             var columnItems = Metadata.Items.Where(i => i.ColumnIndex == columnIndex).ToList();
-            <div class="col" style="min-width: 0;">
+            <div class="flex-1" style="min-width: 0;">
                 @foreach (var child in columnItems)
                 {
                     <ArgentRenderer Metadata="child" />
@@ -23,7 +23,7 @@ else
          style="@FlexStyle">
         @foreach (var child in Metadata.Items)
         {
-            <div class="@ItemClass(child)" style="@ItemStyle(child)">
+            <div style="@ItemStyle(child); @SpanStyle(child)">
                 <ArgentRenderer Metadata="child" />
             </div>
         }
@@ -57,14 +57,14 @@ else
         }
     }
 
-    private string ItemClass(Models.Forms.Components.Base.FormComponent child)
+    private string SpanStyle(Models.Forms.Components.Base.FormComponent child)
     {
-        var classes = new List<string>();
-        if (child is Models.Forms.Components.Base.FormField field)
+        if (child is Models.Forms.Components.Base.FormField field && field.Span is > 0 and < 12)
         {
-            classes.Add($"col-{field.Span}");
+            var pct = Math.Round(field.Span / 12.0 * 100, 1);
+            return $"width: {pct}%;";
         }
-        return string.Join(" ", classes);
+        return "";
     }
 
     private string ItemStyle(Models.Forms.Components.Base.FormComponent child)

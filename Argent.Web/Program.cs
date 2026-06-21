@@ -119,6 +119,7 @@ builder.Services.AddScoped<IWorkflowInstanceManager, WorkflowInstanceManager>();
 builder.Services.AddTransient<RecoveryPass>();
 builder.Services.AddSingleton<TimerManager>();
 builder.Services.AddSingleton<IUserTaskManager, UserTaskManager>();
+builder.Services.AddTransient<IWorkflowAudienceResolver, WorkflowAudienceResolver>();
 builder.Services.AddSingleton<IAuditService, AuditService>();
 builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics
     .AddMeter(WorkflowMeter.Engine.Name));

@@ -4,60 +4,56 @@
     ViewData["Title"] = "Forms";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold mb-1">Forms</h4>
-        <p class="text-muted small mb-0">Manage your form definitions</p>
-    </div>
-    <a class="btn btn-primary" href="/Forms/Create">
-        <i class="bi bi-plus-lg"></i> New Form
-    </a>
-</div>
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = "Forms",
+    Subtitle = "Manage your form definitions",
+    ActionLink = new Argent.Web.Pages.Shared.LinkModel("New Form", "/Forms/Create", "bi-plus-lg")
+}' />
 
 @if (Model.Forms.Count == 0)
 {
-    <div class="card">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-ui-checks fs-1 text-muted mb-3 d-block"></i>
-            <p class="text-muted mb-0">No forms yet. <a href="/Forms/Create">Create your first one</a>!</p>
-        </div>
-    </div>
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = "bi-ui-checks",
+        Message = "No forms yet. Create your first one!",
+        LinkText = "Create your first one",
+        LinkUrl = "/Forms/Create"
+    }' />
 }
 else
 {
-    <div class="card">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Updated</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var form in Model.Forms)
+                {
                     <tr>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Updated</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var form in Model.Forms)
-                    {
-                        <tr>
-                            <td class="fw-medium">@form.Name</td>
-                            <td class="text-muted">@form.Description</td>
-                            <td class="small text-muted">@form.UpdatedAt.ToString("g")</td>
-                            <td class="text-end">
-                                <a class="btn btn-outline-secondary btn-sm" href="/Forms/Edit/@form.Id">
-                                    <i class="bi bi-pencil-fill"></i> Edit
+                        <td class="font-medium">@form.Name</td>
+                        <td class="text-gray-500 dark:text-gray-400">@form.Description</td>
+                        <td class="text-sm text-gray-500 dark:text-gray-400">@form.UpdatedAt.ToString("g")</td>
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <a class="btn-action btn-action-secondary" href="/Forms/Edit/@form.Id" title="Edit">
+                                    <i class="bi bi-pencil-fill"></i>
                                 </a>
                                 <form method="post" asp-page-handler="Delete" asp-route-id="@form.Id" style="display:inline"
                                       onsubmit="return confirm('Delete this form?')">
-                                    <button class="btn btn-outline-danger btn-sm">
+                                    <button class="btn-action btn-action-danger" title="Delete">
                                         <i class="bi bi-trash-fill"></i>
                                     </button>
                                 </form>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 }

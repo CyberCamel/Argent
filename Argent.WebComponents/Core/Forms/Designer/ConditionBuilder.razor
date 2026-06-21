@@ -1,135 +1,135 @@
 @using Argent.Models.Forms.Components.Configuration
 
-<div class="condition-builder border rounded p-2 mb-2" style="background: #f8f9fa;">
-    @if (Condition == null)
-    {
-        <div class="d-flex gap-1 flex-wrap">
-            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => Replace(new CompareCondition())" style="font-size: 0.7rem;">
-                <i class="bi bi-plus"></i> Compare
-            </button>
-            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => Replace(new AndCondition())" style="font-size: 0.7rem;">
-                <i class="bi bi-plus"></i> And
-            </button>
-            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => Replace(new OrCondition())" style="font-size: 0.7rem;">
-                <i class="bi bi-plus"></i> Or
-            </button>
-            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => Replace(new NotCondition())" style="font-size: 0.7rem;">
-                <i class="bi bi-plus"></i> Not
-            </button>
-            <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => Replace(new ExpressionCondition())" style="font-size: 0.7rem;">
-                <i class="bi bi-plus"></i> Expression
-            </button>
-        </div>
-    }
-    else if (Condition is CompareCondition compare)
-    {
-        <div class="d-flex gap-1 align-items-center flex-wrap">
-            <select class="form-select form-select-sm" style="width: auto; font-size: 0.75rem;"
-                    @onchange="@((e) => { compare.Field = e.Value?.ToString() ?? ""; NotifyChanged(); })">
-                <option value="">-- field --</option>
-                @if (Fields != null)
-                {
-                    @foreach (var f in Fields)
+    <div class="condition-builder border border-gray-200 dark:border-gray-700 rounded-lg p-2 mb-2 bg-gray-50 dark:bg-gray-800/50">
+        @if (Condition == null)
+        {
+            <div class="flex gap-1 flex-wrap">
+                <button class="text-xs px-1 py-0.5 font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded transition-colors" @onclick="() => Replace(new CompareCondition())">
+                    <i class="bi bi-plus"></i> Compare
+                </button>
+                <button class="text-xs px-1 py-0.5 font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded transition-colors" @onclick="() => Replace(new AndCondition())">
+                    <i class="bi bi-plus"></i> And
+                </button>
+                <button class="text-xs px-1 py-0.5 font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded transition-colors" @onclick="() => Replace(new OrCondition())">
+                    <i class="bi bi-plus"></i> Or
+                </button>
+                <button class="text-xs px-1 py-0.5 font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded transition-colors" @onclick="() => Replace(new NotCondition())">
+                    <i class="bi bi-plus"></i> Not
+                </button>
+                <button class="text-xs px-1 py-0.5 font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded transition-colors" @onclick="() => Replace(new ExpressionCondition())">
+                    <i class="bi bi-plus"></i> Expression
+                </button>
+            </div>
+        }
+        else if (Condition is CompareCondition compare)
+        {
+            <div class="flex gap-1 items-center flex-wrap">
+                <select class="form-input text-sm"
+                        @onchange="@((e) => { compare.Field = e.Value?.ToString() ?? ""; NotifyChanged(); })">
+                    <option value="">-- field --</option>
+                    @if (Fields != null)
                     {
-                        <option value="@f" selected="@(compare.Field == f)">@f</option>
+                        @foreach (var f in Fields)
+                        {
+                            <option value="@f" selected="@(compare.Field == f)">@f</option>
+                        }
                     }
-                }
-            </select>
-            <select class="form-select form-select-sm" style="width: auto; font-size: 0.75rem;"
-                    @onchange="@((e) => { compare.Operator = e.Value?.ToString() ?? "=="; NotifyChanged(); })">
-                @foreach (var op in CompareOperators.All)
+                </select>
+                <select class="form-input text-sm"
+                        @onchange="@((e) => { compare.Operator = e.Value?.ToString() ?? "=="; NotifyChanged(); })">
+                    @foreach (var op in CompareOperators.All)
+                    {
+                        <option value="@op" selected="@(compare.Operator == op)">@op</option>
+                    }
+                </select>
+                @if (compare.Operator is "isEmpty" or "isNotEmpty")
                 {
-                    <option value="@op" selected="@(compare.Operator == op)">@op</option>
+                    @* No value input needed for these operators *@
                 }
-            </select>
-            @if (compare.Operator is "isEmpty" or "isNotEmpty")
+                else
+                {
+                    <input type="text" class="form-input text-sm" style="width: 130px; font-size: 0.75rem;"
+                           value="@(compare.Value?.ToString() ?? "")"
+                           @oninput="(e) => { compare.Value = e.Value?.ToString(); }"
+                           @onchange="() => NotifyChanged()"
+                           placeholder="@(compare.Operator is "in" or "notIn" ? "comma,separated" : "value")" />
+                }
+                <button class="text-xs px-1 py-0.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" @onclick="() => Replace(null)">
+                    <i class="bi bi-x text-red-600 dark:text-red-400"></i>
+                </button>
+            </div>
+        }
+        else if (Condition is AndCondition and)
+        {
+            <div class="mb-1 flex items-center">
+                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-gray-500 text-white">ALL of:</span>
+                <button class="ml-auto text-xs px-1 py-0.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" @onclick="() => Replace(null)">
+                    <i class="bi bi-x text-red-600 dark:text-red-400"></i>
+                </button>
+            </div>
+            @for (int i = 0; i < and.All.Count; i++)
             {
-                @* No value input needed for these operators *@
+                var idx = i;
+                <div class="ml-3 mb-1 border-s-2 pl-2 border-indigo-500">
+                    <ConditionBuilder Condition="@and.All[idx]" Fields="@Fields"
+                                      ConditionChanged="@((c) => ReplaceChild(and.All, idx, c))"
+                                      OnChanged="() => NotifyChanged()" />
+                </div>
             }
-            else
+            <button class="text-xs px-1 py-0.5 mt-1 font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded transition-colors" @onclick="() => { and.All.Add(new CompareCondition()); NotifyChanged(); }">
+                <i class="bi bi-plus"></i> Add condition
+            </button>
+        }
+        else if (Condition is OrCondition or)
+        {
+            <div class="mb-1 flex items-center">
+                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-gray-500 text-white">ANY of:</span>
+                <button class="ml-auto text-xs px-1 py-0.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" @onclick="() => Replace(null)">
+                    <i class="bi bi-x text-red-600 dark:text-red-400"></i>
+                </button>
+            </div>
+            @for (int i = 0; i < or.Any.Count; i++)
             {
-                <input type="text" class="form-control form-control-sm" style="width: 130px; font-size: 0.75rem;"
-                       value="@(compare.Value?.ToString() ?? "")"
-                       @oninput="(e) => { compare.Value = e.Value?.ToString(); }"
+                var idx = i;
+                <div class="ml-3 mb-1 border-s-2 pl-2 border-green-500">
+                    <ConditionBuilder Condition="@or.Any[idx]" Fields="@Fields"
+                                      ConditionChanged="@((c) => ReplaceChild(or.Any, idx, c))"
+                                      OnChanged="() => NotifyChanged()" />
+                </div>
+            }
+            <button class="text-xs px-1 py-0.5 mt-1 font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded transition-colors" @onclick="() => { or.Any.Add(new CompareCondition()); NotifyChanged(); }">
+                <i class="bi bi-plus"></i> Add condition
+            </button>
+        }
+        else if (Condition is NotCondition not)
+        {
+            <div class="mb-1 flex items-center">
+                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-red-500 text-white">NOT:</span>
+                <button class="ml-auto text-xs px-1 py-0.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" @onclick="() => Replace(null)">
+                    <i class="bi bi-x text-red-600 dark:text-red-400"></i>
+                </button>
+            </div>
+            <div class="ml-3 mb-1 border-s-2 pl-2 border-red-500">
+                <ConditionBuilder Condition="@not.Not" Fields="@Fields"
+                                  ConditionChanged="@(async (c) => { if (c == null) { await Replace(null); } else { not.Not = c; NotifyChanged(); } })"
+                                  OnChanged="() => NotifyChanged()" />
+            </div>
+        }
+        else if (Condition is ExpressionCondition expr)
+        {
+            <div class="flex gap-1 items-center">
+                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-gray-500 text-white" style="white-space: nowrap;">Expression</span>
+                <input type="text" class="form-input text-sm font-mono flex-1"
+                       value="@expr.Expression"
+                       @oninput="(e) => { expr.Expression = e.Value?.ToString() ?? string.Empty; }"
                        @onchange="() => NotifyChanged()"
-                       placeholder="@(compare.Operator is "in" or "notIn" ? "comma,separated" : "value")" />
-            }
-            <button class="btn btn-sm py-0 px-1" @onclick="() => Replace(null)" style="font-size: 0.65rem;">
-                <i class="bi bi-x text-danger"></i>
-            </button>
-        </div>
-    }
-    else if (Condition is AndCondition and)
-    {
-        <div class="mb-1">
-            <span class="badge bg-secondary" style="font-size: 0.65rem;">ALL of:</span>
-            <button class="btn btn-sm py-0 px-1 float-end" @onclick="() => Replace(null)" style="font-size: 0.65rem;">
-                <i class="bi bi-x text-danger"></i>
-            </button>
-        </div>
-        @for (int i = 0; i < and.All.Count; i++)
-        {
-            var idx = i;
-            <div class="ms-3 mb-1 border-start ps-2" style="border-left: 2px solid #0d6efd !important;">
-                <ConditionBuilder Condition="@and.All[idx]" Fields="@Fields"
-                                  ConditionChanged="@((c) => ReplaceChild(and.All, idx, c))"
-                                  OnChanged="() => NotifyChanged()" />
+                       placeholder="e.g. field_x == 'yes'" />
+                <button class="text-xs px-1 py-0.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" @onclick="() => Replace(null)">
+                    <i class="bi bi-x text-red-600 dark:text-red-400"></i>
+                </button>
             </div>
         }
-        <button class="btn btn-sm btn-outline-primary py-0 px-1 mt-1" @onclick="() => { and.All.Add(new CompareCondition()); NotifyChanged(); }" style="font-size: 0.7rem;">
-            <i class="bi bi-plus"></i> Add condition
-        </button>
-    }
-    else if (Condition is OrCondition or)
-    {
-        <div class="mb-1">
-            <span class="badge bg-secondary" style="font-size: 0.65rem;">ANY of:</span>
-            <button class="btn btn-sm py-0 px-1 float-end" @onclick="() => Replace(null)" style="font-size: 0.65rem;">
-                <i class="bi bi-x text-danger"></i>
-            </button>
-        </div>
-        @for (int i = 0; i < or.Any.Count; i++)
-        {
-            var idx = i;
-            <div class="ms-3 mb-1 border-start ps-2" style="border-left: 2px solid #198754 !important;">
-                <ConditionBuilder Condition="@or.Any[idx]" Fields="@Fields"
-                                  ConditionChanged="@((c) => ReplaceChild(or.Any, idx, c))"
-                                  OnChanged="() => NotifyChanged()" />
-            </div>
-        }
-        <button class="btn btn-sm btn-outline-primary py-0 px-1 mt-1" @onclick="() => { or.Any.Add(new CompareCondition()); NotifyChanged(); }" style="font-size: 0.7rem;">
-            <i class="bi bi-plus"></i> Add condition
-        </button>
-    }
-    else if (Condition is NotCondition not)
-    {
-        <div class="mb-1">
-            <span class="badge bg-danger" style="font-size: 0.65rem;">NOT:</span>
-            <button class="btn btn-sm py-0 px-1 float-end" @onclick="() => Replace(null)" style="font-size: 0.65rem;">
-                <i class="bi bi-x text-danger"></i>
-            </button>
-        </div>
-        <div class="ms-3 mb-1 border-start ps-2" style="border-left: 2px solid #dc3545 !important;">
-            <ConditionBuilder Condition="@not.Not" Fields="@Fields"
-                              ConditionChanged="@(async (c) => { if (c == null) { await Replace(null); } else { not.Not = c; NotifyChanged(); } })"
-                              OnChanged="() => NotifyChanged()" />
-        </div>
-    }
-    else if (Condition is ExpressionCondition expr)
-    {
-        <div class="d-flex gap-1 align-items-center">
-            <span class="badge bg-secondary" style="font-size: 0.65rem; white-space: nowrap;">Expression</span>
-            <input type="text" class="form-control form-control-sm" style="font-size: 0.75rem; font-family: monospace; flex: 1;"
-                   value="@expr.Expression"
-                   @oninput="(e) => { expr.Expression = e.Value?.ToString() ?? string.Empty; }"
-                   @onchange="() => NotifyChanged()"
-                   placeholder="e.g. field_x == 'yes'" />
-            <button class="btn btn-sm py-0 px-1" @onclick="() => Replace(null)" style="font-size: 0.65rem;">
-                <i class="bi bi-x text-danger"></i>
-            </button>
-        </div>
-    }
-</div>
+    </div>
 
 @code {
     [Parameter] public Condition? Condition { get; set; }

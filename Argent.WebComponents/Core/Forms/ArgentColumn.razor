@@ -1,14 +1,14 @@
 ﻿@using Argent.WebComponents
 @inherits FormLayoutComponentBase
 
-<div class="@(Metadata.Columns > 1 ? "row" : "col") @Metadata.CssClass" style="@FlexStyle">
+<div class="@(Metadata.Columns > 1 ? "flex flex-wrap" : "flex flex-col") @Metadata.CssClass" style="@FlexStyle">
     @if (Metadata.Columns > 1)
     {
         @for (int col = 0; col < Metadata.Columns; col++)
         {
             var columnIndex = col;
             var columnItems = Metadata.Items.Where(i => i.ColumnIndex == columnIndex).ToList();
-            <div class="col">
+            <div class="flex-1">
                 @foreach (var child in columnItems)
                 {
                     <ArgentRenderer Metadata="child" />

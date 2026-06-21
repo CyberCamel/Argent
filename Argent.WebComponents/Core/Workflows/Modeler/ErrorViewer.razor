@@ -1,32 +1,32 @@
 @using Argent.Runtime.Workflows.Modeling
 @using Argent.Models.Workflows
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-header bg-light border-bottom">
-        <h3 class="h5 mb-0 d-flex align-items-center">
-            <i class="bi bi-heart-pulse text-primary me-2"></i> Workflow Health
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 mb-4 overflow-hidden">
+    <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+            <i class="bi bi-heart-pulse text-indigo-600 dark:text-indigo-400 mr-2"></i> Workflow Health
         </h3>
     </div>
-    <div class="card-body">
+    <div class="p-4">
 
         <div class="mb-4">
-            <h4 class="h6 text-danger uppercase tracking-wider mb-2 d-flex align-items-center">
-                <i class="bi bi-x-circle-fill me-2"></i> Errors: @(State.ValidationResult?.Errors.Count() ?? 0)
+            <h4 class="text-sm font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider mb-2 flex items-center">
+                <i class="bi bi-x-circle-fill mr-2"></i> Errors: @(State.ValidationResult?.Errors.Count() ?? 0)
             </h4>
             
             @if (State.ValidationResult?.Errors.Any() ?? false)
             {
-                <div class="alert alert-danger p-0 overflow-hidden" role="alert">
-                    <ul class="list-group list-group-flush">
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-800 dark:text-red-200 overflow-hidden" role="alert">
+                    <ul class="divide-y divide-red-200 dark:divide-red-800">
                         @foreach (var error in State.ValidationResult.Errors)
                         {
                             var node = error.Node;
-                            <li class="modeler2-error-item modeler2-error-item-danger"
+                            <li class="modeler-error-item modeler-error-item-danger"
                                 @onpointerenter="() => OnItemHover(node)"
                                 @onpointerleave="() => OnItemHover(null)"
                                 @onclick="() => OnItemClick(node)">
                                 @if (node != null)
                                 {
-                                    <span class="modeler2-error-node">@node.Name</span>
+                                    <span class="modeler-error-node">@node.Name</span>
                                 }
                                 <span>@error.Message</span>
                             </li>
@@ -36,29 +36,29 @@
             }
             else
             {
-                <p class="text-muted small ms-4">No errors detected.</p>
+                <p class="text-gray-500 dark:text-gray-400 text-sm ml-4">No errors detected.</p>
             }
         </div>
 
         <div>
-            <h4 class="h6 text-warning-emphasis uppercase tracking-wider mb-2 d-flex align-items-center">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i> Warnings: @(State.ValidationResult?.Warnings.Count() ?? 0)
+            <h4 class="text-sm font-semibold text-yellow-600 dark:text-yellow-400 uppercase tracking-wider mb-2 flex items-center">
+                <i class="bi bi-exclamation-triangle-fill mr-2"></i> Warnings: @(State.ValidationResult?.Warnings.Count() ?? 0)
             </h4>
 
             @if (State.ValidationResult?.Warnings.Any() ?? false)
             {
-                <div class="alert alert-warning p-0 overflow-hidden" role="alert">
-                    <ul class="list-group list-group-flush">
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-800 dark:text-yellow-200 overflow-hidden" role="alert">
+                    <ul class="divide-y divide-yellow-200 dark:divide-yellow-800">
                         @foreach (var warning in State.ValidationResult.Warnings)
                         {
                             var node = warning.Node;
-                            <li class="modeler2-error-item modeler2-error-item-warning"
+                            <li class="modeler-error-item modeler-error-item-warning"
                                 @onpointerenter="() => OnItemHover(node)"
                                 @onpointerleave="() => OnItemHover(null)"
                                 @onclick="() => OnItemClick(node)">
                                 @if (node != null)
                                 {
-                                    <span class="modeler2-error-node">@node.Name</span>
+                                    <span class="modeler-error-node">@node.Name</span>
                                 }
                                 <span>@warning.Message</span>
                             </li>
@@ -68,7 +68,7 @@
             }
             else
             {
-                <p class="text-muted small ms-4">No warnings detected.</p>
+                <p class="text-gray-500 dark:text-gray-400 text-sm ml-4">No warnings detected.</p>
             }
         </div>
 

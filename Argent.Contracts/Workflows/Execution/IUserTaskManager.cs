@@ -13,7 +13,6 @@ public interface IUserTaskManager
         string? description = null,
         short priority = 0,
         string? assigneeExpression = null,
-        string? candidateRoles = null,
         Guid? formId = null,
         string? formData = null,
         CancellationToken ct = default);
@@ -35,4 +34,6 @@ public interface IUserTaskManager
     Task ReassignAsync(Guid taskId, string toUser, CancellationToken ct = default);
 
     Task CompleteTaskAsync(Guid taskId, string completedBy, List<string> roles, string? action = null, CancellationToken ct = default);
+
+    Task SetCandidateUsersAsync(Guid taskId, string candidateUsersJson, CancellationToken ct = default);
 }

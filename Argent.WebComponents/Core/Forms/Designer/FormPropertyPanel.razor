@@ -19,159 +19,172 @@
             <div class="property-label">Required field coverage</div>
             @if (!requiredProps.Any())
             {
-                <div class="small text-muted">No required properties defined.</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">No required properties defined.</div>
             }
             else
             {
                 @if (missingProps.Any())
                 {
-                    <div class="alert alert-warning py-1 px-2 small mb-1">
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm text-yellow-800 dark:text-yellow-200 py-1 px-2 text-sm mb-1">
                         <i class="bi bi-exclamation-triangle"></i> <strong>Missing:</strong> @string.Join(", ", missingProps.Select(p => p.DisplayName))
                     </div>
                 }
                 @if (coveredProps.Any())
                 {
-                    <div class="small text-success">
+                    <div class="text-sm text-green-600 dark:text-green-400">
                         @foreach (var p in coveredProps)
                         {
-                            <span class="me-2"><i class="bi bi-check-circle"></i> @p.DisplayName</span>
+                            <span class="mr-2"><i class="bi bi-check-circle"></i> @p.DisplayName</span>
                         }
                     </div>
                 }
             }
         </div>
     }
-    <p class="text-muted small">Select a component on the canvas to edit its properties.</p>
+    <p class="text-gray-500 dark:text-gray-400 text-sm">Select a component on the canvas to edit its properties.</p>
 }
 else if (State.SelectedComponent is FormField field)
 {
     <div class="property-section">
-        <div class="property-label">Field</div>
-        <div class="mb-2">
-            @if (_boundObjectDef != null)
-            {
-                <label class="small text-muted mb-1">Domain property</label>
-                <select class="form-control form-control-sm font-monospace mb-1"
-                        @onchange="async (e) => await BindToDomainProperty(field, e.Value?.ToString())">
-                    <option value="">— custom —</option>
-                    @foreach (var prop in _boundObjectDef.Properties)
-                    {
-                        var alreadyBound = State.AllFieldNames().Any(n => n != field.Name && n == prop.Key);
-                        var optLabel = $"{prop.DisplayName} ({prop.Key}){(prop.Required ? " *" : "")}{(alreadyBound ? " ✓" : "")}";
-                        <option value="@prop.Key" selected="@(field.Name == prop.Key)">@optLabel</option>
-                    }
-                </select>
-                @if (!_boundObjectDef.Properties.Any(p => p.Key == field.Name))
+        <button @onclick="() => _secIdentity = !_secIdentity"
+                class="property-label w-full text-left flex items-center gap-1.5 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+            <i class="bi @(_secIdentity ? "bi-chevron-down" : "bi-chevron-right") text-xs"></i>
+            <i class="bi bi-tag text-xs"></i>
+            Identity
+        </button>
+        <div class="@(_secIdentity ? "" : "hidden")">
+            <div class="mb-2">
+                @if (_boundObjectDef != null)
                 {
-                    <label class="small text-muted mb-1">Custom name</label>
-                    <input type="text" class="form-control form-control-sm font-monospace"
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1" title="Bind this field to a domain object property">Domain property</label>
+                    <select class="form-input form-input-sm font-mono mb-1"
+                            @onchange="async (e) => await BindToDomainProperty(field, e.Value?.ToString())">
+                        <option value="">— custom —</option>
+                        @foreach (var prop in _boundObjectDef.Properties)
+                        {
+                            var alreadyBound = State.AllFieldNames().Any(n => n != field.Name && n == prop.Key);
+                            var optLabel = $"{prop.DisplayName} ({prop.Key}){(prop.Required ? " *" : "")}{(alreadyBound ? " ✓" : "")}";
+                            <option value="@prop.Key" selected="@(field.Name == prop.Key)">@optLabel</option>
+                        }
+                    </select>
+                    @if (!_boundObjectDef.Properties.Any(p => p.Key == field.Name))
+                    {
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1" title="Programmatic identifier used in rules and data binding">Field name</label>
+                        <input type="text" class="form-input form-input-sm font-mono"
+                               value="@field.Name"
+                               @onchange="(e) => RenameField(field, e.Value?.ToString())" />
+                    }
+                }
+                else
+                {
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1" title="Programmatic identifier used in rules and data binding">Field name</label>
+                    <input type="text" class="form-input form-input-sm font-mono"
                            value="@field.Name"
                            @onchange="(e) => RenameField(field, e.Value?.ToString())" />
                 }
-            }
-            else
-            {
-                <label class="small text-muted mb-1">Name</label>
-                <input type="text" class="form-control form-control-sm font-monospace"
-                       value="@field.Name"
-                       @onchange="(e) => RenameField(field, e.Value?.ToString())" />
-            }
-            @if (_nameWarning != null)
-            {
-                <div class="text-warning small mt-1"><i class="bi bi-exclamation-triangle"></i> @_nameWarning</div>
-            }
-            @{
-                var _domainPropMatch = _boundObjectDef?.Properties.FirstOrDefault(p => p.Key == field.Name);
-            }
-            @if (_domainPropMatch != null && field.Xtype != InferXtype(_domainPropMatch.Type))
-            {
-                <div class="text-warning small mt-1">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    Expected <strong>@InferXtype(_domainPropMatch.Type)</strong> for this property (current: @field.Xtype)
+                @if (_nameWarning != null)
+                {
+                    <div class="text-yellow-600 dark:text-yellow-400 text-sm mt-1"><i class="bi bi-exclamation-triangle"></i> @_nameWarning</div>
+                }
+                @{
+                    var _domainPropMatch = _boundObjectDef?.Properties.FirstOrDefault(p => p.Key == field.Name);
+                }
+                @if (_domainPropMatch != null && field.Xtype != InferXtype(_domainPropMatch.Type))
+                {
+                    <div class="text-yellow-600 dark:text-yellow-400 text-sm mt-1">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Expected <strong>@InferXtype(_domainPropMatch.Type)</strong> for this property (current: @field.Xtype)
+                    </div>
+                }
+            </div>
+            <div class="mb-2">
+                <label class="text-sm text-gray-500 dark:text-gray-400 mb-1" title="Visible display label shown above the field">Display label</label>
+                <input type="text" class="form-input form-input-sm"
+                       value="@field.FieldLabel"
+                       @oninput="(e) => field.FieldLabel = e.Value?.ToString()"
+                       @onchange="() => State.MarkDirty()" />
+            </div>
+            <div class="mb-2">
+                <label class="text-sm text-gray-500 dark:text-gray-400 mb-1" title="Hint text shown inside the field when empty">Placeholder</label>
+                <input type="text" class="form-input form-input-sm"
+                       value="@field.Placeholder"
+                       @oninput="(e) => field.Placeholder = e.Value?.ToString()"
+                       @onchange="() => State.MarkDirty()" />
+            </div>
+            <div class="mb-2">
+                <label class="text-sm text-gray-500 dark:text-gray-400 mb-1" title="Additional help text displayed below the field">Help text</label>
+                <input type="text" class="form-input form-input-sm"
+                       value="@field.Description"
+                       @oninput="(e) => field.Description = e.Value?.ToString()"
+                       @onchange="() => State.MarkDirty()" />
+            </div>
+        </div>
+    </div>
+
+    <div class="property-section">
+        <button @onclick="() => _secLayout = !_secLayout"
+                class="property-label w-full text-left flex items-center gap-1.5 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+            <i class="bi @(_secLayout ? "bi-chevron-down" : "bi-chevron-right") text-xs"></i>
+            <i class="bi bi-grid-3x3-gap text-xs"></i>
+            Layout
+        </button>
+        <div class="@(_secLayout ? "" : "hidden")">
+            <div class="grid grid-cols-2 gap-1">
+                <div class="mb-2">
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1" title="Field width in a 12-column grid. 12 = full width, 6 = half, 4 = third. Works inside Flex Box containers.">Width (span 1–12) <i class="bi bi-info-circle text-gray-400"></i></label>
+                    <input type="number" class="form-input form-input-sm" min="1" max="12"
+                           value="@field.Span"
+                           @onchange="(e) => { field.Span = Clamp(e.Value, 1, 12, 12); State.MarkDirty(); }" />
                 </div>
-            }
-        </div>
-        <div class="mb-2">
-            <label class="small text-muted mb-1">Label</label>
-            <input type="text" class="form-control form-control-sm"
-                   value="@field.FieldLabel"
-                   @oninput="(e) => field.FieldLabel = e.Value?.ToString()"
-                   @onchange="() => State.MarkDirty()" />
-        </div>
-        <div class="mb-2">
-            <label class="small text-muted mb-1">Placeholder</label>
-            <input type="text" class="form-control form-control-sm"
-                   value="@field.Placeholder"
-                   @oninput="(e) => field.Placeholder = e.Value?.ToString()"
-                   @onchange="() => State.MarkDirty()" />
-        </div>
-        <div class="mb-2">
-            <label class="small text-muted mb-1">Help text</label>
-            <input type="text" class="form-control form-control-sm"
-                   value="@field.Description"
-                   @oninput="(e) => field.Description = e.Value?.ToString()"
-                   @onchange="() => State.MarkDirty()" />
+                <div class="mb-2">
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1" title="Display order within the parent container. Lower values appear first.">Order <i class="bi bi-info-circle text-gray-400"></i></label>
+                    <input type="number" class="form-input form-input-sm" min="0"
+                           value="@field.Order"
+                           @onchange="(e) => { field.Order = Clamp(e.Value, 0, 99, 0); State.MarkDirty(); }" />
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">CSS class</label>
+                <input type="text" class="form-input form-input-sm"
+                       value="@field.CssClass"
+                       @oninput="(e) => field.CssClass = e.Value?.ToString()"
+                       @onchange="() => State.MarkDirty()" />
+            </div>
         </div>
     </div>
 
     <div class="property-section">
-        <div class="property-label">Layout</div>
-        <div class="row g-1">
-            <div class="col-6 mb-2">
-                <label class="small text-muted mb-1">Span (1–12)</label>
-                <input type="number" class="form-control form-control-sm" min="1" max="12"
-                       value="@field.Span"
-                       @onchange="(e) => { field.Span = Clamp(e.Value, 1, 12, 12); State.MarkDirty(); }" />
-            </div>
-            <div class="col-6 mb-2">
-                <label class="small text-muted mb-1">Order</label>
-                <input type="number" class="form-control form-control-sm" min="0"
-                       value="@field.Order"
-                       @onchange="(e) => { field.Order = Clamp(e.Value, 0, 99, 0); State.MarkDirty(); }" />
-            </div>
-        </div>
-        <div class="mb-2">
-            <label class="small text-muted mb-1">CSS class</label>
-            <input type="text" class="form-control form-control-sm"
-                   value="@field.CssClass"
-                   @oninput="(e) => field.CssClass = e.Value?.ToString()"
-                   @onchange="() => State.MarkDirty()" />
-        </div>
-    </div>
-
-    <div class="property-section">
-        <div class="property-label">State</div>
-        <div class="row g-2">
-            <div class="col-6">
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="pp-required"
+        <button @onclick="() => _secBehavior = !_secBehavior"
+                class="property-label w-full text-left flex items-center gap-1.5 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+            <i class="bi @(_secBehavior ? "bi-chevron-down" : "bi-chevron-right") text-xs"></i>
+            <i class="bi bi-toggle-on text-xs"></i>
+            Behavior
+        </button>
+        <div class="@(_secBehavior ? "" : "hidden")">
+            <div class="grid grid-cols-2 gap-2">
+                <div class="flex items-center">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-required"
                            checked="@(!field.AllowBlank)"
                            @onchange="() => { field.AllowBlank = !field.AllowBlank; State.MarkDirty(); }" />
-                    <label class="form-check-label small" for="pp-required">Required</label>
+                    <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-required">Required</label>
                 </div>
-            </div>
-            <div class="col-6">
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="pp-disabled"
+                <div class="flex items-center">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-disabled"
                            checked="@field.Disabled"
                            @onchange="() => { field.Disabled = !field.Disabled; State.MarkDirty(); }" />
-                    <label class="form-check-label small" for="pp-disabled">Disabled</label>
+                    <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-disabled">Disabled</label>
                 </div>
-            </div>
-            <div class="col-6">
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="pp-readonly"
+                <div class="flex items-center">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-readonly"
                            checked="@field.ReadOnly"
                            @onchange="() => { field.ReadOnly = !field.ReadOnly; State.MarkDirty(); }" />
-                    <label class="form-check-label small" for="pp-readonly">Read only</label>
+                    <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-readonly">Read only</label>
                 </div>
-            </div>
-            <div class="col-6">
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="pp-hidden"
+                <div class="flex items-center">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-hidden"
                            checked="@field.Hidden"
                            @onchange="() => { field.Hidden = !field.Hidden; State.MarkDirty(); }" />
-                    <label class="form-check-label small" for="pp-hidden">Hidden</label>
+                    <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-hidden">Hidden</label>
                 </div>
             </div>
         </div>
@@ -183,33 +196,33 @@ else if (State.SelectedComponent is FormField field)
         case "TextField":
             <div class="property-section">
                 <div class="property-label">Text options</div>
-                <div class="row g-1">
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Min length</label>
-                        <input type="number" class="form-control form-control-sm" min="0"
+                <div class="grid grid-cols-2 gap-1">
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Min length</label>
+                        <input type="number" class="form-input form-input-sm" min="0"
                                value="@field.MinLength"
                                @onchange="(e) => { field.MinLength = ParseInt(e.Value); State.MarkDirty(); }" />
                     </div>
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Max length</label>
-                        <input type="number" class="form-control form-control-sm" min="0"
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Max length</label>
+                        <input type="number" class="form-input form-input-sm" min="0"
                                value="@field.MaxLength"
                                @onchange="(e) => { field.MaxLength = ParseInt(e.Value); State.MarkDirty(); }" />
                     </div>
                 </div>
-                <div class="row g-1 align-items-end">
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Rows (textarea)</label>
-                        <input type="number" class="form-control form-control-sm" min="1"
+                <div class="grid grid-cols-2 gap-1 items-end">
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Rows (textarea)</label>
+                        <input type="number" class="form-input form-input-sm" min="1"
                                value="@field.Rows"
                                @onchange="(e) => { field.Rows = ParseInt(e.Value); State.MarkDirty(); }" />
                     </div>
-                    <div class="col-6 mb-2">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="pp-grow"
+                    <div class="mb-2">
+                        <div class="flex items-center">
+                            <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-grow"
                                    checked="@field.Grow"
                                    @onchange="() => { field.Grow = !field.Grow; State.MarkDirty(); }" />
-                            <label class="form-check-label small" for="pp-grow">Multiline</label>
+                            <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-grow">Multiline</label>
                         </div>
                     </div>
                 </div>
@@ -219,28 +232,28 @@ else if (State.SelectedComponent is FormField field)
         case "NumericField":
             <div class="property-section">
                 <div class="property-label">Number options</div>
-                <div class="row g-1">
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Min</label>
-                        <input type="number" class="form-control form-control-sm"
+                <div class="grid grid-cols-2 gap-1">
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Min</label>
+                        <input type="number" class="form-input form-input-sm"
                                value="@field.Min"
                                @onchange="(e) => { field.Min = ParseDouble(e.Value); State.MarkDirty(); }" />
                     </div>
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Max</label>
-                        <input type="number" class="form-control form-control-sm"
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Max</label>
+                        <input type="number" class="form-input form-input-sm"
                                value="@field.Max"
                                @onchange="(e) => { field.Max = ParseDouble(e.Value); State.MarkDirty(); }" />
                     </div>
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Step</label>
-                        <input type="number" class="form-control form-control-sm"
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Step</label>
+                        <input type="number" class="form-input form-input-sm"
                                value="@field.Step"
                                @onchange="(e) => { field.Step = ParseDouble(e.Value); State.MarkDirty(); }" />
                     </div>
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Precision</label>
-                        <input type="number" class="form-control form-control-sm" min="0"
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Precision</label>
+                        <input type="number" class="form-input form-input-sm" min="0"
                                value="@field.Precision"
                                @onchange="(e) => { field.Precision = ParseInt(e.Value); State.MarkDirty(); }" />
                     </div>
@@ -251,7 +264,7 @@ else if (State.SelectedComponent is FormField field)
         case "DropdownField":
             <div class="property-section">
                 <div class="property-label">Items source</div>
-                <select class="form-select form-select-sm mb-2"
+                <select class="form-input text-sm mb-2"
                         @onchange="(e) => SetItemsSource(field, e.Value?.ToString())">
                     <option value="static" selected="@(!IsDomainBound(field))">Static items</option>
                     <option value="domain" selected="@IsDomainBound(field)">Domain object</option>
@@ -263,30 +276,30 @@ else if (State.SelectedComponent is FormField field)
                     {
                         var idx = i;
                         var option = field.Items[idx];
-                        <div class="d-flex gap-1 mb-1 align-items-center">
-                            <input type="text" class="form-control form-control-sm"
+                        <div class="flex gap-1 mb-1 items-center">
+                            <input type="text" class="form-input form-input-sm"
                                    value="@option.Label" placeholder="Label"
                                    @oninput="(e) => option.Label = e.Value?.ToString() ?? string.Empty"
                                    @onchange="() => State.MarkDirty()" />
-                            <input type="text" class="form-control form-control-sm"
+                            <input type="text" class="form-input form-input-sm"
                                    value="@option.Value?.ToString()" placeholder="Value"
                                    @oninput="(e) => option.Value = e.Value?.ToString()"
                                    @onchange="() => State.MarkDirty()" />
-                            <button class="btn btn-sm py-0 px-1" title="Remove option"
+                            <button class="text-xs px-1 py-0.5 font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" title="Remove option"
                                     @onclick="() => { field.Items.RemoveAt(idx); State.MarkDirty(); }">
-                                <i class="bi bi-x text-danger"></i>
+                                <i class="bi bi-x text-red-600 dark:text-red-400"></i>
                             </button>
                         </div>
                     }
-                    <button class="btn btn-sm btn-outline-secondary py-0 px-1 mb-2" style="font-size: 0.7rem;"
+                    <button class="text-xs px-1 py-0.5 font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors mb-2" style="font-size: 0.7rem;"
                             @onclick="() => AddOption(field)">
                         <i class="bi bi-plus"></i> Add option
                     </button>
                 }
                 else
                 {
-                    <label class="small text-muted mb-1">Domain object</label>
-                    <select class="form-select form-select-sm mb-2"
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Domain object</label>
+                    <select class="form-input text-sm mb-2"
                             @onchange="(e) => OnDomainObjectChanged(field, e.Value?.ToString())">
                         <option value="">— select object —</option>
                         @foreach (var summary in _catalog)
@@ -299,16 +312,16 @@ else if (State.SelectedComponent is FormField field)
 
                     @if (!string.IsNullOrEmpty(field.DataProvider!.DomainObjectId))
                     {
-                        <label class="small text-muted mb-1">Value field</label>
-                        <select class="form-select form-select-sm mb-2"
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Value field</label>
+                        <select class="form-input text-sm mb-2"
                                 @onchange="(e) => { field.DataProvider!.ValueField = NullIfEmpty(e.Value); State.MarkDirty(); }">
                             @foreach (var (key, label) in FieldOptions())
                             {
                                 <option value="@key" selected="@(field.DataProvider!.ValueField == key)">@label</option>
                             }
                         </select>
-                        <label class="small text-muted mb-1">Label field</label>
-                        <select class="form-select form-select-sm mb-1"
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Label field</label>
+                        <select class="form-input text-sm mb-1"
                                 @onchange="(e) => { field.DataProvider!.LabelField = NullIfEmpty(e.Value); State.MarkDirty(); }">
                             @foreach (var (key, label) in FieldOptions())
                             {
@@ -317,26 +330,22 @@ else if (State.SelectedComponent is FormField field)
                         </select>
                         @if (_boundUnpublished)
                         {
-                            <div class="text-warning small"><i class="bi bi-exclamation-triangle"></i> This object isn't published yet — it has no records to show.</div>
+                            <div class="text-yellow-600 dark:text-yellow-400 text-sm"><i class="bi bi-exclamation-triangle"></i> This object isn't published yet — it has no records to show.</div>
                         }
                     }
                 }
-                <div class="row g-2 mt-1">
-                    <div class="col-6">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="pp-multi"
-                                   checked="@field.MultiSelect"
-                                   @onchange="() => { field.MultiSelect = !field.MultiSelect; State.MarkDirty(); }" />
-                            <label class="form-check-label small" for="pp-multi">Multi-select</label>
-                        </div>
+                <div class="grid grid-cols-2 gap-2 mt-1">
+                    <div class="flex items-center">
+                        <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-multi"
+                               checked="@field.MultiSelect"
+                               @onchange="() => { field.MultiSelect = !field.MultiSelect; State.MarkDirty(); }" />
+                        <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-multi">Multi-select</label>
                     </div>
-                    <div class="col-6">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="pp-filter"
-                                   checked="@field.Filterable"
-                                   @onchange="() => { field.Filterable = !field.Filterable; State.MarkDirty(); }" />
-                            <label class="form-check-label small" for="pp-filter">Filterable</label>
-                        </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-filter"
+                               checked="@field.Filterable"
+                               @onchange="() => { field.Filterable = !field.Filterable; State.MarkDirty(); }" />
+                        <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-filter" title="Allow searching/filtering options by typing. Turns the dropdown into a searchable combo-box.">Filterable <i class="bi bi-info-circle text-gray-400"></i></label>
                     </div>
                 </div>
             </div>
@@ -346,17 +355,17 @@ else if (State.SelectedComponent is FormField field)
             <div class="property-section">
                 <div class="property-label">Checkbox options</div>
                 <div class="mb-2">
-                    <label class="small text-muted mb-1">Box label</label>
-                    <input type="text" class="form-control form-control-sm"
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Box label</label>
+                    <input type="text" class="form-input form-input-sm"
                            value="@field.BoxLabel"
                            @oninput="(e) => field.BoxLabel = e.Value?.ToString()"
                            @onchange="() => State.MarkDirty()" />
                 </div>
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="pp-defchecked"
+                <div class="flex items-center">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-defchecked"
                            checked="@(field.Value is true)"
                            @onchange="() => { field.Value = !(field.Value is true); State.MarkDirty(); }" />
-                    <label class="form-check-label small" for="pp-defchecked">Checked by default</label>
+                    <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-defchecked">Checked by default</label>
                 </div>
             </div>
             break;
@@ -364,25 +373,25 @@ else if (State.SelectedComponent is FormField field)
         case "DateField":
             <div class="property-section">
                 <div class="property-label">Date options</div>
-                <div class="row g-1">
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Min date</label>
-                        <input type="date" class="form-control form-control-sm"
+                <div class="grid grid-cols-2 gap-1">
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Min date</label>
+                        <input type="date" class="form-input form-input-sm"
                                value="@field.MinDate"
                                @onchange="(e) => { field.MinDate = e.Value?.ToString(); State.MarkDirty(); }" />
                     </div>
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Max date</label>
-                        <input type="date" class="form-control form-control-sm"
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Max date</label>
+                        <input type="date" class="form-input form-input-sm"
                                value="@field.MaxDate"
                                @onchange="(e) => { field.MaxDate = e.Value?.ToString(); State.MarkDirty(); }" />
                     </div>
                 </div>
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="pp-showtime"
+                <div class="flex items-center">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-showtime"
                            checked="@field.ShowTime"
                            @onchange="() => { field.ShowTime = !field.ShowTime; State.MarkDirty(); }" />
-                    <label class="form-check-label small" for="pp-showtime">Include time</label>
+                    <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-showtime">Include time</label>
                 </div>
             </div>
             break;
@@ -390,29 +399,29 @@ else if (State.SelectedComponent is FormField field)
         case "SliderField":
             <div class="property-section">
                 <div class="property-label">Slider options</div>
-                <div class="row g-1">
-                    <div class="col-4 mb-2">
-                        <label class="small text-muted mb-1">Min</label>
-                        <input type="number" class="form-control form-control-sm"
+                <div class="grid grid-cols-3 gap-1">
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Min</label>
+                        <input type="number" class="form-input form-input-sm"
                                value="@field.Min"
                                @onchange="(e) => { field.Min = ParseDouble(e.Value); State.MarkDirty(); }" />
                     </div>
-                    <div class="col-4 mb-2">
-                        <label class="small text-muted mb-1">Max</label>
-                        <input type="number" class="form-control form-control-sm"
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Max</label>
+                        <input type="number" class="form-input form-input-sm"
                                value="@field.Max"
                                @onchange="(e) => { field.Max = ParseDouble(e.Value); State.MarkDirty(); }" />
                     </div>
-                    <div class="col-4 mb-2">
-                        <label class="small text-muted mb-1">Step</label>
-                        <input type="number" class="form-control form-control-sm"
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Step</label>
+                        <input type="number" class="form-input form-input-sm"
                                value="@field.Step"
                                @onchange="(e) => { field.Step = ParseDouble(e.Value); State.MarkDirty(); }" />
                     </div>
                 </div>
-                <div class="col-6 mb-2">
-                    <label class="small text-muted mb-1">Decimal places</label>
-                    <input type="number" class="form-control form-control-sm" min="0" max="10"
+                <div class="mb-2">
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Decimal places</label>
+                    <input type="number" class="form-input form-input-sm" min="0" max="10"
                            value="@field.Precision"
                            @onchange="(e) => { field.Precision = ParseInt(e.Value); State.MarkDirty(); }" />
                 </div>
@@ -426,22 +435,22 @@ else if (State.SelectedComponent is FormField field)
                 {
                     var idx = i;
                     var option = field.Items[idx];
-                    <div class="d-flex gap-1 mb-1 align-items-center">
-                        <input type="text" class="form-control form-control-sm"
+                    <div class="flex gap-1 mb-1 items-center">
+                        <input type="text" class="form-input form-input-sm"
                                value="@option.Label" placeholder="Label"
                                @oninput="(e) => option.Label = e.Value?.ToString() ?? string.Empty"
                                @onchange="() => State.MarkDirty()" />
-                        <input type="text" class="form-control form-control-sm"
+                        <input type="text" class="form-input form-input-sm"
                                value="@option.Value?.ToString()" placeholder="Value"
                                @oninput="(e) => option.Value = e.Value?.ToString()"
                                @onchange="() => State.MarkDirty()" />
-                        <button class="btn btn-sm py-0 px-1" title="Remove option"
+                        <button class="text-xs px-1 py-0.5 font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" title="Remove option"
                                 @onclick="() => { field.Items.RemoveAt(idx); State.MarkDirty(); }">
-                            <i class="bi bi-x text-danger"></i>
+                            <i class="bi bi-x text-red-600 dark:text-red-400"></i>
                         </button>
                     </div>
                 }
-                <button class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 0.7rem;"
+                <button class="text-xs px-1 py-0.5 font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors" style="font-size: 0.7rem;"
                         @onclick="() => AddOption(field)">
                     <i class="bi bi-plus"></i> Add option
                 </button>
@@ -451,28 +460,28 @@ else if (State.SelectedComponent is FormField field)
         case "DecimalField":
             <div class="property-section">
                 <div class="property-label">Decimal options</div>
-                <div class="row g-1">
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Min</label>
-                        <input type="number" class="form-control form-control-sm"
+                <div class="grid grid-cols-2 gap-1">
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Min</label>
+                        <input type="number" class="form-input form-input-sm"
                                value="@field.Min"
                                @onchange="(e) => { field.Min = ParseDouble(e.Value); State.MarkDirty(); }" />
                     </div>
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Max</label>
-                        <input type="number" class="form-control form-control-sm"
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Max</label>
+                        <input type="number" class="form-input form-input-sm"
                                value="@field.Max"
                                @onchange="(e) => { field.Max = ParseDouble(e.Value); State.MarkDirty(); }" />
                     </div>
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Step</label>
-                        <input type="number" class="form-control form-control-sm" step="any"
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Step</label>
+                        <input type="number" class="form-input form-input-sm" step="any"
                                value="@field.Step"
                                @onchange="(e) => { field.Step = ParseDouble(e.Value); State.MarkDirty(); }" />
                     </div>
-                    <div class="col-6 mb-2">
-                        <label class="small text-muted mb-1">Decimal places</label>
-                        <input type="number" class="form-control form-control-sm" min="0" max="10"
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Decimal places</label>
+                        <input type="number" class="form-input form-input-sm" min="0" max="10"
                                value="@field.Precision"
                                @onchange="(e) => { field.Precision = ParseInt(e.Value); State.MarkDirty(); }" />
                     </div>
@@ -484,18 +493,18 @@ else if (State.SelectedComponent is FormField field)
             <div class="property-section">
                 <div class="property-label">File options</div>
                 <div class="mb-2">
-                    <label class="small text-muted mb-1">Accepted types</label>
-                    <input type="text" class="form-control form-control-sm"
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Accepted types</label>
+                    <input type="text" class="form-input form-input-sm"
                            placeholder="e.g. image/*, .pdf, .docx"
                            value="@field.InputType"
                            @oninput="(e) => field.InputType = e.Value?.ToString()"
                            @onchange="() => State.MarkDirty()" />
                 </div>
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="pp-multifile"
+                <div class="flex items-center">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-multifile"
                            checked="@field.MultiSelect"
                            @onchange="() => { field.MultiSelect = !field.MultiSelect; State.MarkDirty(); }" />
-                    <label class="form-check-label small" for="pp-multifile">Allow multiple files</label>
+                    <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-multifile">Allow multiple files</label>
                 </div>
             </div>
             break;
@@ -504,59 +513,96 @@ else if (State.SelectedComponent is FormField field)
     @if (field.Xtype is not ("CheckboxField" or "FileField" or "SliderField"))
     {
         <div class="property-section">
-            <div class="property-label">Default value</div>
-            <input type="text" class="form-control form-control-sm"
-                   value="@(field.Value?.ToString())"
-                   @oninput="(e) => field.Value = e.Value?.ToString()"
-                   @onchange="() => State.MarkDirty()" />
+            <button @onclick="() => _secDefault = !_secDefault"
+                    class="property-label w-full text-left flex items-center gap-1.5 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                <i class="bi @(_secDefault ? "bi-chevron-down" : "bi-chevron-right") text-xs"></i>
+                <i class="bi bi-input-cursor text-xs"></i>
+                Default value
+            </button>
+            <div class="@(_secDefault ? "" : "hidden")">
+                <input type="text" class="form-input form-input-sm"
+                       title="Value the field starts with when the form is first rendered"
+                       value="@(field.Value?.ToString())"
+                       @oninput="(e) => field.Value = e.Value?.ToString()"
+                       @onchange="() => State.MarkDirty()" />
+            </div>
         </div>
     }
 
     <div class="property-section">
-        <div class="property-label">Validation</div>
-        <ValidatorListEditor Field="@field" State="@State" />
+        <button @onclick="() => _secValidation = !_secValidation"
+                class="property-label w-full text-left flex items-center gap-1.5 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+            <i class="bi @(_secValidation ? "bi-chevron-down" : "bi-chevron-right") text-xs"></i>
+            <i class="bi bi-check-circle text-xs"></i>
+            Validation
+        </button>
+        <div class="@(_secValidation ? "" : "hidden")">
+            <ValidatorListEditor Field="@field" State="@State" />
+        </div>
     </div>
 
     <div class="property-section">
-        <div class="property-label">Conditions</div>
-        <label class="small text-muted mb-1 d-block">Visible when</label>
-        <ConditionBuilder Condition="@field.VisibleWhen" Fields="@State.FieldNames()"
-                          ConditionChanged="@((c) => { field.VisibleWhen = c; State.MarkDirty(); })"
-                          OnChanged="() => State.MarkDirty()" />
-        <label class="small text-muted mb-1 d-block">Required when</label>
-        <ConditionBuilder Condition="@field.RequiredWhen" Fields="@State.FieldNames()"
-                          ConditionChanged="@((c) => { field.RequiredWhen = c; State.MarkDirty(); })"
-                          OnChanged="() => State.MarkDirty()" />
-        <label class="small text-muted mb-1 d-block">Disabled when</label>
-        <ConditionBuilder Condition="@field.DisabledWhen" Fields="@State.FieldNames()"
-                          ConditionChanged="@((c) => { field.DisabledWhen = c; State.MarkDirty(); })"
-                          OnChanged="() => State.MarkDirty()" />
-        <label class="small text-muted mb-1 d-block">Read-only when</label>
-        <ConditionBuilder Condition="@field.ReadOnlyWhen" Fields="@State.FieldNames()"
-                          ConditionChanged="@((c) => { field.ReadOnlyWhen = c; State.MarkDirty(); })"
-                          OnChanged="() => State.MarkDirty()" />
+        <button @onclick="() => _secConditions = !_secConditions"
+                class="property-label w-full text-left flex items-center gap-1.5 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+            <i class="bi @(_secConditions ? "bi-chevron-down" : "bi-chevron-right") text-xs"></i>
+            <i class="bi bi-funnel text-xs"></i>
+            Conditions
+            @if (!_secConditions)
+            {
+                var count = (field.VisibleWhen != null ? 1 : 0) + (field.RequiredWhen != null ? 1 : 0) + (field.DisabledWhen != null ? 1 : 0) + (field.ReadOnlyWhen != null ? 1 : 0);
+                @if (count > 0)
+                {
+                    <span class="ml-auto text-xs text-indigo-500 dark:text-indigo-400">@count active</span>
+                }
+            }
+        </button>
+        <div class="@(_secConditions ? "" : "hidden")">
+            <label class="text-sm text-gray-500 dark:text-gray-400 mb-1 block">Visible when</label>
+            <ConditionBuilder Condition="@field.VisibleWhen" Fields="@State.FieldNames()"
+                              ConditionChanged="@((c) => { field.VisibleWhen = c; State.MarkDirty(); })"
+                              OnChanged="() => State.MarkDirty()" />
+            <label class="text-sm text-gray-500 dark:text-gray-400 mb-1 block">Required when</label>
+            <ConditionBuilder Condition="@field.RequiredWhen" Fields="@State.FieldNames()"
+                              ConditionChanged="@((c) => { field.RequiredWhen = c; State.MarkDirty(); })"
+                              OnChanged="() => State.MarkDirty()" />
+            <label class="text-sm text-gray-500 dark:text-gray-400 mb-1 block">Disabled when</label>
+            <ConditionBuilder Condition="@field.DisabledWhen" Fields="@State.FieldNames()"
+                              ConditionChanged="@((c) => { field.DisabledWhen = c; State.MarkDirty(); })"
+                              OnChanged="() => State.MarkDirty()" />
+            <label class="text-sm text-gray-500 dark:text-gray-400 mb-1 block">Read-only when</label>
+            <ConditionBuilder Condition="@field.ReadOnlyWhen" Fields="@State.FieldNames()"
+                              ConditionChanged="@((c) => { field.ReadOnlyWhen = c; State.MarkDirty(); })"
+                              OnChanged="() => State.MarkDirty()" />
+        </div>
     </div>
 }
 else if (State.SelectedComponent is FormLayout container)
 {
     <div class="property-section">
-        <div class="property-label">@container.Xtype</div>
-        @if (container.Xtype != "HtmlBox")
-        {
+        <button @onclick="() => _secIdentity = !_secIdentity"
+                class="property-label w-full text-left flex items-center gap-1.5 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+            <i class="bi @(_secIdentity ? "bi-chevron-down" : "bi-chevron-right") text-xs"></i>
+            <i class="bi bi-box text-xs"></i>
+            @container.Xtype
+        </button>
+        <div class="@(_secIdentity ? "" : "hidden")">
+            @if (container.Xtype != "HtmlBox")
+            {
+                <div class="mb-2">
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Title</label>
+                    <input type="text" class="form-input form-input-sm"
+                           value="@container.Title"
+                           @oninput="(e) => container.Title = e.Value?.ToString()"
+                           @onchange="() => State.MarkDirty()" />
+                </div>
+            }
             <div class="mb-2">
-                <label class="small text-muted mb-1">Title</label>
-                <input type="text" class="form-control form-control-sm"
-                       value="@container.Title"
-                       @oninput="(e) => container.Title = e.Value?.ToString()"
+                <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">CSS class</label>
+                <input type="text" class="form-input form-input-sm"
+                       value="@container.CssClass"
+                       @oninput="(e) => container.CssClass = e.Value?.ToString()"
                        @onchange="() => State.MarkDirty()" />
             </div>
-        }
-        <div class="mb-2">
-            <label class="small text-muted mb-1">CSS class</label>
-            <input type="text" class="form-control form-control-sm"
-                   value="@container.CssClass"
-                   @oninput="(e) => container.CssClass = e.Value?.ToString()"
-                   @onchange="() => State.MarkDirty()" />
         </div>
     </div>
 
@@ -573,60 +619,67 @@ else if (State.SelectedComponent is FormLayout container)
     else
     {
         <div class="property-section">
-            <div class="property-label">Flex</div>
-            <div class="mb-2">
-                <label class="small text-muted mb-1">Direction</label>
-                <select class="form-select form-select-sm"
-                        @onchange="(e) => SetDirection(container, e.Value)">
-                    @foreach (var dir in new[] { "row", "column", "row-reverse", "column-reverse" })
-                    {
-                        <option value="@dir" selected="@(container.Direction == dir)">@dir</option>
-                    }
-                </select>
-            </div>
-            <div class="row g-1 align-items-end">
-                <div class="col-6 mb-2">
-                    <label class="small text-muted mb-1">Gap</label>
-                    <input type="number" class="form-control form-control-sm" min="0" max="10"
-                           value="@container.Gap"
-                           @onchange="(e) => { container.Gap = Clamp(e.Value, 0, 10, 3); State.MarkDirty(); }" />
+            <button @onclick="() => _secFlex = !_secFlex"
+                    class="property-label w-full text-left flex items-center gap-1.5 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                <i class="bi @(_secFlex ? "bi-chevron-down" : "bi-chevron-right") text-xs"></i>
+                <i class="bi bi-arrows-expand text-xs"></i>
+                Flex layout
+            </button>
+            <div class="@(_secFlex ? "" : "hidden")">
+                <div class="mb-2">
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Direction</label>
+                    <select class="form-input text-sm"
+                            @onchange="(e) => SetDirection(container, e.Value)">
+                        @foreach (var dir in new[] { "row", "column", "row-reverse", "column-reverse" })
+                        {
+                            <option value="@dir" selected="@(container.Direction == dir)">@dir</option>
+                        }
+                    </select>
                 </div>
-                <div class="col-6 mb-2">
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="pp-wrap"
-                               checked="@container.Wrap"
-                               @onchange="() => { container.Wrap = !container.Wrap; State.MarkDirty(); }" />
-                        <label class="form-check-label small" for="pp-wrap">Wrap</label>
+                <div class="grid grid-cols-2 gap-1 items-end">
+                    <div class="mb-2">
+                        <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Gap</label>
+                        <input type="number" class="form-input form-input-sm" min="0" max="10"
+                               value="@container.Gap"
+                               @onchange="(e) => { container.Gap = Clamp(e.Value, 0, 10, 3); State.MarkDirty(); }" />
+                    </div>
+                    <div class="mb-2">
+                        <div class="flex items-center">
+                            <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-wrap"
+                                   checked="@container.Wrap"
+                                   @onchange="() => { container.Wrap = !container.Wrap; State.MarkDirty(); }" />
+                            <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-wrap">Wrap</label>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="mb-2">
-                <label class="small text-muted mb-1">Align items</label>
-                <select class="form-select form-select-sm"
-                        @onchange="(e) => { container.Align = NullIfEmpty(e.Value); State.MarkDirty(); }">
-                    <option value="" selected="@(string.IsNullOrEmpty(container.Align))">Default</option>
-                    @foreach (var v in new[] { "flex-start", "center", "flex-end", "stretch", "baseline" })
-                    {
-                        <option value="@v" selected="@(container.Align == v)">@v</option>
-                    }
-                </select>
-            </div>
-            <div class="mb-2">
-                <label class="small text-muted mb-1">Justify content</label>
-                <select class="form-select form-select-sm"
-                        @onchange="(e) => { container.Justify = NullIfEmpty(e.Value); State.MarkDirty(); }">
-                    <option value="" selected="@(string.IsNullOrEmpty(container.Justify))">Default</option>
-                    @foreach (var v in new[] { "flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly" })
-                    {
-                        <option value="@v" selected="@(container.Justify == v)">@v</option>
-                    }
-                </select>
-            </div>
-            <div class="mb-2">
-                <label class="small text-muted mb-1">Columns</label>
-                <input type="number" class="form-control form-control-sm" min="1" max="12"
-                       value="@container.Columns"
-                       @onchange="(e) => { container.Columns = Clamp(e.Value, 1, 12, 1); State.MarkDirty(); }" />
+                <div class="mb-2">
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Align items</label>
+                    <select class="form-input text-sm"
+                            @onchange="(e) => { container.Align = NullIfEmpty(e.Value); State.MarkDirty(); }">
+                        <option value="" selected="@(string.IsNullOrEmpty(container.Align))">Default</option>
+                        @foreach (var v in new[] { "flex-start", "center", "flex-end", "stretch", "baseline" })
+                        {
+                            <option value="@v" selected="@(container.Align == v)">@v</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Justify content</label>
+                    <select class="form-input text-sm"
+                            @onchange="(e) => { container.Justify = NullIfEmpty(e.Value); State.MarkDirty(); }">
+                        <option value="" selected="@(string.IsNullOrEmpty(container.Justify))">Default</option>
+                        @foreach (var v in new[] { "flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly" })
+                        {
+                            <option value="@v" selected="@(container.Justify == v)">@v</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Columns</label>
+                    <input type="number" class="form-input form-input-sm" min="1" max="12"
+                           value="@container.Columns"
+                           @onchange="(e) => { container.Columns = Clamp(e.Value, 1, 12, 1); State.MarkDirty(); }" />
+                </div>
             </div>
         </div>
 
@@ -634,11 +687,11 @@ else if (State.SelectedComponent is FormLayout container)
         {
             <div class="property-section">
                 <div class="property-label">Fieldset</div>
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="pp-collapsible"
+                <div class="flex items-center">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-collapsible"
                            checked="@container.Collapsible"
                            @onchange="() => { container.Collapsible = !container.Collapsible; State.MarkDirty(); }" />
-                    <label class="form-check-label small" for="pp-collapsible">Collapsible</label>
+                    <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-collapsible">Collapsible</label>
                 </div>
             </div>
         }
@@ -647,8 +700,8 @@ else if (State.SelectedComponent is FormLayout container)
         {
             <div class="property-section">
                 <div class="property-label">Tabs</div>
-                <label class="small text-muted mb-1">Active tab index</label>
-                <input type="number" class="form-control form-control-sm" min="0"
+                <label class="text-sm text-gray-500 dark:text-gray-400 mb-1">Active tab index</label>
+                <input type="number" class="form-input form-input-sm" min="0"
                        value="@container.ActiveItem"
                        @onchange="(e) => { container.ActiveItem = Clamp(e.Value, 0, 99, 0); State.MarkDirty(); }" />
             </div>
@@ -658,23 +711,23 @@ else if (State.SelectedComponent is FormLayout container)
         {
             <div class="property-section">
                 <div class="property-label">Accordion</div>
-                <div class="form-check mb-1">
-                    <input type="checkbox" class="form-check-input" id="pp-multiexpand"
+                <div class="flex items-center mb-1">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-multiexpand"
                            checked="@container.MultiExpand"
                            @onchange="() => { container.MultiExpand = !container.MultiExpand; State.MarkDirty(); }" />
-                    <label class="form-check-label small" for="pp-multiexpand">Multi expand</label>
+                    <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-multiexpand">Multi expand</label>
                 </div>
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="pp-defopen"
+                <div class="flex items-center">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" id="pp-defopen"
                            checked="@container.DefaultOpen"
                            @onchange="() => { container.DefaultOpen = !container.DefaultOpen; State.MarkDirty(); }" />
-                    <label class="form-check-label small" for="pp-defopen">Default open</label>
+                    <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer text-sm" for="pp-defopen">Default open</label>
                 </div>
             </div>
         }
 
         <div class="property-section">
-            <div class="small text-muted">@container.Items.Count item@(container.Items.Count == 1 ? "" : "s")</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">@container.Items.Count item@(container.Items.Count == 1 ? "" : "s")</div>
         </div>
     }
 }
@@ -683,6 +736,15 @@ else if (State.SelectedComponent is FormLayout container)
     [Parameter] public required FormDesignerService State { get; set; }
 
     private string? _nameWarning;
+
+    // ── Collapsible section state ────────────────────────────────
+    private bool _secIdentity = true;
+    private bool _secLayout = true;
+    private bool _secBehavior = true;
+    private bool _secDefault = true;
+    private bool _secValidation = true;
+    private bool _secConditions;
+    private bool _secFlex = true;
 
     // ── Domain-object data source binding (for DropdownField) ──────
     private IReadOnlyList<DomainObjectSummary> _catalog = [];

@@ -7,123 +7,132 @@
 
 <style>
     .do-row { cursor: pointer; }
-    .do-row.selected { background: rgba(13,110,253,0.08); }
-    .do-key { font-family: var(--bs-font-monospace); font-size: 0.8rem; }
-    .property-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; color: #6c757d; margin-bottom: 0.35rem; }
-    .property-section { border-bottom: 1px solid #dee2e6; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+    .do-row.selected { background: rgba(99,102,241,0.08); }
+    :where(.dark) .do-row.selected { background: rgba(99,102,241,0.15); }
+    .do-key { font-family: 'Cascadia Code','Fira Code','Consolas',monospace; font-size: 0.8rem; }
+    .property-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; color: #6b7280; margin-bottom: 0.35rem; letter-spacing: 0.04em; }
+    :where(.dark) .property-label { color: #9ca3af; }
+    .property-section { border-bottom: 1px solid #e5e7eb; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+    :where(.dark) .property-section { border-color: #374151; }
+    .input-group { display: flex; gap: 0; }
+    .input-group > .form-input:not(:first-child) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+    .input-group > .form-input:not(:last-child) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+    .input-group-text { display: flex; align-items: center; padding: 0 8px; background: #f3f4f6; color: #6b7280; font-size: 0.8rem; border: 1px solid #d1d5db; }
+    :where(.dark) .input-group-text { background: #374151; color: #9ca3af; border-color: #4b5563; }
 </style>
 
-<div class="d-flex flex-column h-100">
+<div class="flex flex-col h-full">
     @* ── Toolbar ─────────────────────────────────────────────── *@
-    <div class="d-flex align-items-center gap-2 p-2 border-bottom bg-white" style="min-height: 42px;">
-        <a href="/DomainObjects" class="btn btn-outline-secondary btn-sm me-1" title="Back to domain objects">
+    <div class="flex items-center gap-2 p-2 border-b bg-white dark:bg-gray-900" style="min-height: 42px;">
+        <a href="/DomainObjects" class="inline-flex items-center px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors mr-1" title="Back to domain objects">
             <i class="bi bi-arrow-left"></i>
         </a>
-        <input type="text" class="form-control form-control-sm" style="max-width: 220px;"
+        <input type="text" class="form-input form-input-sm" style="max-width: 220px;"
                value="@State.Name"
                @onchange="e => { State.Name = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }"
                placeholder="Display name" />
-        <input type="text" class="form-control form-control-sm do-key" style="max-width: 180px;"
+        <input type="text" class="form-input form-input-sm do-key" style="max-width: 180px;"
                value="@State.Key"
                disabled="@(!State.IsNew)"
                @onchange="e => { State.Key = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }"
                placeholder="system_key" title="Stable system key (immutable once saved)" />
 
-        <button class="btn btn-outline-primary btn-sm" @onclick="HandleSave" disabled="@_isBusy">
-            @if (_isBusy) { <span class="spinner-border spinner-border-sm me-1"></span> }
+        <button class="px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors" @onclick="HandleSave" disabled="@_isBusy">
             <i class="bi bi-save-fill"></i> Save
         </button>
-        <button class="btn btn-outline-success btn-sm" @onclick="HandlePublish" disabled="@_isBusy">
+        <button class="px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-lg transition-colors" @onclick="HandlePublish" disabled="@_isBusy">
             <i class="bi bi-cloud-arrow-up-fill"></i> Publish
         </button>
 
         <span title="@(State.HasUnsavedChanges ? "Unsaved changes" : "Saved")"
-              class="@(State.HasUnsavedChanges ? "text-warning" : "text-success")">
+              class="@(State.HasUnsavedChanges ? "text-yellow-600 dark:text-yellow-400" : "text-green-600 dark:text-green-400")">
             <i class="bi @(State.HasUnsavedChanges ? "bi-circle-fill" : "bi-check-circle-fill")"></i>
         </span>
         @if (!string.IsNullOrEmpty(State.PublishedVersion))
         {
-            <span class="badge text-bg-light border" title="Latest published version">v@(State.PublishedVersion)</span>
+            <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700" title="Latest published version">v@(State.PublishedVersion)</span>
         }
         @if (!string.IsNullOrEmpty(_error))
         {
-            <span class="text-danger small ms-2"><i class="bi bi-exclamation-triangle-fill"></i> @_error</span>
+            <span class="text-red-600 dark:text-red-400 text-sm ml-2"><i class="bi bi-exclamation-triangle-fill"></i> @_error</span>
         }
     </div>
 
-    <div class="d-flex flex-grow-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden">
         @* ── Property list ───────────────────────────────────── *@
-        <div class="flex-grow-1 overflow-auto p-3">
-            <div class="d-flex align-items-center mb-2">
-                <h6 class="text-muted mb-0"><i class="bi bi-list-columns-reverse"></i> Properties</h6>
-                <button class="btn btn-outline-primary btn-sm ms-auto" @onclick="() => State.AddProperty()">
+        <div class="flex-1 overflow-auto p-3">
+            <div class="flex items-center mb-2">
+                <h6 class="text-gray-500 dark:text-gray-400 mb-0"><i class="bi bi-list-columns-reverse"></i> Properties</h6>
+                <button class="ml-auto px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors" @onclick="() => State.AddProperty()">
                     <i class="bi bi-plus-lg"></i> Add Property
                 </button>
             </div>
 
             @if (State.Definition.Properties.Count == 0)
             {
-                <div class="text-muted border rounded p-4 text-center" style="border-style: dashed !important;">
+                <div class="text-gray-500 dark:text-gray-400 border rounded p-4 text-center" style="border-style: dashed !important;">
                     No properties yet. Click <strong>Add Property</strong> to model your first field.
                 </div>
             }
             else
             {
-                <table class="table table-sm table-hover align-middle">
+                <div class="w-full overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                <table class="w-full text-sm">
                     <thead>
-                        <tr>
-                            <th style="width: 28px;"></th>
-                            <th>Key</th>
-                            <th>Display Name</th>
-                            <th>Type</th>
-                            <th>Flags</th>
-                            <th class="text-end" style="width: 110px;">Actions</th>
+                        <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                            <th class="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400" style="width: 28px;"></th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Key</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Display Name</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Type</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Flags</th>
+                            <th class="px-3 py-2 text-right font-semibold text-gray-500 dark:text-gray-400" style="width: 110px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var row in State.Definition.Properties)
                         {
-                            <tr class="do-row @(ReferenceEquals(row, State.SelectedProperty) ? "selected" : "")"
+                            <tr class="do-row border-b border-gray-100 dark:border-gray-800 @(ReferenceEquals(row, State.SelectedProperty) ? "selected" : "")"
                                 @onclick="() => State.SelectProperty(row)">
-                                <td class="text-muted">
+                                <td class="px-3 py-2 text-gray-500 dark:text-gray-400">
                                     @if (State.Definition.TitleProperty == row.Key)
                                     {
-                                        <i class="bi bi-star-fill text-warning" title="Title property"></i>
+                                        <i class="bi bi-star-fill text-yellow-600 dark:text-yellow-400" title="Title property"></i>
                                     }
                                 </td>
-                                <td class="do-key">@row.Key</td>
-                                <td>@row.DisplayName</td>
-                                <td><span class="badge text-bg-light border">@row.Type</span></td>
-                                <td class="small text-muted">
-                                    @if (row.Required) { <span class="me-1" title="Required">REQ</span> }
-                                    @if (row.Unique) { <span class="me-1" title="Unique">UNQ</span> }
-                                    @if (row.Indexed) { <span class="me-1" title="Indexed">IDX</span> }
+                                <td class="px-3 py-2 do-key">@row.Key</td>
+                                <td class="px-3 py-2">@row.DisplayName</td>
+                                <td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">@row.Type</span></td>
+                                <td class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                                    @if (row.Required) { <span class="mr-1" title="Required">REQ</span> }
+                                    @if (row.Unique) { <span class="mr-1" title="Unique">UNQ</span> }
+                                    @if (row.Indexed) { <span class="mr-1" title="Indexed">IDX</span> }
                                     @if (row.IsCollection) { <span title="Collection">[]</span> }
                                 </td>
-                                <td class="text-end" @onclick:stopPropagation>
-                                    <button class="btn btn-sm btn-link p-0 me-1" @onclick="() => State.MoveProperty(row, -1)" title="Move up"><i class="bi bi-arrow-up"></i></button>
-                                    <button class="btn btn-sm btn-link p-0 me-1" @onclick="() => State.MoveProperty(row, 1)" title="Move down"><i class="bi bi-arrow-down"></i></button>
-                                    <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => State.RemoveProperty(row)" title="Delete"><i class="bi bi-trash"></i></button>
+                                <td class="px-3 py-2 text-right whitespace-nowrap" @onclick:stopPropagation>
+                                    <button class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 p-0 bg-transparent border-none cursor-pointer mr-1" @onclick="() => State.MoveProperty(row, -1)" title="Move up"><i class="bi bi-arrow-up"></i></button>
+                                    <button class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 p-0 bg-transparent border-none cursor-pointer mr-1" @onclick="() => State.MoveProperty(row, 1)" title="Move down"><i class="bi bi-arrow-down"></i></button>
+                                    <button class="text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-0 bg-transparent border-none cursor-pointer" @onclick="() => State.RemoveProperty(row)" title="Delete"><i class="bi bi-trash"></i></button>
                                 </td>
                             </tr>
                         }
                     </tbody>
                 </table>
+                </div>
             }
 
             @* ── External data source bindings ─────────────────── *@
             <hr class="my-3" />
-            <div class="d-flex align-items-center mb-2">
-                <h6 class="text-muted mb-0"><i class="bi bi-hdd-network"></i> External Data Sources</h6>
-                <button class="btn btn-outline-primary btn-sm ms-auto" @onclick="() => State.AddDataSource()">
+            <div class="flex items-center mb-2">
+                <h6 class="text-gray-500 dark:text-gray-400 mb-0"><i class="bi bi-hdd-network"></i> External Data Sources</h6>
+                <button class="ml-auto px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors" @onclick="() => State.AddDataSource()">
                     <i class="bi bi-plus-lg"></i> Add Data Source
                 </button>
             </div>
-            <p class="text-muted small">Optional. Bind records to an external query; otherwise records come from managed storage. Referenced by index from a form dropdown's data provider.</p>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Optional. Bind records to an external query; otherwise records come from managed storage. Referenced by index from a form dropdown's data provider.</p>
 
             @if (State.Definition.DataSources.Count == 0)
             {
-                <div class="text-muted border rounded p-3 text-center small" style="border-style: dashed !important;">
+                <div class="text-gray-500 dark:text-gray-400 border rounded p-3 text-center text-sm" style="border-style: dashed !important;">
                     No external bindings.
                 </div>
             }
@@ -133,19 +142,19 @@
                 {
                     var dsIndex = dsI;
                     var ds = State.Definition.DataSources[dsIndex];
-                    <div class="card mb-2">
-                        <div class="card-header d-flex align-items-center gap-2 py-1">
-                            <span class="badge text-bg-secondary" title="DataSourceIndex">#@dsIndex</span>
-                            <input class="form-control form-control-sm" style="max-width: 220px;"
+                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg mb-2 overflow-hidden">
+                        <div class="flex items-center gap-2 py-1.5 px-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+                            <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-gray-500 text-white" title="DataSourceIndex">#@dsIndex</span>
+                            <input class="form-input text-sm" style="max-width: 220px;"
                                    placeholder="Binding name" @bind="ds.Name" @bind:after="State.MarkDirty" />
-                            <button class="btn btn-sm btn-link text-danger p-0 ms-auto"
+                            <button class="ml-auto text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-0 bg-transparent border-none cursor-pointer"
                                     @onclick="() => State.RemoveDataSource(ds)" title="Remove binding">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
-                        <div class="card-body py-2">
+                        <div class="p-3">
                             <label class="property-label">Connection</label>
-                            <select class="form-select form-select-sm mb-2" @bind="ds.DataSourceKey" @bind:after="State.MarkDirty">
+                            <select class="form-input text-sm mb-2" @bind="ds.DataSourceKey" @bind:after="State.MarkDirty">
                                 <option value="">— select connection —</option>
                                 @foreach (var conn in State.DataSourceCatalog)
                                 {
@@ -154,35 +163,35 @@
                             </select>
                             @if (State.DataSourceCatalog.Count == 0)
                             {
-                                <div class="text-muted small mb-2">No connections defined — create them under <a href="/DataSources" target="_blank">Data Sources</a>.</div>
+                                <div class="text-gray-500 dark:text-gray-400 text-sm mb-2">No connections defined — create them under <a href="/DataSources" target="_blank">Data Sources</a>.</div>
                             }
 
                             <label class="property-label">Query</label>
-                            <textarea class="form-control form-control-sm font-monospace mb-2" rows="2"
+                            <textarea class="form-input text-sm font-mono mb-2" rows="2"
                                       placeholder="SELECT id, name FROM Customer" @bind="ds.Query" @bind:after="State.MarkDirty"></textarea>
 
-                            <div class="d-flex align-items-center mb-1">
+                            <div class="flex items-center mb-1">
                                 <span class="property-label mb-0">Column mappings</span>
-                                <button class="btn btn-sm btn-link p-0 ms-auto" @onclick="() => State.AddColumnMapping(ds)">
+                                <button class="ml-auto text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 p-0 bg-transparent border-none cursor-pointer" @onclick="() => State.AddColumnMapping(ds)">
                                     <i class="bi bi-plus-lg"></i> Add
                                 </button>
                             </div>
                             @foreach (var mapping in ds.ColumnMappings)
                             {
-                                <div class="input-group input-group-sm mb-1">
-                                    <input class="form-control" placeholder="result column" @bind="mapping.Column" @bind:after="State.MarkDirty" />
-                                    <span class="input-group-text">→</span>
-                                    <select class="form-select" @bind="mapping.Property" @bind:after="State.MarkDirty">
+                                <div class="input-group mb-1">
+                                    <input class="form-input rounded-r-none" placeholder="result column" @bind="mapping.Column" @bind:after="State.MarkDirty" />
+                                    <span class="input-group-text border-l-0 border-r-0">→</span>
+                                    <select class="form-input rounded-l-none" @bind="mapping.Property" @bind:after="State.MarkDirty">
                                         <option value="">— property —</option>
                                         @foreach (var target in State.Definition.Properties)
                                         {
                                             <option value="@target.Key">@target.Key</option>
                                         }
                                     </select>
-                                    <button class="btn btn-outline-danger" @onclick="() => State.RemoveColumnMapping(ds, mapping)"><i class="bi bi-x"></i></button>
+                                    <button class="px-2 py-1 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-r-lg border border-red-200 dark:border-red-800" @onclick="() => State.RemoveColumnMapping(ds, mapping)"><i class="bi bi-x"></i></button>
                                 </div>
                             }
-                            <div class="form-text">Unmapped columns fall through to a property with the same name.</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Unmapped columns fall through to a property with the same name.</div>
                         </div>
                     </div>
                 }
@@ -190,24 +199,24 @@
         </div>
 
         @* ── Property panel ──────────────────────────────────── *@
-        <div class="border-start bg-light p-3" style="width: 360px; min-width: 360px; overflow-y: auto;">
+        <div class="border-s bg-gray-100 dark:bg-gray-800 p-3" style="width: 360px; min-width: 360px; overflow-y: auto;">
             @if (State.SelectedProperty is { } prop)
             {
-                <h6 class="text-muted mb-3"><i class="bi bi-sliders"></i> Property</h6>
+                <h6 class="text-gray-500 dark:text-gray-400 mb-3"><i class="bi bi-sliders"></i> Property</h6>
 
                 <div class="property-section">
                     <div class="property-label">Key</div>
-                    <input class="form-control form-control-sm do-key mb-2" value="@prop.Key"
+                    <input class="form-input form-input-sm do-key mb-2" value="@prop.Key"
                            @onchange="e => { prop.Key = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }" />
                     <div class="property-label">Display Name</div>
-                    <input class="form-control form-control-sm mb-2" @bind="prop.DisplayName" @bind:after="State.MarkDirty" />
+                    <input class="form-input form-input-sm mb-2" @bind="prop.DisplayName" @bind:after="State.MarkDirty" />
                     <div class="property-label">Description</div>
-                    <input class="form-control form-control-sm" @bind="prop.Description" @bind:after="State.MarkDirty" />
+                    <input class="form-input form-input-sm" @bind="prop.Description" @bind:after="State.MarkDirty" />
                 </div>
 
                 <div class="property-section">
                     <div class="property-label">Type</div>
-                    <select class="form-select form-select-sm mb-2" @bind="prop.Type" @bind:after="State.MarkDirty">
+                    <select class="form-input text-sm mb-2" @bind="prop.Type" @bind:after="State.MarkDirty">
                         @foreach (var type in Enum.GetValues<DomainPropertyType>())
                         {
                             <option value="@type">@type</option>
@@ -217,7 +226,7 @@
                     @if (prop.Type == DomainPropertyType.Reference)
                     {
                         <div class="property-label">References</div>
-                        <select class="form-select form-select-sm" @bind="prop.ReferenceTargetKey" @bind:after="State.MarkDirty">
+                        <select class="form-input text-sm" @bind="prop.ReferenceTargetKey" @bind:after="State.MarkDirty">
                             <option value="">— select object —</option>
                             @foreach (var summary in State.Catalog.Where(s => s.Key != State.Key))
                             {
@@ -229,45 +238,45 @@
 
                 <div class="property-section">
                     <div class="property-label">Constraints</div>
-                    <div class="form-check form-check-sm">
-                        <input class="form-check-input" type="checkbox" id="p-req" @bind="prop.Required" @bind:after="State.MarkDirty" />
-                        <label class="form-check-label" for="p-req">Required</label>
+                    <div class="flex items-center">
+                        <input class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" type="checkbox" id="p-req" @bind="prop.Required" @bind:after="State.MarkDirty" />
+                        <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer" for="p-req">Required</label>
                     </div>
-                    <div class="form-check form-check-sm">
-                        <input class="form-check-input" type="checkbox" id="p-unq" @bind="prop.Unique" @bind:after="State.MarkDirty" />
-                        <label class="form-check-label" for="p-unq">Unique</label>
+                    <div class="flex items-center">
+                        <input class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" type="checkbox" id="p-unq" @bind="prop.Unique" @bind:after="State.MarkDirty" />
+                        <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer" for="p-unq">Unique</label>
                     </div>
-                    <div class="form-check form-check-sm">
-                        <input class="form-check-input" type="checkbox" id="p-idx" @bind="prop.Indexed" @bind:after="State.MarkDirty" />
-                        <label class="form-check-label" for="p-idx">Indexed</label>
+                    <div class="flex items-center">
+                        <input class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" type="checkbox" id="p-idx" @bind="prop.Indexed" @bind:after="State.MarkDirty" />
+                        <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer" for="p-idx">Indexed</label>
                     </div>
-                    <div class="form-check form-check-sm">
-                        <input class="form-check-input" type="checkbox" id="p-col" @bind="prop.IsCollection" @bind:after="State.MarkDirty" />
-                        <label class="form-check-label" for="p-col">Collection (multi-value)</label>
+                    <div class="flex items-center">
+                        <input class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500" type="checkbox" id="p-col" @bind="prop.IsCollection" @bind:after="State.MarkDirty" />
+                        <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer" for="p-col">Collection (multi-value)</label>
                     </div>
                 </div>
 
                 @if (prop.Type == DomainPropertyType.Choice)
                 {
                     <div class="property-section">
-                        <div class="d-flex align-items-center mb-2">
+                        <div class="flex items-center mb-2">
                             <div class="property-label mb-0">Choices</div>
-                            <button class="btn btn-sm btn-link p-0 ms-auto" @onclick="() => AddChoice(prop)"><i class="bi bi-plus-lg"></i> Add</button>
+                            <button class="ml-auto text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 p-0 bg-transparent border-none cursor-pointer" @onclick="() => AddChoice(prop)"><i class="bi bi-plus-lg"></i> Add</button>
                         </div>
                         @foreach (var choice in prop.Choices)
                         {
-                            <div class="input-group input-group-sm mb-1">
-                                <input class="form-control" placeholder="Label" @bind="choice.Label" @bind:after="State.MarkDirty" />
-                                <input class="form-control" placeholder="Value"
+                            <div class="input-group mb-1">
+                                <input class="form-input rounded-r-none" placeholder="Label" @bind="choice.Label" @bind:after="State.MarkDirty" />
+                                <input class="form-input rounded-none border-l-0" placeholder="Value"
                                        value="@choice.Value?.ToString()"
                                        @onchange="e => { choice.Value = e.Value?.ToString(); State.MarkDirty(); }" />
-                                <button class="btn btn-outline-danger" @onclick="() => RemoveChoice(prop, choice)"><i class="bi bi-x"></i></button>
+                                <button class="px-2 py-1 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-r-lg border border-red-200 dark:border-red-800" @onclick="() => RemoveChoice(prop, choice)"><i class="bi bi-x"></i></button>
                             </div>
                         }
                     </div>
                 }
 
-                <button class="btn btn-outline-secondary btn-sm w-100"
+                <button class="w-full px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
                         @onclick="() => SetTitleProperty(prop)"
                         disabled="@(State.Definition.TitleProperty == prop.Key)">
                     <i class="bi bi-star"></i> Use as title property
@@ -275,7 +284,7 @@
             }
             else
             {
-                <div class="text-muted small">Select a property to edit its settings.</div>
+                <div class="text-gray-500 dark:text-gray-400 text-sm">Select a property to edit its settings.</div>
             }
         </div>
     </div>

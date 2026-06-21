@@ -5,68 +5,62 @@
     ViewData["Title"] = "Workflow Instances";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold mb-1">Workflow Instances</h4>
-        <p class="text-muted small mb-0">Monitor running and completed workflow executions</p>
-    </div>
-</div>
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = "Workflow Instances",
+    Subtitle = "Monitor running and completed workflow executions"
+}' />
 
 @if (Model.Instances.Count == 0)
 {
-    <div class="card">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-diagram-3 fs-1 text-muted mb-3 d-block"></i>
-            <p class="text-muted mb-0">No workflow instances yet.</p>
-        </div>
-    </div>
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = "bi-diagram-3",
+        Message = "No workflow instances yet."
+    }' />
 }
 else
 {
-    <div class="card">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Workflow</th>
+                    <th>State</th>
+                    <th>Active Tokens</th>
+                    <th>Started</th>
+                    <th>Ended</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var inst in Model.Instances)
+                {
                     <tr>
-                        <th>Workflow</th>
-                        <th>State</th>
-                        <th>Active Tokens</th>
-                        <th>Started</th>
-                        <th>Ended</th>
-                        <th class="text-end">Actions</th>
+                        <td class="font-medium">@inst.WorkflowName</td>
+                        <td>
+                            @{
+                                var stateStyles = inst.State switch
+                                {
+                                    InstanceState.Running => "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800",
+                                    InstanceState.Suspended => "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
+                                    InstanceState.Completed => "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800",
+                                    InstanceState.Failed => "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-200 dark:border-red-800",
+                                    InstanceState.Cancelled => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+                                    _ => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+                                };
+                            }
+                            <span class="badge @stateStyles">@inst.State</span>
+                        </td>
+                        <td>@inst.TokenCount</td>
+                        <td class="text-sm text-gray-500 dark:text-gray-400">@inst.StartTime.ToString("g")</td>
+                        <td class="text-sm text-gray-500 dark:text-gray-400">@(inst.EndTime?.ToString("g") ?? "—")</td>
+                        <td class="text-right">
+                            <a class="btn-action btn-action-primary" asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@inst.InstanceId" title="View">
+                                <i class="bi bi-eye-fill"></i>
+                            </a>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach (var inst in Model.Instances)
-                    {
-                        <tr>
-                            <td class="fw-medium">@inst.WorkflowName</td>
-                            <td>
-                                @{
-                                    var stateBadge = inst.State switch
-                                    {
-                                        InstanceState.Running => "bg-primary",
-                                        InstanceState.Suspended => "bg-warning text-dark",
-                                        InstanceState.Completed => "bg-success",
-                                        InstanceState.Failed => "bg-danger",
-                                        InstanceState.Cancelled => "bg-secondary",
-                                        _ => "bg-secondary"
-                                    };
-                                }
-                                <span class="badge @stateBadge rounded-pill">@inst.State</span>
-                            </td>
-                            <td>@inst.TokenCount</td>
-                            <td class="text-muted small">@inst.StartTime.ToString("g")</td>
-                            <td class="text-muted small">@(inst.EndTime?.ToString("g") ?? "—")</td>
-                            <td class="text-end">
-                                <a class="btn btn-outline-primary btn-sm" asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@inst.InstanceId">
-                                    <i class="bi bi-eye-fill"></i> View
-                                </a>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                }
+            </tbody>
+        </table>
     </div>
 }

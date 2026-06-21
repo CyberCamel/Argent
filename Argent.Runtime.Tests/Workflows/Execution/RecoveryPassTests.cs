@@ -164,7 +164,7 @@ public class RecoveryPassTests : IDisposable
     }
 
     [Fact]
-    public async Task Flags_but_does_not_complete_instance_with_no_active_tokens()
+    public async Task Completes_instance_with_no_active_tokens()
     {
         var instanceId = Guid.NewGuid();
 
@@ -177,8 +177,8 @@ public class RecoveryPassTests : IDisposable
                 State = InstanceState.Running,
                 StartTime = DateTime.UtcNow,
             });
-            // A consumed token means zero active tokens, but no terminal EndEvent completed
-            // the instance — recovery should flag it, not silently mark it Completed.
+            // All tokens are consumed — the EndEvent fired but the post-commit completion
+            // check was lost (e.g. crash). Recovery detects this and marks the instance Completed.
             seed.WorkflowTokens.Add(new WorkflowToken
             {
                 Id = Guid.NewGuid(),
@@ -194,7 +194,8 @@ public class RecoveryPassTests : IDisposable
 
         await using var check = CreateContext();
         var instance = await check.WorkflowInstances.FindAsync(instanceId);
-        Assert.Equal(InstanceState.Running, instance!.State);
+        Assert.Equal(InstanceState.Completed, instance!.State);
+        Assert.NotNull(instance.EndTime);
     }
 
     public void Dispose()

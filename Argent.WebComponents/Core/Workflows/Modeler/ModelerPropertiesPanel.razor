@@ -17,29 +17,29 @@
 {
     var descriptor = Registry.GetDescriptor(Node.NodeData.GetType());
 
-    <div class="modeler2-properties">
-        <div class="modeler2-properties-header">
-            <span class="modeler2-properties-title">
+    <div class="modeler-properties">
+        <div class="modeler-properties-header">
+            <span class="modeler-properties-title">
                 <i class="bi bi-gear"></i> Properties —
-                <span class="modeler2-properties-type">@(descriptor?.DisplayName ?? "Node")</span>
-                <span class="modeler2-properties-sep">—</span>
-                <span class="modeler2-properties-name">@Node.Title</span>
+                <span class="modeler-properties-type">@(descriptor?.DisplayName ?? "Node")</span>
+                <span class="modeler-properties-sep">—</span>
+                <span class="modeler-properties-name">@Node.Title</span>
             </span>
-            <button type="button" class="modeler2-properties-close" @onclick="HandleClose" title="Close">
+            <button type="button" class="modeler-properties-close" @onclick="HandleClose" title="Close">
                 <i class="bi bi-x-lg"></i>
             </button>
         </div>
-        <div class="modeler2-properties-body">
-            <div class="modeler2-properties-section">
-                <div class="modeler2-properties-field">
-                    <label class="modeler2-properties-label">Name</label>
-                    <input class="modeler2-properties-input"
+        <div class="modeler-properties-body">
+            <div class="modeler-properties-section">
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label">Name</label>
+                    <input class="modeler-properties-input"
                            value="@Node.Title"
                            @oninput="@(e => { Node.Title = e.Value?.ToString() ?? ""; State.MarkDirty(); })" />
                 </div>
-                <div class="modeler2-properties-field">
-                    <label class="modeler2-properties-label">Description</label>
-                    <textarea class="modeler2-properties-input modeler2-properties-textarea" rows="2"
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label">Description</label>
+                    <textarea class="modeler-properties-input modeler-properties-textarea" rows="2"
                               value="@Node.Description"
                               @oninput="@(e => { Node.Description = e.Value?.ToString() ?? ""; State.MarkDirty(); })"></textarea>
                 </div>
@@ -47,18 +47,18 @@
 
             @if (descriptor != null)
             {
-                <div class="modeler2-properties-section modeler2-properties-section-dyn">
+                <div class="modeler-properties-section modeler-properties-section-dyn">
                     @foreach (var prop in descriptor.Properties.OrderBy(p => p.Order))
                     {
                         var propInfo = Node.NodeData.GetType().GetProperty(prop.PropertyName);
                         if (propInfo == null) continue;
 
-                        <div class="modeler2-properties-field">
-                            <label class="modeler2-properties-label">
+                        <div class="modeler-properties-field">
+                            <label class="modeler-properties-label">
                                 @prop.DisplayName
                                 @if (!string.IsNullOrEmpty(prop.Description))
                                 {
-                                    <span class="modeler2-properties-tip" title="@prop.Description">
+                                    <span class="modeler-properties-tip" title="@prop.Description">
                                         <i class="bi bi-info-circle"></i>
                                     </span>
                                 }
@@ -66,27 +66,27 @@
 
                             @if (prop.DataType == PropertyDataType.Code)
                             {
-                                <textarea class="modeler2-properties-input modeler2-properties-code"
+                                <textarea class="modeler-properties-input modeler-properties-code"
                                           spellcheck="false" rows="4"
                                           value="@propInfo.GetValue(Node.NodeData)"
                                           @oninput="@(e => UpdateValue(propInfo, e.Value))" />
                             }
                             else if (prop.DataType == PropertyDataType.KeyValuePairs)
                             {
-                                <span class="modeler2-properties-placeholder">Dictionary editor coming soon</span>
+                                <span class="modeler-properties-placeholder">Dictionary editor coming soon</span>
                             }
                             else if (prop.DataType == PropertyDataType.Boolean)
                             {
-                                <label class="modeler2-properties-switch">
+                                <label class="modeler-properties-switch">
                                     <input type="checkbox"
                                            checked="@((bool?)propInfo.GetValue(Node.NodeData) ?? false)"
                                            @onchange="@(e => UpdateValue(propInfo, e.Value))" />
-                                    <span class="modeler2-properties-switch-slider"></span>
+                                    <span class="modeler-properties-switch-slider"></span>
                                 </label>
                             }
                             else
                             {
-                                <input class="modeler2-properties-input"
+                                <input class="modeler-properties-input"
                                        value="@propInfo.GetValue(Node.NodeData)"
                                        @oninput="@(e => UpdateValue(propInfo, e.Value))" />
                             }
@@ -98,10 +98,10 @@
             @* ── StartEvent: ObjectKey + FormId ─────────────────── *@
             @if (Node.NodeData is StartEvent startEvent)
             {
-                <div class="modeler2-properties-section modeler2-properties-section-dyn">
-                    <div class="modeler2-properties-field">
-                        <label class="modeler2-properties-label">Domain Object</label>
-                        <select class="modeler2-properties-input"
+                <div class="modeler-properties-section modeler-properties-section-dyn">
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">Domain Object</label>
+                        <select class="modeler-properties-input"
                                 @onchange="(e) => OnStartEventObjectKeyChanged(startEvent, e.Value?.ToString())">
                             <option value="">— select object —</option>
                             @foreach (var obj in _domainSummaries)
@@ -110,15 +110,15 @@
                             }
                         </select>
                     </div>
-                    <div class="modeler2-properties-field">
-                        <label class="modeler2-properties-label">Start Form</label>
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">Start Form</label>
                         @if (string.IsNullOrEmpty(startEvent.ObjectKey))
                         {
-                            <span class="modeler2-properties-placeholder small">Select a domain object first</span>
+                            <span class="modeler-properties-placeholder text-sm">Select a domain object first</span>
                         }
                         else
                         {
-                            <select class="modeler2-properties-input"
+                            <select class="modeler-properties-input"
                                     @onchange="(e) => SetStartEventForm(startEvent, e.Value?.ToString())">
                                 <option value="">— none —</option>
                                 @foreach (var form in _availableForms)
@@ -128,7 +128,7 @@
                             </select>
                             @if (!_availableForms.Any() && !string.IsNullOrEmpty(startEvent.ObjectKey))
                             {
-                                <div class="small text-warning mt-1"><i class="bi bi-exclamation-triangle"></i> No forms bound to "@startEvent.ObjectKey"</div>
+                                <div class="text-sm text-yellow-600 dark:text-yellow-400 mt-1"><i class="bi bi-exclamation-triangle"></i> No forms bound to "@startEvent.ObjectKey"</div>
                             }
                         }
                     </div>
@@ -140,16 +140,16 @@
             {
                 var wfObjectKey = GetWorkflowObjectKey();
                 var currentFormId = (userActivity.UX as FormExperience)?.FormId;
-                <div class="modeler2-properties-section modeler2-properties-section-dyn">
-                    <div class="modeler2-properties-field">
-                        <label class="modeler2-properties-label">Form</label>
+                <div class="modeler-properties-section modeler-properties-section-dyn">
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">Form</label>
                         @if (string.IsNullOrEmpty(wfObjectKey))
                         {
-                            <span class="modeler2-properties-placeholder small">Workflow needs a domain object on StartEvent</span>
+                            <span class="modeler-properties-placeholder text-sm">Workflow needs a domain object on StartEvent</span>
                         }
                         else
                         {
-                            <select class="modeler2-properties-input"
+                            <select class="modeler-properties-input"
                                     @onchange="(e) => SetUserActivityForm(userActivity, e.Value?.ToString())">
                                 <option value="">— none —</option>
                                 @foreach (var form in _availableForms)
@@ -159,7 +159,7 @@
                             </select>
                             @if (!_availableForms.Any() && !string.IsNullOrEmpty(wfObjectKey))
                             {
-                                <div class="small text-warning mt-1"><i class="bi bi-exclamation-triangle"></i> No forms bound to "@wfObjectKey"</div>
+                                <div class="text-sm text-yellow-600 dark:text-yellow-400 mt-1"><i class="bi bi-exclamation-triangle"></i> No forms bound to "@wfObjectKey"</div>
                             }
                         }
                     </div>
@@ -169,17 +169,17 @@
             @* ── ScriptActivity: Actions editor ──────────────────── *@
             @if (Node.NodeData is ScriptActivity scriptActivity)
             {
-                <div class="modeler2-properties-section modeler2-properties-section-dyn">
-                    <div class="modeler2-properties-label mb-1">Actions</div>
+                <div class="modeler-properties-section modeler-properties-section-dyn">
+                    <div class="modeler-properties-label mb-1">Actions</div>
 
                     @for (var i = 0; i < scriptActivity.Actions.Count; i++)
                     {
                         var idx = i;
                         var action = scriptActivity.Actions[idx];
-                        <div class="modeler2-script-action">
-                            <div class="modeler2-script-action-header">
-                                <span class="modeler2-script-action-type">@GetActionTypeName(action)</span>
-                                <button class="modeler2-btn-icon modeler2-script-action-remove"
+                        <div class="modeler-script-action">
+                            <div class="modeler-script-action-header">
+                                <span class="modeler-script-action-type">@GetActionTypeName(action)</span>
+                                <button class="modeler-btn-icon modeler-script-action-remove"
                                         @onclick="() => RemoveAction(scriptActivity, idx)" title="Remove">
                                     <i class="bi bi-x-lg"></i>
                                 </button>
@@ -187,40 +187,40 @@
 
                             @if (action is SetFormFieldAction sff)
                             {
-                                <div class="modeler2-properties-field">
-                                    <label class="modeler2-properties-label">Field Key</label>
-                                    <input class="modeler2-properties-input" value="@sff.FieldKey"
+                                <div class="modeler-properties-field">
+                                    <label class="modeler-properties-label">Field Key</label>
+                                    <input class="modeler-properties-input" value="@sff.FieldKey"
                                            @oninput="@(e => { sff.FieldKey = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
                                 </div>
-                                <div class="modeler2-properties-field">
-                                    <label class="modeler2-properties-label">Value</label>
-                                    <input class="modeler2-properties-input" value="@sff.Value"
+                                <div class="modeler-properties-field">
+                                    <label class="modeler-properties-label">Value</label>
+                                    <input class="modeler-properties-input" value="@sff.Value"
                                            @oninput="@(e => { sff.Value = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
                                 </div>
                             }
                             else if (action is SetVariableAction sv)
                             {
-                                <div class="modeler2-properties-field">
-                                    <label class="modeler2-properties-label">Variable Name</label>
-                                    <input class="modeler2-properties-input" value="@sv.VariableName"
+                                <div class="modeler-properties-field">
+                                    <label class="modeler-properties-label">Variable Name</label>
+                                    <input class="modeler-properties-input" value="@sv.VariableName"
                                            @oninput="@(e => { sv.VariableName = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
                                 </div>
-                                <div class="modeler2-properties-field">
-                                    <label class="modeler2-properties-label">Value</label>
-                                    <input class="modeler2-properties-input" value="@sv.Value"
+                                <div class="modeler-properties-field">
+                                    <label class="modeler-properties-label">Value</label>
+                                    <input class="modeler-properties-input" value="@sv.Value"
                                            @oninput="@(e => { sv.Value = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
                                 </div>
                             }
                         </div>
                     }
 
-                    <div class="modeler2-script-action-add">
-                        <select class="modeler2-properties-input" @bind="_newActionType">
+                    <div class="modeler-script-action-add">
+                        <select class="modeler-properties-input" @bind="_newActionType">
                             <option value="">— add action —</option>
                             <option value="set-form-field">Set Form Field</option>
                             <option value="set-variable">Set Instance Variable</option>
                         </select>
-                        <button class="modeler2-btn-icon" title="Add"
+                        <button class="modeler-btn-icon" title="Add"
                                 @onclick="() => AddAction(scriptActivity)">
                             <i class="bi bi-plus-lg"></i>
                         </button>
@@ -232,17 +232,17 @@
         {
             var def = GetTimerDefinition(Node.NodeData)!;
 
-            <div class="modeler2-properties-section modeler2-properties-section-dyn">
-                <div class="modeler2-properties-label mb-2">Timer Schedule</div>
+            <div class="modeler-properties-section modeler-properties-section-dyn">
+                <div class="modeler-properties-label mb-2">Timer Schedule</div>
 
-                <div class="modeler2-properties-field">
-                    <label class="modeler2-properties-label">Type</label>
-                    <div class="modeler2-timer-toggle">
-                        <button class="modeler2-timer-toggle-btn @(def is RelativeTimerDefinition ? "active" : "")"
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label">Type</label>
+                    <div class="modeler-timer-toggle">
+                        <button class="modeler-timer-toggle-btn @(def is RelativeTimerDefinition ? "active" : "")"
                                 @onclick="() => OnTimerTypeChanged(Node.NodeData, false)">
                             Relative
                         </button>
-                        <button class="modeler2-timer-toggle-btn @(def is CronTimerDefinition ? "active" : "")"
+                        <button class="modeler-timer-toggle-btn @(def is CronTimerDefinition ? "active" : "")"
                                 @onclick="() => OnTimerTypeChanged(Node.NodeData, true)">
                             Schedule
                         </button>
@@ -251,13 +251,13 @@
 
                 @if (def is RelativeTimerDefinition rel)
                 {
-                    <div class="modeler2-properties-field">
-                        <label class="modeler2-properties-label">Delay</label>
-                        <div class="modeler2-timer-row">
-                            <input type="number" min="0" class="modeler2-properties-input modeler2-timer-amount"
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">Delay</label>
+                        <div class="modeler-timer-row">
+                            <input type="number" min="0" class="modeler-properties-input modeler-timer-amount"
                                    value="@rel.Amount"
                                    @oninput="e => { if (int.TryParse(e.Value?.ToString(), out var n) && n >= 0) { rel.Amount = n; State.MarkDirty(); } }" />
-                            <select class="modeler2-properties-input"
+                            <select class="modeler-properties-input"
                                     @onchange="e => { if (Enum.TryParse<TimerUnit>(e.Value?.ToString(), out var u)) { rel.Unit = u; State.MarkDirty(); } }">
                                 @foreach (var unit in Enum.GetValues<TimerUnit>())
                                 {
@@ -267,14 +267,14 @@
                         </div>
                     </div>
 
-                    <div class="modeler2-properties-field">
-                        <label class="modeler2-properties-label">Anchor</label>
-                        <div class="modeler2-timer-toggle">
-                            <button class="modeler2-timer-toggle-btn @(!rel.UseField ? "active" : "")"
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">Anchor</label>
+                        <div class="modeler-timer-toggle">
+                            <button class="modeler-timer-toggle-btn @(!rel.UseField ? "active" : "")"
                                     @onclick="() => { rel.UseField = false; rel.FieldKey = null; State.MarkDirty(); }">
                                 After arriving
                             </button>
-                            <button class="modeler2-timer-toggle-btn @(rel.UseField ? "active" : "")"
+                            <button class="modeler-timer-toggle-btn @(rel.UseField ? "active" : "")"
                                     @onclick="() => { rel.UseField = true; State.MarkDirty(); }">
                                 After field date
                             </button>
@@ -283,14 +283,14 @@
 
                     @if (rel.UseField)
                     {
-                        <div class="modeler2-properties-field">
-                            <label class="modeler2-properties-label">
+                        <div class="modeler-properties-field">
+                            <label class="modeler-properties-label">
                                 Field Key
-                                <span class="modeler2-properties-tip" title="Domain object or form field key containing the base date">
+                                <span class="modeler-properties-tip" title="Domain object or form field key containing the base date">
                                     <i class="bi bi-info-circle"></i>
                                 </span>
                             </label>
-                            <input class="modeler2-properties-input" placeholder="e.g. submittedAt"
+                            <input class="modeler-properties-input" placeholder="e.g. submittedAt"
                                    value="@rel.FieldKey"
                                    @oninput="e => { rel.FieldKey = e.Value?.ToString(); State.MarkDirty(); }" />
                         </div>
@@ -302,9 +302,9 @@
                                           ExpressionChanged="@(s => { cron.Expression = s; State.MarkDirty(); })"
                                           TimeZoneId="@cron.TimeZoneId" />
 
-                    <div class="modeler2-properties-field">
-                        <label class="modeler2-properties-label">Timezone</label>
-                        <select class="modeler2-properties-input"
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">Timezone</label>
+                        <select class="modeler-properties-input"
                                 @onchange="@(e => { cron.TimeZoneId = e.Value?.ToString() ?? "UTC"; State.MarkDirty(); })">
                             @foreach (var tz in s_timeZones)
                             {
@@ -316,18 +316,18 @@
 
                 @if (Node.NodeData is TimerBoundaryEvent boundary)
                 {
-                    <div class="modeler2-properties-field modeler2-properties-field-inline">
-                        <label class="modeler2-properties-label">
+                    <div class="modeler-properties-field modeler-properties-field-inline">
+                        <label class="modeler-properties-label">
                             Interrupting
-                            <span class="modeler2-properties-tip"
+                            <span class="modeler-properties-tip"
                                   title="Cancels the parent activity when the timer fires">
                                 <i class="bi bi-info-circle"></i>
                             </span>
                         </label>
-                        <label class="modeler2-properties-switch">
+                        <label class="modeler-properties-switch">
                             <input type="checkbox" checked="@boundary.IsInterrupting"
                                    @onchange="e => { boundary.IsInterrupting = (bool)(e.Value ?? true); State.MarkDirty(); }" />
-                            <span class="modeler2-properties-switch-slider"></span>
+                            <span class="modeler-properties-switch-slider"></span>
                         </label>
                     </div>
                 }

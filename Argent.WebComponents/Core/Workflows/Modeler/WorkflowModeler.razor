@@ -17,15 +17,15 @@
 @inject NavigationManager Nav
 @inject IResourceOwnershipService OwnershipService
 
-<div class="modeler2-layout">
+<div class="modeler-layout">
     @if (EffectiveReadOnly)
     {
-        <div class="modeler2-toolbox modeler2-toolbox-readonly">
-            <div class="modeler2-toolbox-header">
-                <span class="modeler2-toolbox-title">Viewing old version</span>
+        <div class="modeler-toolbox modeler-toolbox-readonly">
+            <div class="modeler-toolbox-header">
+                <span class="modeler-toolbox-title">Viewing old version</span>
             </div>
-            <div class="modeler2-toolbox-list">
-                <p class="modeler2-toolbox-readonly-msg">
+            <div class="modeler-toolbox-list">
+                <p class="modeler-toolbox-readonly-msg">
                     <i class="bi bi-eye-fill"></i> This version is read-only.
                 </p>
             </div>
@@ -33,76 +33,82 @@
     }
     else
     {
-        <div class="modeler2-toolbox">
-            <div class="modeler2-toolbox-header">
-                <span class="modeler2-toolbox-title">Components</span>
+        <div class="modeler-toolbox">
+            <div class="modeler-toolbox-header">
+                <span class="modeler-toolbox-title">Components</span>
             </div>
-            <div class="modeler2-toolbox-list">
+            <div class="modeler-toolbox-list">
                 @foreach (var desc in Registry.GetRegisteredTypes().OrderBy(d => d.Category).ThenBy(d => d.DisplayName))
                 {
-                    <div class="modeler2-toolbox-item @desc.CssClass"
+                    <div class="modeler-toolbox-item @desc.CssClass"
                          @onpointerdown="e => OnToolboxPointerDown(e, desc)">
-                        <span class="modeler2-toolbox-icon material-symbols-outlined">@desc.Icon</span>
-                        <span class="modeler2-toolbox-label">@desc.DisplayName</span>
+                        <span class="modeler-toolbox-icon material-symbols-outlined">@desc.Icon</span>
+                        <span class="modeler-toolbox-label">@desc.DisplayName</span>
                     </div>
                 }
+                <div class="modeler-toolbox-section-header">Structure</div>
+                <div class="modeler-toolbox-item"
+                     @onclick="HandleAddPool">
+                    <span class="modeler-toolbox-icon material-symbols-outlined">view_column</span>
+                    <span class="modeler-toolbox-label">Pool</span>
+                </div>
             </div>
         </div>
     }
-    <div class="modeler2-resizer modeler2-resizer-h"
+    <div class="modeler-resizer modeler-resizer-h"
          data-resize-prop="--toolbox-width"
          data-resize-axis="x"
          data-resize-min="120"></div>
-    <div class="modeler2-main">
-        <div class="modeler2-toolbar">
-            <div class="modeler2-toolbar-left">
-                <div class="modeler2-tool-group">
-                    <button class="modeler2-tool-btn @(_activeTool == ActiveTool.Select ? "modeler2-tool-btn-active" : "")"
+    <div class="modeler-main">
+        <div class="modeler-toolbar">
+            <div class="modeler-toolbar-left">
+                <div class="modeler-tool-group">
+                    <button class="modeler-tool-btn @(_activeTool == ActiveTool.Select ? "modeler-tool-btn-active" : "")"
                             @onclick="() => _activeTool = ActiveTool.Select" title="Select (V)">
                         <i class="bi bi-hand-index-thumb"></i> Select
                     </button>
-                    <button class="modeler2-tool-btn @(_activeTool == ActiveTool.AddSpace ? "modeler2-tool-btn-active" : "")"
+                    <button class="modeler-tool-btn @(_activeTool == ActiveTool.AddSpace ? "modeler-tool-btn-active" : "")"
                             @onclick="() => _activeTool = ActiveTool.AddSpace" title="Add/Remove Space">
                         <i class="bi bi-arrows-expand"></i> Space
                     </button>
                 </div>
-                <span class="modeler2-toolbar-sep"></span>
-                <span class="modeler2-toolbar-title">@State.CurrentWorkflowName</span>
+                <span class="modeler-toolbar-sep"></span>
+                <span class="modeler-toolbar-title">@State.CurrentWorkflowName</span>
                 @if (!string.IsNullOrEmpty(State.CurrentWorkflowDescription))
                 {
-                    <span class="modeler2-toolbar-sep">—</span>
-                    <span class="modeler2-toolbar-subtitle">@State.CurrentWorkflowDescription</span>
+                    <span class="modeler-toolbar-sep">—</span>
+                    <span class="modeler-toolbar-subtitle">@State.CurrentWorkflowDescription</span>
                 }
             </div>
-            <div class="modeler2-toolbar-right">
+            <div class="modeler-toolbar-right">
                 @if (!EffectiveReadOnly)
                 {
-                    <button class="modeler2-btn-icon" title="Save" @onclick="HandleSave">
+                    <button class="modeler-btn-icon" title="Save" @onclick="HandleSave">
                         <i class="bi bi-save-fill"></i>
                     </button>
-                    <span class="modeler2-save-status @(State.HasUnsavedChanges ? "dirty" : "clean")" title="@(State.HasUnsavedChanges ? "Unsaved changes" : "Saved")">
+                    <span class="modeler-save-status @(State.HasUnsavedChanges ? "dirty" : "clean")" title="@(State.HasUnsavedChanges ? "Unsaved changes" : "Saved")">
                         <i class="bi @(State.HasUnsavedChanges ? "bi-circle-fill" : "bi-check-circle-fill")"></i>
                     </span>
-                    <button class="modeler2-btn-icon" title="Compile" @onclick="HandleCompile">
+                    <button class="modeler-btn-icon" title="Compile" @onclick="HandleCompile">
                         <i class="bi bi-gear-fill"></i>
                     </button>
                     @if (State.CompiledDefinition != null)
                     {
-                        <button class="modeler2-btn-icon" title="Test Run" @onclick="HandleTestRun">
+                        <button class="modeler-btn-icon" title="Test Run" @onclick="HandleTestRun">
                             <i class="bi bi-play-fill"></i>
                         </button>
                     }
-                    <span class="modeler2-toolbar-sep"></span>
+                    <span class="modeler-toolbar-sep"></span>
                 }
-                <button class="modeler2-btn-icon" title="Fit to screen" @onclick="FitToScreen">
+                <button class="modeler-btn-icon" title="Fit to screen" @onclick="FitToScreen">
                     <i class="bi bi-arrows-angle-contract"></i>
                 </button>
-                <span class="modeler2-zoom-label">@(Math.Round(Session.Zoom * 100))%</span>
+                <span class="modeler-zoom-label">@(Math.Round(Session.Zoom * 100))%</span>
             </div>
         </div>
-        <div class="modeler2-body">
-            <div class="modeler2-canvas-col">
-            <div @ref="_canvasContainer" class="modeler2-canvas @(_activeTool == ActiveTool.AddSpace ? "modeler2-cursor-space" : "")"
+        <div class="modeler-body">
+            <div class="modeler-canvas-col">
+            <div @ref="_canvasContainer" class="modeler-canvas @(_activeTool == ActiveTool.AddSpace ? "modeler-cursor-space" : "")"
                  tabindex="0"
                  @onpointerdown="OnPointerDown"
                  @onpointermove="OnPointerMove"
@@ -117,7 +123,7 @@
                 <svg viewBox="@Session.ViewBox" width="100%" height="100%" style="display: block;">
                     <defs>
                         <pattern id="g2-grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                            <circle cx="2" cy="2" r="1" fill="#444" />
+                            <circle cx="2" cy="2" r="1" fill="var(--md-grid-dot)" />
                         </pattern>
                         <marker id="g2-arrowhead" markerWidth="6" markerHeight="4.5" refX="5" refY="2.25" orient="auto">
                             <polygon points="0 0, 6 2.25, 0 4.5" fill="currentColor" />
@@ -141,14 +147,14 @@
                         var isDefault = conn.EngineConnection.IsDefault;
                         var connLabel = GetConnectionLabel(conn);
 
-                        <g class="modeler2-conn @(isSel ? "modeler2-conn-selected" : "") @(isDefault ? "modeler2-conn-default" : "")"
+                        <g class="modeler-conn @(isSel ? "modeler-conn-selected" : "") @(isDefault ? "modeler-conn-default" : "")"
                            @onpointerdown:stopPropagation>
 
                             <path d="@path" stroke="transparent" stroke-width="14" fill="none"
                                   style="cursor: pointer;"
                                   @onpointerdown="e => OnConnectionPointerDown(e, conn)" />
 
-                            <path d="@path" class="modeler2-conn-path" fill="none"
+                            <path d="@path" class="modeler-conn-path" fill="none"
                                   marker-end="url(#g2-arrowhead)" />
 
                             @if (!string.IsNullOrEmpty(connLabel))
@@ -157,10 +163,10 @@
                                 var lx = (wps[mid - 1].X + wps[mid].X) / 2.0;
                                 var ly = (wps[mid - 1].Y + wps[mid].Y) / 2.0 - 8;
                                 var connLabelCls = isDefault
-                                    ? "modeler2-conn-label modeler2-conn-label-default"
+                                    ? "modeler-conn-label modeler-conn-label-default"
                                     : isUserActivity
-                                        ? "modeler2-conn-label modeler2-conn-label-action"
-                                        : "modeler2-conn-label";
+                                        ? "modeler-conn-label modeler-conn-label-action"
+                                        : "modeler-conn-label";
                                 <svg:text x="@lx" y="@ly" class="@connLabelCls">@connLabel</svg:text>
                             }
 
@@ -171,7 +177,7 @@
                                     var idx = i; // the loop variable is shared across iterations; lambdas must capture a copy
                                     var isEndpoint = idx == 0 || idx == wps.Count - 1;
                                     <circle cx="@wps[idx].X" cy="@wps[idx].Y" r="5"
-                                            class="modeler2-waypoint @(isEndpoint ? "modeler2-waypoint-endpoint" : "")"
+                                            class="modeler-waypoint @(isEndpoint ? "modeler-waypoint-endpoint" : "")"
                                             @onpointerdown:stopPropagation
                                             @onpointerdown="e => OnWaypointPointerDown(e, conn, idx)" />
                                 }
@@ -191,43 +197,43 @@
                                 _draftConnection.FixedNode, _draftConnection.FixedDir,
                                 _draftConnection.MouseX, _draftConnection.MouseY,
                                 _draftConnection.TargetHint);
-                        <path d="@draftPath" class="modeler2-draft-path" marker-end="url(#g2-arrowhead)" />
+                        <path d="@draftPath" class="modeler-draft-path" marker-end="url(#g2-arrowhead)" />
                     }
 
                     @* Pending node preview *@
                     @if (_pendingNodeDesc != null)
                     {
-                        <g transform="translate(@_pendingNodeX, @_pendingNodeY)" class="modeler2-pending-node">
+                        <g transform="translate(@_pendingNodeX, @_pendingNodeY)" class="modeler-pending-node">
                             @switch (_pendingNodeShape)
                             {
                                 case NodeShape.Circle:
                                     <ellipse cx="@(_pendingNodeW / 2)" cy="@(_pendingNodeH / 2)"
                                              rx="@(_pendingNodeW / 2)" ry="@(_pendingNodeH / 2)"
-                                             class="modeler2-node-shape @_pendingNodeCss" />
+                                             class="modeler-node-shape @_pendingNodeCss" />
                                     break;
                                 case NodeShape.Diamond:
                                     <polygon points="@($"{_pendingNodeW / 2},0 {_pendingNodeW},{_pendingNodeH / 2} {_pendingNodeW / 2},{_pendingNodeH} 0,{_pendingNodeH / 2}")"
-                                             class="modeler2-node-shape @_pendingNodeCss" />
+                                             class="modeler-node-shape @_pendingNodeCss" />
                                     break;
                                 default:
                                     <rect x="0" y="0" width="@_pendingNodeW" height="@_pendingNodeH" rx="6"
-                                          class="modeler2-node-shape @_pendingNodeCss" />
+                                          class="modeler-node-shape @_pendingNodeCss" />
                                     break;
                             }
                             <text x="@(_pendingNodeW / 2)" y="@(_pendingNodeH / 2 + 4)" text-anchor="middle"
-                                  class="modeler2-node-label" dominant-baseline="middle">@_pendingNodeTitle</text>
+                                  class="modeler-node-label" dominant-baseline="middle">@_pendingNodeTitle</text>
                         </g>
                     }
 
                     @* Snap guides *@
                     @if (_snapResult?.TargetNode != null)
                     {
-                        <g class="modeler2-snap-guides">
+                        <g class="modeler-snap-guides">
                             <rect x="@(_snapResult.TargetNode.X - _snapHighlightPadding)"
                                   y="@(_snapResult.TargetNode.Y - _snapHighlightPadding)"
                                   width="@(_snapResult.TargetNode.Width + _snapHighlightPadding * 2)"
                                   height="@(_snapResult.TargetNode.Height + _snapHighlightPadding * 2)"
-                                  class="modeler2-snap-highlight" />
+                                  class="modeler-snap-highlight" />
 
                             @if (_snapResult.XSnapAxis != null && _activeNode != null)
                             {
@@ -242,7 +248,7 @@
                                 double top = Math.Min(_snapResult.SnappedY, _snapResult.TargetNode.Y) - 1000;
                                 double bottom = Math.Max(_snapResult.SnappedY + _activeNode.Height, _snapResult.TargetNode.Y + _snapResult.TargetNode.Height) + 1000;
 
-                                <line x1="@x" y1="@top" x2="@x" y2="@bottom" class="modeler2-snap-line" />
+                                <line x1="@x" y1="@top" x2="@x" y2="@bottom" class="modeler-snap-line" />
                             }
 
                             @if (_snapResult.YSnapAxis != null && _activeNode != null)
@@ -258,7 +264,7 @@
                                 double left = Math.Min(_snapResult.SnappedX, _snapResult.TargetNode.X) - 20;
                                 double right = Math.Max(_snapResult.SnappedX + _activeNode.Width, _snapResult.TargetNode.X + _snapResult.TargetNode.Width) + 20;
 
-                                <line x1="@left" y1="@y" x2="@right" y2="@y" class="modeler2-snap-line" />
+                                <line x1="@left" y1="@y" x2="@right" y2="@y" class="modeler-snap-line" />
                             }
                         </g>
                     }
@@ -271,7 +277,7 @@
                         double rw = Math.Abs(_selEndX - _selStartX);
                         double rh = Math.Abs(_selEndY - _selStartY);
                         <rect x="@rx" y="@ry" width="@rw" height="@rh"
-                              class="modeler2-rubber-band" />
+                              class="modeler-rubber-band" />
                     }
 
                     @* Space tool guide *@
@@ -285,14 +291,14 @@
                         @if (_spaceIsHorizontal)
                         {
                             @* horizontal drag → vertical cut line *@
-                            <line class="modeler2-space-guide"
+                            <line class="modeler-space-guide"
                                   x1="@_spaceStartX" y1="@vpTop"
                                   x2="@_spaceStartX" y2="@vpBottom" />
                         }
                         else
                         {
                             @* vertical drag → horizontal cut line *@
-                            <line class="modeler2-space-guide"
+                            <line class="modeler-space-guide"
                                   x1="@vpLeft" y1="@_spaceStartY"
                                   x2="@vpRight" y2="@_spaceStartY" />
                         }
@@ -306,10 +312,111 @@
                         var vpLeft = Session.PanX;
                         var vpRight = Session.PanX + Session.CanvasWidth / Session.Zoom;
 
-                        <line class="modeler2-space-crosshair" x1="@vpLeft" y1="@_spaceCursorY"
+                        <line class="modeler-space-crosshair" x1="@vpLeft" y1="@_spaceCursorY"
                               x2="@vpRight" y2="@_spaceCursorY" />
-                        <line class="modeler2-space-crosshair" x1="@_spaceCursorX" y1="@vpTop"
+                        <line class="modeler-space-crosshair" x1="@_spaceCursorX" y1="@vpTop"
                               x2="@_spaceCursorX" y2="@vpBottom" />
+                    }
+
+                    @* Pools + Swimlanes (background, below nodes) *@
+                    @foreach (var pool in State.Pools)
+                    {
+                        var pSel = State.SelectedPool == pool;
+                        const double headerW = 40;
+                        <g class="pool-group @(pSel ? "pool-selected" : "")"
+                           @onpointerdown="e => OnPoolHeaderPointerDown(e, pool)" @onpointerdown:stopPropagation
+                           @onclick:stopPropagation>
+                            <rect class="pool-bg" x="@pool.X.ToString("F2", CultureInfo.InvariantCulture)"
+                                  y="@pool.Y.ToString("F2", CultureInfo.InvariantCulture)"
+                                  width="@pool.Width.ToString("F2", CultureInfo.InvariantCulture)"
+                                  height="@pool.Height.ToString("F2", CultureInfo.InvariantCulture)" />
+                            @* Header strip *@
+                            <rect class="pool-header" x="@pool.X.ToString("F2", CultureInfo.InvariantCulture)"
+                                  y="@pool.Y.ToString("F2", CultureInfo.InvariantCulture)"
+                                  width="@headerW" height="@pool.Height.ToString("F2", CultureInfo.InvariantCulture)" />
+                            <text class="pool-header-label"
+                                  transform="translate(@((pool.X + headerW / 2).ToString("F2", CultureInfo.InvariantCulture)),@((pool.Y + pool.Height / 2).ToString("F2", CultureInfo.InvariantCulture))) rotate(-90)">
+                                @pool.Data.Label
+                            </text>
+
+                            @foreach (var lane in State.Lanes.Where(l => l.Pool == pool).OrderBy(l => l.Data.Order))
+                            {
+                                var lSel = State.SelectedLane == lane;
+                                <g class="swimlane-group @(lSel ? "lane-selected" : "")"
+                                   @onpointerdown="e => OnLaneHeaderPointerDown(e, lane)" @onpointerdown:stopPropagation
+                                   @onclick:stopPropagation>
+                                    <rect class="swimlane-bg"
+                                          x="@lane.X.ToString("F2", CultureInfo.InvariantCulture)"
+                                          y="@lane.Y.ToString("F2", CultureInfo.InvariantCulture)"
+                                          width="@lane.Width.ToString("F2", CultureInfo.InvariantCulture)"
+                                          height="@lane.Height.ToString("F2", CultureInfo.InvariantCulture)" />
+                                    @* Lane header strip *@
+                                    <rect class="swimlane-header"
+                                          x="@lane.X.ToString("F2", CultureInfo.InvariantCulture)"
+                                          y="@lane.Y.ToString("F2", CultureInfo.InvariantCulture)"
+                                          width="@headerW" height="@lane.Height.ToString("F2", CultureInfo.InvariantCulture)" />
+                                    <text class="swimlane-label"
+                                          transform="translate(@((lane.X + headerW / 2).ToString("F2", CultureInfo.InvariantCulture)),@((lane.Y + lane.Height / 2).ToString("F2", CultureInfo.InvariantCulture))) rotate(-90)">
+                                        @lane.Data.Label
+                                    </text>
+                                    @{
+                                        var role = lane.Data.RoleId.HasValue
+                                            ? State.Roles.FirstOrDefault(r => r.Id == lane.Data.RoleId)
+                                            : null;
+                                    }
+                                    @if (role != null)
+                                    {
+                                        <g>
+                                            <text class="swimlane-role-badge"
+                                                  x="@((lane.X + headerW + 4).ToString("F2", CultureInfo.InvariantCulture))"
+                                                  y="@((lane.Y + 14).ToString("F2", CultureInfo.InvariantCulture))">
+                                                @role.Name
+                                            </text>
+                                        </g>
+                                    }
+                                </g>
+                            }
+
+                            @* Lane resize handles (dividers between lanes) *@
+                            @{
+                                var orderedLanes = State.Lanes.Where(l => l.Pool == pool).OrderBy(l => l.Data.Order).ToList();
+                            }
+                            @for (int li = 0; li < orderedLanes.Count - 1; li++)
+                            {
+                                var topLane = orderedLanes[li];
+                                var botLane = orderedLanes[li + 1];
+                                var divY = topLane.Y + topLane.Height;
+                                var captureTop = topLane;
+                                var captureBot = botLane;
+                                <line class="swimlane-divider-handle"
+                                      x1="@((pool.X + headerW).ToString("F2", CultureInfo.InvariantCulture))" y1="@divY.ToString("F2", CultureInfo.InvariantCulture)"
+                                      x2="@((pool.X + pool.Width).ToString("F2", CultureInfo.InvariantCulture))" y2="@divY.ToString("F2", CultureInfo.InvariantCulture)"
+                                      @onpointerdown="e => OnLaneDividerPointerDown(e, captureTop, captureBot)" @onpointerdown:stopPropagation />
+                            }
+
+                            @* Pool resize handles — right edge, bottom edge, SE corner *@
+                            @if (!EffectiveReadOnly)
+                            {
+                                <rect class="pool-resize-handle pool-resize-e"
+                                      x="@((pool.X + pool.Width - 6).ToString("F2", CultureInfo.InvariantCulture))"
+                                      y="@pool.Y.ToString("F2", CultureInfo.InvariantCulture)"
+                                      width="12" height="@((pool.Height - 12).ToString("F2", CultureInfo.InvariantCulture))"
+                                      @onpointerdown="e => OnPoolResizePointerDown(e, pool, true, false)"
+                                      @onpointerdown:stopPropagation />
+                                <rect class="pool-resize-handle pool-resize-s"
+                                      x="@pool.X.ToString("F2", CultureInfo.InvariantCulture)"
+                                      y="@((pool.Y + pool.Height - 6).ToString("F2", CultureInfo.InvariantCulture))"
+                                      width="@((pool.Width - 12).ToString("F2", CultureInfo.InvariantCulture))" height="12"
+                                      @onpointerdown="e => OnPoolResizePointerDown(e, pool, false, true)"
+                                      @onpointerdown:stopPropagation />
+                                <rect class="pool-resize-handle pool-resize-se"
+                                      x="@((pool.X + pool.Width - 8).ToString("F2", CultureInfo.InvariantCulture))"
+                                      y="@((pool.Y + pool.Height - 8).ToString("F2", CultureInfo.InvariantCulture))"
+                                      width="14" height="14"
+                                      @onpointerdown="e => OnPoolResizePointerDown(e, pool, true, true)"
+                                      @onpointerdown:stopPropagation />
+                            }
+                        </g>
                     }
 
                     @* Nodes *@
@@ -321,7 +428,7 @@
 
                         @* Pointer-down on nodes is handled by the canvas hit-test in OnPointerDown;
                            a second handler here would race it across the JS-interop awaits. *@
-                        <g class="modeler2-node @(isSel ? "modeler2-node-selected" : "") @(isHighlighted ? "modeler2-node-highlighted" : "")"
+                        <g class="modeler-node @(isSel ? "modeler-node-selected" : "") @(isHighlighted ? "modeler-node-highlighted" : "")"
                            transform="translate(@node.X.ToString("F2", CultureInfo.InvariantCulture), @node.Y.ToString("F2", CultureInfo.InvariantCulture))"
                            @ondblclick="() => OnNodeDoubleClick(node)">
 
@@ -330,32 +437,32 @@
                                 case NodeShape.Circle:
                                     <ellipse cx="@(node.Width / 2)" cy="@(node.Height / 2)"
                                              rx="@(node.Width / 2)" ry="@(node.Height / 2)"
-                                             class="modeler2-node-shape @node.CssClass" />
+                                             class="modeler-node-shape @node.CssClass" />
                                     break;
                                 case NodeShape.Diamond:
                                     var _gdw = node.Width; var _gdh = node.Height;
                                     var _gcx = _gdw / 2.0; var _gcy = _gdh / 2.0;
                                     var _ghs = Math.Min(_gdw, _gdh) * 0.17;
                                     <polygon points="@($"{(_gdw / 2).ToString("F2", CultureInfo.InvariantCulture)},0 {_gdw.ToString("F2", CultureInfo.InvariantCulture)},{(_gdh / 2).ToString("F2", CultureInfo.InvariantCulture)} {(_gdw / 2).ToString("F2", CultureInfo.InvariantCulture)},{_gdh.ToString("F2", CultureInfo.InvariantCulture)} 0,{(_gdh / 2).ToString("F2", CultureInfo.InvariantCulture)}")"
-                                             class="modeler2-node-shape @node.CssClass" />
+                                             class="modeler-node-shape @node.CssClass" />
                                     @if (node.NodeData is ExclusiveGateway)
                                     {
-                                        <line class="modeler2-gw-symbol" x1="@(_gcx - _ghs)" y1="@(_gcy - _ghs)" x2="@(_gcx + _ghs)" y2="@(_gcy + _ghs)" />
-                                        <line class="modeler2-gw-symbol" x1="@(_gcx + _ghs)" y1="@(_gcy - _ghs)" x2="@(_gcx - _ghs)" y2="@(_gcy + _ghs)" />
+                                        <line class="modeler-gw-symbol" x1="@(_gcx - _ghs)" y1="@(_gcy - _ghs)" x2="@(_gcx + _ghs)" y2="@(_gcy + _ghs)" />
+                                        <line class="modeler-gw-symbol" x1="@(_gcx + _ghs)" y1="@(_gcy - _ghs)" x2="@(_gcx - _ghs)" y2="@(_gcy + _ghs)" />
                                     }
                                     else if (node.NodeData is ParallelGateway)
                                     {
-                                        <line class="modeler2-gw-symbol" x1="@_gcx" y1="@(_gcy - _ghs)" x2="@_gcx" y2="@(_gcy + _ghs)" />
-                                        <line class="modeler2-gw-symbol" x1="@(_gcx - _ghs)" y1="@_gcy" x2="@(_gcx + _ghs)" y2="@_gcy" />
+                                        <line class="modeler-gw-symbol" x1="@_gcx" y1="@(_gcy - _ghs)" x2="@_gcx" y2="@(_gcy + _ghs)" />
+                                        <line class="modeler-gw-symbol" x1="@(_gcx - _ghs)" y1="@_gcy" x2="@(_gcx + _ghs)" y2="@_gcy" />
                                     }
                                     else if (node.NodeData is InclusiveGateway)
                                     {
-                                        <circle class="modeler2-gw-symbol" cx="@_gcx" cy="@_gcy" r="@_ghs" />
+                                        <circle class="modeler-gw-symbol" cx="@_gcx" cy="@_gcy" r="@_ghs" />
                                     }
                                     break;
                                 default:
                                     <rect x="0" y="0" width="@node.Width" height="@node.Height" rx="6"
-                                          class="modeler2-node-shape @node.CssClass" />
+                                          class="modeler-node-shape @node.CssClass" />
                                     break;
                             }
 
@@ -403,13 +510,13 @@
                             @if (node.Shape == NodeShape.Diamond)
                             {
                                 <svg:text x="@(node.Width / 2)" y="@(node.Height + 14)"
-                                          text-anchor="middle" class="modeler2-node-label"
+                                          text-anchor="middle" class="modeler-node-label"
                                           dominant-baseline="middle">@node.Title</svg:text>
                             }
                             else if (node.NodeData is not (CatchingTimerEvent or TimerBoundaryEvent))
                             {
                                 <svg:text x="@(node.Width / 2)" y="@(node.Height / 2 + 4)"
-                                          text-anchor="middle" class="modeler2-node-label"
+                                          text-anchor="middle" class="modeler-node-label"
                                           dominant-baseline="middle">@node.Title</svg:text>
                             }
 
@@ -420,7 +527,7 @@
                                 foreach (var a in anchors)
                                 {
                                     <circle cx="@(a.X - node.X)" cy="@(a.Y - node.Y)" r="6"
-                                            class="modeler2-anchor"
+                                            class="modeler-anchor"
                                             @onpointerdown:stopPropagation
                                             @onpointerdown="e => OnAnchorPointerDown(e, node, a.dir)" />
                                 }
@@ -471,7 +578,7 @@
 
             @if (_editingNode != null)
             {
-                <div class="modeler2-resizer modeler2-resizer-v"
+                <div class="modeler-resizer modeler-resizer-v"
                      data-resize-prop="--properties-height"
                      data-resize-axis="y"
                      data-resize-invert="true"
@@ -483,7 +590,7 @@
             }
             else if (!EffectiveReadOnly && State.SelectedConnection is { } selectedConn)
             {
-                <div class="modeler2-resizer modeler2-resizer-v"
+                <div class="modeler-resizer modeler-resizer-v"
                      data-resize-prop="--properties-height"
                      data-resize-axis="y"
                      data-resize-invert="true"
@@ -492,9 +599,18 @@
                                        State="@State"
                                        OnClose="@CloseConnectionEditor" />
             }
+            else if (!EffectiveReadOnly && (State.SelectedPool != null || State.SelectedLane != null))
+            {
+                <div class="modeler-resizer modeler-resizer-v"
+                     data-resize-prop="--properties-height"
+                     data-resize-axis="y"
+                     data-resize-invert="true"
+                     data-resize-min="80"></div>
+                <PoolLanePropertiesPanel State="@State" />
+            }
             </div>
 
-            <div class="modeler2-resizer modeler2-resizer-h"
+            <div class="modeler-resizer modeler-resizer-h"
                  data-resize-prop="--sidebar-width"
                  data-resize-axis="x"
                  data-resize-invert="true"
@@ -522,7 +638,7 @@
     private Guid? _highlightedNodeId;
 
     // Modes
-    private enum Mode { Idle, Panning, Selecting, Dragging, Connecting, Resizing, WaypointDrag, SegmentDrag, SpaceTool }
+    private enum Mode { Idle, Panning, Selecting, Dragging, Connecting, Resizing, WaypointDrag, SegmentDrag, SpaceTool, DraggingPool, ResizingLane, ResizingPool }
     private Mode _mode = Mode.Idle;
 
     // Pending node from toolbox
@@ -576,6 +692,16 @@
     private const double ResizeMinW = 80;
     private const double ResizeMinH = 50;
 
+    // Pool / lane drag
+    private DesignerPool? _activePool;
+    private double _startPoolX, _startPoolY;
+    private HashSet<DesignerNode> _poolDraggedNodes = [];
+    // Pool resize
+    private bool _poolResizingWidth, _poolResizingHeight;
+    // Lane resize (drag divider between two lanes)
+    private DesignerLane? _topLane, _botLane;
+    private double _laneResizeStartY, _topLaneStartH, _botLaneStartY, _botLaneStartH;
+
     // Snap
     private SnapResult? _snapResult;
     private const double _snapHighlightPadding = 4;
@@ -598,8 +724,8 @@
         if (firstRender)
         {
             _dotNetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("Modeler2.init", _canvasContainer, _dotNetRef);
-            await JS.InvokeVoidAsync("Modeler2.syncClocks");
+            await JS.InvokeVoidAsync("Modeler.init", _canvasContainer, _dotNetRef);
+            await JS.InvokeVoidAsync("Modeler.syncClocks");
         }
     }
 
@@ -643,7 +769,7 @@
         {
             try
             {
-                await JS.InvokeVoidAsync("Modeler2.destroy", _canvasContainer);
+                await JS.InvokeVoidAsync("Modeler.destroy", _canvasContainer);
             }
             catch (JSDisconnectedException)
             {
@@ -654,12 +780,162 @@
     }
 
     private Task<BoundingRect> GetCanvasRect() =>
-        JS.InvokeAsync<BoundingRect>("Modeler2.getDimensions", _canvasContainer).AsTask();
+        JS.InvokeAsync<BoundingRect>("Modeler.getDimensions", _canvasContainer).AsTask();
 
     private async Task<(double X, double Y)> ToWorldAsync(double clientX, double clientY)
     {
         var dims = await GetCanvasRect();
         return Session.ScreenToWorld(clientX, clientY, dims.Left, dims.Top);
+    }
+
+    // ======================== POOL / LANE ========================
+
+    private void HandleAddPool()
+    {
+        if (EffectiveReadOnly) return;
+        var cx = Session.PanX + Session.CanvasWidth / Session.Zoom / 2;
+        var cy = Session.PanY + Session.CanvasHeight / Session.Zoom / 2;
+        var pool = State.AddPool(cx - 420, cy - 200);
+        State.Select(pool);
+    }
+
+    private async Task OnPoolHeaderPointerDown(PointerEventArgs e, DesignerPool pool)
+    {
+        if (EffectiveReadOnly) return;
+        if (_mode != Mode.Idle) return;
+
+        if (_pendingNodeDesc != null)
+        {
+            var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
+            PlaceNodeFromToolbox(wx, wy);
+            return;
+        }
+
+        State.Select(pool);
+        _startMouseX = e.ClientX;
+        _startMouseY = e.ClientY;
+        _activePool = pool;
+        _startPoolX = pool.X;
+        _startPoolY = pool.Y;
+        _poolDraggedNodes = [..State.Nodes.Where(n => IsNodeInPool(n, pool))];
+        _mode = Mode.DraggingPool;
+        State.Notify();
+    }
+
+    private async Task OnLaneHeaderPointerDown(PointerEventArgs e, DesignerLane lane)
+    {
+        if (EffectiveReadOnly) return;
+        if (_mode != Mode.Idle) return;
+
+        if (_pendingNodeDesc != null)
+        {
+            var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
+            PlaceNodeFromToolbox(wx, wy);
+            return;
+        }
+
+        State.Select(lane);
+        State.Notify();
+    }
+
+    private async Task OnPoolResizePointerDown(PointerEventArgs e, DesignerPool pool, bool resizeW, bool resizeH)
+    {
+        if (EffectiveReadOnly || _mode != Mode.Idle) return;
+
+        if (_pendingNodeDesc != null)
+        {
+            var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
+            PlaceNodeFromToolbox(wx, wy);
+            return;
+        }
+
+        State.Select(pool);
+        _startMouseX = e.ClientX;
+        _startMouseY = e.ClientY;
+        _activePool = pool;
+        _startNodeW = pool.Width;
+        _startNodeH = pool.Height;
+        _poolResizingWidth = resizeW;
+        _poolResizingHeight = resizeH;
+        _mode = Mode.ResizingPool;
+        State.Notify();
+    }
+
+    private async Task OnLaneDividerPointerDown(PointerEventArgs e, DesignerLane top, DesignerLane bot)
+    {
+        if (EffectiveReadOnly) return;
+        if (_mode != Mode.Idle) return;
+
+        if (_pendingNodeDesc != null)
+        {
+            var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
+            PlaceNodeFromToolbox(wx, wy);
+            return;
+        }
+
+        _startMouseX = e.ClientX;
+        _startMouseY = e.ClientY;
+        var (_, wy2) = await ToWorldAsync(e.ClientX, e.ClientY);
+        _topLane = top;
+        _botLane = bot;
+        _laneResizeStartY = wy2;
+        _topLaneStartH = top.Height;
+        _botLaneStartY = bot.Y;
+        _botLaneStartH = bot.Height;
+        _mode = Mode.ResizingLane;
+    }
+
+    // Returns the pool whose bounds contain (wx, wy), or null.
+    private DesignerPool? FindPoolAt(double wx, double wy)
+        => State.Pools.FirstOrDefault(p =>
+            wx >= p.X && wx <= p.X + p.Width &&
+            wy >= p.Y && wy <= p.Y + p.Height);
+
+    private bool IsNodeInPool(DesignerNode node, DesignerPool pool)
+    {
+        double cx = node.X + node.Width / 2;
+        double cy = node.Y + node.Height / 2;
+        return cx >= pool.X && cx <= pool.X + pool.Width &&
+               cy >= pool.Y && cy <= pool.Y + pool.Height;
+    }
+
+    // Clamps a node position to the pool's content area (excludes pool and lane header strips)
+    // and nudges the node center away from lane divider borders.
+    private const double LaneBorderZone = 10;
+    private (double X, double Y) ClampToPoolContent(
+        DesignerPool pool, double rawX, double rawY, double nodeW, double nodeH)
+    {
+        const double poolHeaderW = 40;
+        const double laneHeaderW = 40;
+
+        double x = Math.Clamp(rawX,
+            pool.X + poolHeaderW + laneHeaderW,
+            pool.X + pool.Width - nodeW);
+        double y = Math.Clamp(rawY,
+            pool.Y,
+            pool.Y + pool.Height - nodeH);
+
+        // Push node center away from lane dividers
+        double centerY = y + nodeH / 2;
+        var sortedLanes = State.Lanes
+            .Where(l => l.Pool == pool)
+            .OrderBy(l => l.Data.Order)
+            .ToList();
+        for (int i = 0; i < sortedLanes.Count - 1; i++)
+        {
+            double divY = sortedLanes[i].Y + sortedLanes[i].Height;
+            double dist = centerY - divY;
+            if (Math.Abs(dist) < LaneBorderZone)
+            {
+                y = dist <= 0
+                    ? divY - LaneBorderZone - nodeH / 2
+                    : divY + LaneBorderZone - nodeH / 2;
+                y = Math.Clamp(y, pool.Y, pool.Y + pool.Height - nodeH);
+                break;
+            }
+        }
+
+        return (x, y);
     }
 
     // ======================== TOOLBOX ========================
@@ -927,6 +1203,19 @@
                         var snap = GetSnappedPosition(_activeNode, State.Nodes, rawX, rawY);
                         double snappedX = snap.XSnapAxis != null ? snap.SnappedX : rawX;
                         double snappedY = snap.YSnapAxis != null ? snap.SnappedY : rawY;
+
+                        // If the node is inside a pool, clamp to the pool content area.
+                        // This prevents landing in header strips or on lane borders, but
+                        // allows free movement between lanes.
+                        var containingPool = FindPoolAt(
+                            snappedX + _activeNode.Width / 2,
+                            snappedY + _activeNode.Height / 2);
+                        if (containingPool != null)
+                        {
+                            (snappedX, snappedY) = ClampToPoolContent(
+                                containingPool, snappedX, snappedY, _activeNode.Width, _activeNode.Height);
+                        }
+
                         _activeNode.X = snappedX;
                         _activeNode.Y = snappedY;
                         _snapResult = snap;
@@ -980,6 +1269,69 @@
                     State.MarkDirty();
                 }
                 break;
+
+            case Mode.DraggingPool:
+                if (_activePool != null)
+                {
+                    double targetX = _startPoolX + (wx - sx);
+                    double targetY = _startPoolY + (wy - sy);
+                    double pdx = targetX - _activePool.X;
+                    double pdy = targetY - _activePool.Y;
+                    _activePool.X = targetX;
+                    _activePool.Y = targetY;
+                    foreach (var l in State.Lanes.Where(l => l.Pool == _activePool))
+                    {
+                        l.X += pdx;
+                        l.Y += pdy;
+                    }
+                    foreach (var node in _poolDraggedNodes)
+                    {
+                        node.X += pdx;
+                        node.Y += pdy;
+                        UpdateNodeConnections(node, pdx, pdy);
+                    }
+                    State.MarkDirty();
+                }
+                break;
+
+            case Mode.ResizingLane:
+                if (_topLane != null && _botLane != null)
+                {
+                    double delta = wy - _laneResizeStartY;
+                    double newTopH = Math.Max(40, _topLaneStartH + delta);
+                    double newBotH = Math.Max(40, _botLaneStartH - delta);
+                    _topLane.Height = newTopH;
+                    _botLane.Y = _botLaneStartY + (newTopH - _topLaneStartH);
+                    _botLane.Height = newBotH;
+                    State.MarkDirty();
+                }
+                break;
+
+            case Mode.ResizingPool:
+                if (_activePool != null)
+                {
+                    if (_poolResizingWidth)
+                    {
+                        double newW = Math.Max(160, _startNodeW + (wx - sx));
+                        _activePool.Width = newW;
+                        foreach (var l in State.Lanes.Where(l => l.Pool == _activePool))
+                            l.Width = newW - 40;
+                    }
+                    if (_poolResizingHeight)
+                    {
+                        double newH = Math.Max(80, _startNodeH + (wy - sy));
+                        double dh = newH - _activePool.Height;
+                        _activePool.Height = newH;
+                        var lastLane = State.Lanes
+                            .Where(l => l.Pool == _activePool)
+                            .OrderByDescending(l => l.Data.Order)
+                            .FirstOrDefault();
+                        if (lastLane != null)
+                            lastLane.Height = Math.Max(40, lastLane.Height + dh);
+                    }
+                    State.MarkDirty();
+                }
+                break;
         }
     }
 
@@ -1020,6 +1372,12 @@
         _mode = Mode.Idle;
         _activeNode = null;
         _activeConnection = null;
+        _activePool = null;
+        _poolDraggedNodes = [];
+        _topLane = null;
+        _botLane = null;
+        _poolResizingWidth = false;
+        _poolResizingHeight = false;
         _draggedWpIdx = -1;
         _segmentIdx = -1;
         _resizeDir = ResizeDir.None;
@@ -1336,6 +1694,13 @@
             }
             (nodeX, nodeY) = SnapToBoundaryEdge(parent, wx, wy, _pendingNodeW, _pendingNodeH);
             boundaryEvent.ParentNodeId = parent.NodeData.Id;
+        }
+        else
+        {
+            // If dropping inside a pool, clamp to content area (excludes header strips, lane borders)
+            var pool = FindPoolAt(wx, wy);
+            if (pool != null)
+                (nodeX, nodeY) = ClampToPoolContent(pool, nodeX, nodeY, _pendingNodeW, _pendingNodeH);
         }
 
         var node = new DesignerNode

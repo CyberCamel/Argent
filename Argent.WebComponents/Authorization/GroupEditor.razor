@@ -5,13 +5,13 @@
 @inject IPolicyDecisionService PolicyService
 @inject Microsoft.AspNetCore.Components.NavigationManager NavManager
 
-<div class="card">
-    <div class="card-body">
-        <h5 class="fw-bold mb-3">@(GroupId == null ? "New Group" : "Edit Group")</h5>
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+    <div class="p-4">
+        <h5 class="font-bold mb-3">@(GroupId == null ? "New Group" : "Edit Group")</h5>
 
         @if (_isSystem)
         {
-            <div class="alert alert-warning d-flex align-items-center gap-2">
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
                 <i class="bi bi-shield-lock-fill"></i>
                 <span>This is a system group and cannot be modified.</span>
             </div>
@@ -20,17 +20,17 @@
         {
             @if (!string.IsNullOrEmpty(_error))
             {
-                <div class="alert alert-danger">@_error</div>
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-800 dark:text-red-200">@_error</div>
             }
 
             <div class="mb-3">
-                <label class="form-label small fw-medium">Name</label>
-                <input type="text" class="form-control" @bind="Name" placeholder="e.g. Finance" />
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                <input type="text" class="form-input" @bind="Name" placeholder="e.g. Finance" />
             </div>
 
             <div class="mb-3">
-                <label class="form-label small fw-medium">Description</label>
-                <textarea class="form-control" @bind="Description" rows="2"></textarea>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <textarea class="form-input" @bind="Description" rows="2"></textarea>
             </div>
 
             <MemberSelector Label="Members" EmptyText="No members yet."
@@ -40,17 +40,17 @@
             <MemberSelector Label="Member groups" EmptyText="No nested groups."
                             Options="_groupOptions" Selected="_selectedGroups" />
 
-            <div class="d-flex gap-2">
-                <button class="btn btn-primary" @onclick="Save" disabled="@_saving">
+            <div class="flex gap-2">
+                <button class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" @onclick="Save" disabled="@_saving">
                     @(_saving ? "Saving..." : "Save Group")
                 </button>
-                <a class="btn btn-outline-secondary" href="/Admin/Groups">Cancel</a>
+                <a class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors" href="/Admin/Groups">Cancel</a>
             </div>
         }
 
         @if (_isSystem)
         {
-            <a class="btn btn-outline-secondary" href="/Admin/Groups">Back</a>
+            <a class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors" href="/Admin/Groups">Back</a>
         }
     </div>
 </div>

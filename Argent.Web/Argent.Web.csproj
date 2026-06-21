@@ -60,4 +60,8 @@
     <AdditionalFiles Include="Pages\Admin\Users\_UserTablePartial.cshtml" />
   </ItemGroup>
 
+  <Target Name="TailwindBuild" BeforeTargets="Build" Condition="Exists('$(MSBuildProjectDirectory)\node_modules\.bin\tailwindcss')">
+    <Exec Command="npx @tailwindcss/cli -i Styles/app.css -o wwwroot/css/app.css" />
+  </Target>
+
 </Project>

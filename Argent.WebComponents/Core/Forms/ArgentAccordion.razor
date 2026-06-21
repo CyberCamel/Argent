@@ -1,7 +1,7 @@
 @using Argent.WebComponents
 @inherits FormLayoutComponentBase
 
-<div class="accordion @Metadata.CssClass" id="@($"accordion-{Metadata.Id}")">
+<div class="divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden @Metadata.CssClass" id="@($"accordion-{Metadata.Id}")">
     @for (int i = 0; i < Metadata.Items.Count; i++)
     {
         var child = Metadata.Items[i];
@@ -10,17 +10,17 @@
             : i == ActiveIndex;
         var itemId = $"accordion-item-{Metadata.Id}-{i}";
 
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button @(isOpen ? "" : "collapsed")"
+        <div>
+            <h2 class="mb-0">
+                <button class="flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left @(isOpen ? "" : "")"
                         type="button"
                         @onclick="() => ToggleItem(i)">
                     @GetItemTitle(child)
+                    <i class="bi bi-chevron-down text-xs text-gray-400 transition-transform @(isOpen ? "rotate-180" : "")"></i>
                 </button>
             </h2>
-            <div class="accordion-collapse collapse @(isOpen ? "show" : "")"
-                 id="@itemId">
-                <div class="accordion-body">
+            <div class="@(isOpen ? "block" : "hidden")">
+                <div class="px-4 py-3">
                     @if (isOpen)
                     {
                         <ArgentRenderer Metadata="child" />

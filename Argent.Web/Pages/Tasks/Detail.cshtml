@@ -6,8 +6,10 @@
     ViewData["Title"] = "Task";
 }
 
-<div class="container py-4" style="max-width: 720px;">
-    <a href="/Tasks" class="btn btn-outline-secondary btn-sm mb-3">&larr; Back to Inbox</a>
+<div class="max-w-2xl mx-auto">
+    <a href="/Tasks" class="btn-action btn-action-secondary text-sm inline-flex items-center gap-1 px-3 py-1.5 rounded-lg mb-3">
+        <i class="bi bi-arrow-left"></i> Back to Inbox
+    </a>
     <component type="typeof(TaskDetail)" render-mode="ServerPrerendered"
                param-TaskId="@Model.Id"
                param-UserId="@Model.CurrentUserId"

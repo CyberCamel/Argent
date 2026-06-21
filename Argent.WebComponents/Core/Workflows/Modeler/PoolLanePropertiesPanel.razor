@@ -1,0 +1,113 @@
+@using Argent.Runtime.Workflows.Modeling
+@using Argent.Models.Workflows
+
+@if (State.SelectedPool is { } pool)
+{
+    <div class="modeler-properties">
+        <div class="modeler-properties-header">
+            <span class="modeler-properties-title">
+                <i class="bi bi-layout-split"></i> Properties —
+                <span class="modeler-properties-type">Pool</span>
+                <span class="modeler-properties-sep">—</span>
+                <span class="modeler-properties-name">@(string.IsNullOrEmpty(pool.Data.Label) ? "(unlabeled)" : pool.Data.Label)</span>
+            </span>
+            <button type="button" class="modeler-properties-close" @onclick="() => State.DeselectAll()" title="Close">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="modeler-properties-body">
+            <div class="modeler-properties-section">
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label">Label</label>
+                    <input class="modeler-properties-input"
+                           value="@pool.Data.Label"
+                           @oninput="e => { pool.Data.Label = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }" />
+                </div>
+            </div>
+            <div class="modeler-properties-section">
+                <button class="modeler-version-action-btn modeler-version-action-btn-primary" @onclick="() => AddLane(pool)">
+                    <i class="bi bi-plus-lg"></i> Add Lane
+                </button>
+                <button class="modeler-version-action-btn modeler-version-action-btn-danger"
+                        @onclick="() => DeletePool(pool)">
+                    <i class="bi bi-trash-fill"></i> Delete Pool
+                </button>
+            </div>
+        </div>
+    </div>
+}
+else if (State.SelectedLane is { } lane)
+{
+    <div class="modeler-properties">
+        <div class="modeler-properties-header">
+            <span class="modeler-properties-title">
+                <i class="bi bi-layout-three-columns"></i> Properties —
+                <span class="modeler-properties-type">Lane</span>
+                <span class="modeler-properties-sep">—</span>
+                <span class="modeler-properties-name">@(string.IsNullOrEmpty(lane.Data.Label) ? "(unlabeled)" : lane.Data.Label)</span>
+            </span>
+            <button type="button" class="modeler-properties-close" @onclick="() => State.DeselectAll()" title="Close">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="modeler-properties-body">
+            <div class="modeler-properties-section">
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label">Label</label>
+                    <input class="modeler-properties-input"
+                           value="@lane.Data.Label"
+                           @oninput="e => { lane.Data.Label = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }" />
+                </div>
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label">Role</label>
+                    <select class="modeler-properties-input"
+                            @onchange="e => SetLaneRole(lane, e.Value?.ToString())">
+                        <option value="">— No role —</option>
+                        @foreach (var role in State.Roles)
+                        {
+                            <option value="@role.Id" selected="@(lane.Data.RoleId == role.Id)">@role.Name</option>
+                        }
+                    </select>
+                    @if (!State.Roles.Any())
+                    {
+                        <div class="modeler-roles-empty">Define roles in the Roles panel first.</div>
+                    }
+                </div>
+            </div>
+            <div class="modeler-properties-section">
+                <button class="modeler-version-action-btn modeler-version-action-btn-danger"
+                        @onclick="() => DeleteLane(lane)">
+                    <i class="bi bi-trash-fill"></i> Delete Lane
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public required DesignerService State { get; set; }
+
+    private void AddLane(DesignerPool pool)
+    {
+        var lane = State.AddLane(pool);
+        State.Select(lane);
+    }
+
+    private void DeletePool(DesignerPool pool)
+    {
+        State.RemovePool(pool);
+        State.DeselectAll();
+    }
+
+    private void DeleteLane(DesignerLane lane)
+    {
+        State.RemoveLane(lane);
+        State.DeselectAll();
+    }
+
+    private void SetLaneRole(DesignerLane lane, string? roleIdStr)
+    {
+        lane.Data.RoleId = Guid.TryParse(roleIdStr, out var rid) ? rid : null;
+        State.MarkDirty();
+    }
+}

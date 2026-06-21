@@ -7,34 +7,34 @@
 
     var stateBadge = wi.State switch
     {
-        WorkItemState.Pending   => "bg-secondary",
-        WorkItemState.Running   => "bg-primary",
-        WorkItemState.Completed => "bg-success",
-        WorkItemState.Failed    => "bg-danger",
-        WorkItemState.Waiting   => "bg-warning text-dark",
-        _                       => "bg-secondary"
+        WorkItemState.Pending   => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+        WorkItemState.Running   => "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800",
+        WorkItemState.Completed => "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800",
+        WorkItemState.Failed    => "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-200 dark:border-red-800",
+        WorkItemState.Waiting   => "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
+        _                       => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700"
     };
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="flex flex-wrap justify-between items-center gap-4 mb-6">
     <div>
-        <h4 class="fw-bold mb-1">@(wi.NodeName ?? wi.NodeType)</h4>
-        <p class="text-muted small mb-0">
-            Work Item <code>@wi.Id</code>
+        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">@(wi.NodeName ?? wi.NodeType)</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            Work Item <code class="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs font-mono">@wi.Id</code>
             @if (wi.WorkflowName != null)
             {
                 <span class="mx-1">·</span>
                 <a asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@wi.InstanceId"
-                   class="text-decoration-none">
+                   class="text-indigo-600 dark:text-indigo-400 hover:underline">
                     @wi.WorkflowName
                 </a>
             }
         </p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="flex items-center gap-2">
         @if (wi.InstanceId.HasValue)
         {
-            <a class="btn btn-outline-secondary btn-sm"
+            <a class="btn-action btn-action-secondary text-sm inline-flex items-center gap-1 px-3 py-1.5 rounded-lg"
                asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@wi.InstanceId">
                 <i class="bi bi-arrow-left"></i> Back to Instance
             </a>
@@ -42,7 +42,7 @@
         @if (wi.State == WorkItemState.Failed)
         {
             <form method="post" asp-page-handler="Retry" asp-route-id="@wi.Id">
-                <button type="submit" class="btn btn-warning btn-sm">
+                <button type="submit" class="px-3 py-1.5 text-sm font-medium text-yellow-800 dark:text-yellow-200 bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 rounded-lg transition-colors">
                     <i class="bi bi-arrow-clockwise"></i> Retry
                 </button>
             </form>
@@ -51,92 +51,66 @@
 </div>
 
 @* Metadata cards *@
-<div class="row g-3 mb-4">
-    <div class="col-md-2">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="small text-muted mb-1">State</div>
-                <span class="badge @stateBadge rounded-pill fs-6">@wi.State</span>
-            </div>
-        </div>
+<div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+    <div class="card p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">State</div>
+        <span class="badge @stateBadge text-sm mt-1">@wi.State</span>
     </div>
-    <div class="col-md-2">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="small text-muted mb-1">Node Type</div>
-                <div class="fw-semibold small">@wi.NodeType</div>
-            </div>
-        </div>
+    <div class="card p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Node Type</div>
+        <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">@wi.NodeType</div>
     </div>
-    <div class="col-md-2">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="small text-muted mb-1">Retries</div>
-                <div class="fw-semibold">@wi.RetryCount <span class="text-muted fw-normal">/ @wi.MaxRetries</span></div>
-            </div>
-        </div>
+    <div class="card p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Retries</div>
+        <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">@wi.RetryCount <span class="text-gray-400 font-normal">/ @wi.MaxRetries</span></div>
     </div>
-    <div class="col-md-2">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="small text-muted mb-1">Priority</div>
-                <div class="fw-semibold">@wi.Priority</div>
-            </div>
-        </div>
+    <div class="card p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Priority</div>
+        <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">@wi.Priority</div>
     </div>
-    <div class="col-md-2">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="small text-muted mb-1">Created</div>
-                <div class="fw-semibold small">@wi.CreatedAt.ToString("g")</div>
-            </div>
-        </div>
+    <div class="card p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Created</div>
+        <div class="text-sm text-gray-900 dark:text-gray-100">@wi.CreatedAt.ToString("g")</div>
     </div>
-    <div class="col-md-2">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="small text-muted mb-1">Locked By</div>
-                <div class="small @(wi.LockedBy != null ? "fw-semibold" : "text-muted")">
-                    @(wi.LockedBy ?? "—")
-                    @if (wi.LockExpirationUtc != null)
-                    {
-                        <div class="text-muted fw-normal">exp. @wi.LockExpirationUtc.Value.ToString("t")</div>
-                    }
-                </div>
-            </div>
+    <div class="card p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Locked By</div>
+        <div class="text-sm @(wi.LockedBy != null ? "font-semibold text-gray-900 dark:text-gray-100" : "text-gray-500")">
+            @(wi.LockedBy ?? "—")
+            @if (wi.LockExpirationUtc != null)
+            {
+                <div class="text-xs text-gray-400 font-normal">exp. @wi.LockExpirationUtc.Value.ToString("t")</div>
+            }
         </div>
     </div>
 </div>
 
 @* IDs *@
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row g-3 small">
-            <div class="col-md-6">
-                <span class="text-muted">Token ID</span><br />
-                <code>@wi.TokenId</code>
-            </div>
-            <div class="col-md-6">
-                <span class="text-muted">Node ID</span><br />
-                <code>@wi.NodeId</code>
-            </div>
+<div class="card p-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div>
+            <span class="text-xs text-gray-500 dark:text-gray-400">Token ID</span><br />
+            <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">@wi.TokenId</code>
+        </div>
+        <div>
+            <span class="text-xs text-gray-500 dark:text-gray-400">Node ID</span><br />
+            <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">@wi.NodeId</code>
         </div>
     </div>
 </div>
 
 @* Audit trail *@
 <div class="card">
-    <div class="card-header fw-semibold small">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-800 font-semibold text-sm">
         <i class="bi bi-journal-text me-1"></i> Audit Trail (@Model.AuditEntries.Count)
     </div>
     @if (Model.AuditEntries.Count == 0)
     {
-        <div class="card-body text-muted small">No audit entries for this token.</div>
+        <div class="p-4 text-sm text-gray-500 dark:text-gray-400">No audit entries for this token.</div>
     }
     else
     {
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 small">
+        <div class="table-wrap border-0 shadow-none">
+            <table class="text-xs">
                 <thead>
                     <tr>
                         <th>Time</th>
@@ -150,11 +124,11 @@
                     @foreach (var e in Model.AuditEntries)
                     {
                         <tr>
-                            <td class="text-nowrap text-muted">@e.TimeStamp.ToString("g")</td>
-                            <td><span class="badge bg-secondary rounded-pill">@e.Category</span></td>
-                            <td class="fw-medium">@e.EventType</td>
-                            <td class="text-muted">@(e.Actor ?? "—")</td>
-                            <td><code class="small">@(e.Details ?? "—")</code></td>
+                            <td class="whitespace-nowrap text-gray-500 dark:text-gray-400">@e.TimeStamp.ToString("g")</td>
+                            <td><span class="badge bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700">@e.Category</span></td>
+                            <td class="font-medium">@e.EventType</td>
+                            <td class="text-gray-500 dark:text-gray-400">@(e.Actor ?? "—")</td>
+                            <td><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">@(e.Details ?? "—")</code></td>
                         </tr>
                     }
                 </tbody>

@@ -1,0 +1,22 @@
+{
+  "name": "argent.web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "css:build": "tailwindcss -i Styles/app.css -o wwwroot/css/app.css --optimize",
+    "css:watch": "tailwindcss -i Styles/app.css -o wwwroot/css/app.css --watch --optimize",
+    "dev": "npm run css:watch & dotnet watch run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "tailwindcss": "^4.3.1"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.3.1",
+    "alpinejs": "^3.15.12"
+  }
+}

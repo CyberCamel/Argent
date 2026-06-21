@@ -98,6 +98,12 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
                     v => JsonSerializer.Deserialize<WorkflowDefinition>(v) ?? new WorkflowDefinition())
                 .HasColumnType("nvarchar(max)");
 
+            entity.Property(e => e.RoleAudiences)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v),
+                    v => JsonSerializer.Deserialize<Dictionary<Guid, RoleAudience>>(v) ?? new())
+                .HasColumnType("nvarchar(max)");
+
             entity.Property(e => e.Version)
                 .HasConversion(
                     v => v.ToString(),
@@ -277,8 +283,6 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
             entity.Property(e => e.CandidateUsers)
                 .HasColumnType("nvarchar(max)");
 
-            entity.Property(e => e.CandidateRoles)
-                .HasColumnType("nvarchar(max)");
 
             entity.HasIndex(e => e.TokenId)
                 .HasDatabaseName("IX_UserTasks_TokenId");

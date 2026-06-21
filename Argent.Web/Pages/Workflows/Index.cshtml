@@ -4,94 +4,101 @@
     ViewData["Title"] = "Workflows";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold mb-1">Workflows</h4>
-        <p class="text-muted small mb-0">Manage your workflow definitions</p>
-    </div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
-        <i class="bi bi-plus-lg"></i> New Workflow
-    </button>
-</div>
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = "Workflows",
+    Subtitle = "Manage your workflow definitions",
+    ActionModal = new Argent.Web.Pages.Shared.ModalModel("New Workflow", "createModal", "bi-plus-lg")
+}' />
 
 @if (Model.Defs.Count == 0)
 {
-    <div class="card">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-diagram-3 fs-1 text-muted mb-3 d-block"></i>
-            <p class="text-muted mb-0">No workflows yet. Create your first one!</p>
-        </div>
-    </div>
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = "bi-diagram-3",
+        Message = "No workflows yet. Create your first one!"
+    }' />
 }
 else
 {
-    <div class="card">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var wf in Model.Defs)
+                {
                     <tr>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var wf in Model.Defs)
-                    {
-                        <tr>
-                            <td class="fw-medium">@wf.Name</td>
-                            <td class="text-muted">@wf.Description</td>
-                            <td class="text-end">
+                        <td class="font-medium">@wf.Name</td>
+                        <td class="text-gray-500 dark:text-gray-400">@wf.Description</td>
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-1">
                                 @if (Model.DeployedWorkflowIds.Contains(wf.Id))
                                 {
-                                    <a class="btn btn-success btn-sm" href="/Workflows/Start?workflowId=@wf.Id">
-                                        <i class="bi bi-play-fill"></i> Start
+                                    <a class="btn-action btn-action-success" href="/Workflows/Start?workflowId=@wf.Id" title="Start">
+                                        <i class="bi bi-play-fill"></i>
                                     </a>
                                 }
-                                <a class="btn btn-outline-primary btn-sm" href="/Workflows/View/@wf.Id">
-                                    <i class="bi bi-eye-fill"></i> View
+                                <a class="btn-action btn-action-primary" href="/Workflows/View/@wf.Id" title="View">
+                                    <i class="bi bi-eye-fill"></i>
                                 </a>
-                                <a class="btn btn-outline-secondary btn-sm" href="/Workflows/Edit/@wf.Id">
-                                    <i class="bi bi-pencil-fill"></i> Edit
+                                <a class="btn-action btn-action-secondary" href="/Workflows/Edit/@wf.Id" title="Edit">
+                                    <i class="bi bi-pencil-fill"></i>
                                 </a>
                                 <form method="post" asp-page-handler="Delete" asp-route-id="@wf.Id" style="display:inline"
-                                      onsubmit="return confirm('Delete this form?')">
-                                    <button class="btn btn-outline-danger btn-sm">
+                                      onsubmit="return confirm('Delete this workflow?')">
+                                    <button class="btn-action btn-action-danger" title="Delete">
                                         <i class="bi bi-trash-fill"></i>
                                     </button>
                                 </form>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 }
 
-<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <form method="post" asp-page-handler="Create">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="fw-bold"><i class="bi bi-diagram-3 me-2 text-primary"></i>New Workflow</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="name" class="form-label small fw-medium">Name</label>
-                        <input id="name" name="name" type="text" class="form-control" required placeholder="My workflow" />
-                    </div>
-                    <div class="mb-3">
-                        <label for="description" class="form-label small fw-medium">Description</label>
-                        <textarea id="description" name="description" class="form-control" rows="3" placeholder="What does this workflow do?"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-save-fill"></i> Create</button>
-                </div>
-            </form>
+@* Create modal *@
+<div id="createModal" class="fixed inset-0 z-50 flex items-center justify-center"
+     x-data="{ open: false }"
+     x-init="open = false"
+     x-show="open"
+     x-cloak
+     @@open-modal.window="if ($event.detail === 'createModal') open = true"
+     @@keydown.escape.window="open = false">
+    <div class="fixed inset-0 bg-black/50" @@click="open = false"></div>
+    <div class="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6" @@click.outside="open = false">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold flex items-center gap-2">
+                <i class="bi bi-diagram-3 text-indigo-600 dark:text-indigo-400"></i>New Workflow
+            </h2>
+            <button type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" @@click="open = false">
+                <i class="bi bi-x-lg"></i>
+            </button>
         </div>
+        <form method="post" asp-page-handler="Create">
+            <div class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                    <input id="name" name="name" type="text" required placeholder="My workflow"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors" />
+                </div>
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                    <textarea id="description" name="description" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors" rows="3" placeholder="What does this workflow do?"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors" @@click="open = false">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm">
+                    <i class="bi bi-save-fill me-1"></i> Create
+                </button>
+            </div>
+        </form>
     </div>
 </div>

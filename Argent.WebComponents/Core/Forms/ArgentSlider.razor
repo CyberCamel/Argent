@@ -4,18 +4,18 @@
 {
     <div class="mb-3 @Metadata.CssClass">
         @{var _errors = Errors.ToList();}
-        <label class="form-label d-flex justify-content-between">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex justify-between">
             <span>
                 @Metadata.FieldLabel
                 @if (Context.IsRequired(Metadata))
                 {
-                    <span class="text-danger">*</span>
+                    <span class="text-red-600 dark:text-red-400">*</span>
                 }
             </span>
-            <span class="fw-semibold">@CurrentDisplay</span>
+            <span class="font-semibold">@CurrentDisplay</span>
         </label>
         <input type="range"
-               class="form-range @(_errors.Count > 0 ? "is-invalid" : "")"
+               class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
                value="@CurrentValue"
                @oninput="(e) => OnValueChanged(e.Value)"
                min="@(Metadata.Min ?? 0)"
@@ -24,11 +24,11 @@
                disabled="@Metadata.Disabled" />
         @if (Metadata.Description != null)
         {
-            <div class="form-text">@Metadata.Description</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">@Metadata.Description</div>
         }
         @if (_errors.Count > 0)
         {
-            <div class="invalid-feedback d-block">
+            <div class="text-red-600 dark:text-red-400 text-sm mt-1">
                 @foreach (var err in _errors) { <div>@err</div> }
             </div>
         }

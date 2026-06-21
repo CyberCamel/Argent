@@ -4,45 +4,46 @@
 <form hx-post="/UserAdministration/Create"
       hx-target="#modalBody"
       hx-swap="innerHTML">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div asp-validation-summary="ModelOnly" class="text-sm text-red-600 dark:text-red-400 mb-3"></div>
 
-    <div class="row">
-        <div class="col-md-6 mb-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
             <label asp-for="FirstName" class="form-label"></label>
-            <input asp-for="FirstName" class="form-control" />
-            <span asp-validation-for="FirstName" class="text-danger"></span>
+            <input asp-for="FirstName" class="form-input" />
+            <span asp-validation-for="FirstName" class="text-xs text-red-500"></span>
         </div>
-        <div class="col-md-6 mb-3">
+        <div>
             <label asp-for="LastName" class="form-label"></label>
-            <input asp-for="LastName" class="form-control" />
-            <span asp-validation-for="LastName" class="text-danger"></span>
+            <input asp-for="LastName" class="form-input" />
+            <span asp-validation-for="LastName" class="text-xs text-red-500"></span>
         </div>
     </div>
 
     <div class="mb-3">
         <label asp-for="UserName" class="form-label"></label>
-        <input asp-for="UserName" class="form-control" />
-        <span asp-validation-for="UserName" class="text-danger"></span>
+        <input asp-for="UserName" class="form-input" />
+        <span asp-validation-for="UserName" class="text-xs text-red-500"></span>
     </div>
 
     <div class="mb-3">
         <label asp-for="Email" class="form-label"></label>
-        <input asp-for="Email" class="form-control" />
-        <span asp-validation-for="Email" class="text-danger"></span>
+        <input asp-for="Email" class="form-input" />
+        <span asp-validation-for="Email" class="text-xs text-red-500"></span>
     </div>
 
     <div class="mb-3">
         <label asp-for="Password" class="form-label"></label>
-        <input asp-for="Password" class="form-control" value="@Model.Password" />
-        <span asp-validation-for="Password" class="text-danger"></span>
+        <input asp-for="Password" class="form-input" value="@Model.Password" />
+        <span asp-validation-for="Password" class="text-xs text-red-500"></span>
     </div>
 
     <div class="mb-3">
         <label asp-for="ConfirmPassword" class="form-label"></label>
-        <input asp-for="ConfirmPassword" class="form-control" value="@Model.ConfirmPassword" />
-        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+        <input asp-for="ConfirmPassword" class="form-input" value="@Model.ConfirmPassword" />
+        <span asp-validation-for="ConfirmPassword" class="text-xs text-red-500"></span>
     </div>
-    <div class="mt-3 text-end">
-        <button type="submit" class="btn btn-primary">Create</button>
+
+    <div class="text-right mt-4">
+        <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm">Create</button>
     </div>
 </form>

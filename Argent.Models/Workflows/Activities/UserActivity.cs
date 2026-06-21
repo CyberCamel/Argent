@@ -20,6 +20,6 @@ public class UserActivity : Activity
     [NodeProperty("Assignee Expression", "NCalc expression returning the assigned user ID", false, PropertyDataType.Text)]
     public string? AssigneeExpression { get; set; }
 
-    [NodeProperty("Candidate Roles", "Comma-separated role names that may claim the task", false, PropertyDataType.Text)]
-    public string? CandidateRoles { get; set; }
+    // Baked in at compile time when the node is inside a role-bearing swimlane; null otherwise.
+    public Guid? LaneRoleId { get; set; }
 }

@@ -3,26 +3,30 @@
 @using Argent.WebComponents.Core.Workflows.Modeler
 @using Argent.WebComponents.Authorization
 
-<div class="modeler2-sidebar">
-    <div class="modeler2-sidebar-tabs">
-        <button class="@(_activeTab == TabType.Versions ? "modeler2-sidebar-tab-active" : "")"
+<div class="modeler-sidebar">
+    <div class="modeler-sidebar-tabs">
+        <button class="@(_activeTab == TabType.Versions ? "modeler-sidebar-tab-active" : "")"
                 @onclick="() => SetTab(TabType.Versions)">
             <i class="bi bi-diagram-3"></i> Versions
         </button>
-        <button class="@(_activeTab == TabType.Json ? "modeler2-sidebar-tab-active" : "")"
+        <button class="@(_activeTab == TabType.Json ? "modeler-sidebar-tab-active" : "")"
                 @onclick="() => SetTab(TabType.Json)">
             <i class="bi bi-code-slash"></i> JSON
         </button>
-        <button class="@(_activeTab == TabType.Errors ? "modeler2-sidebar-tab-active" : "")"
+        <button class="@(_activeTab == TabType.Errors ? "modeler-sidebar-tab-active" : "")"
                 @onclick="() => SetTab(TabType.Errors)">
             <i class="bi bi-exclamation-triangle"></i> Errors
         </button>
-        <button class="@(_activeTab == TabType.Access ? "modeler2-sidebar-tab-active" : "")"
+        <button class="@(_activeTab == TabType.Access ? "modeler-sidebar-tab-active" : "")"
                 @onclick="() => SetTab(TabType.Access)">
             <i class="bi bi-shield-lock"></i> Access
         </button>
+        <button class="@(_activeTab == TabType.Roles ? "modeler-sidebar-tab-active" : "")"
+                @onclick="() => SetTab(TabType.Roles)">
+            <i class="bi bi-people-fill"></i> Roles
+        </button>
     </div>
-    <div class="modeler2-sidebar-content" @onmouseleave="() => OnHoverNode.InvokeAsync(null)">
+    <div class="modeler-sidebar-content" @onmouseleave="() => OnHoverNode.InvokeAsync(null)">
         @switch (_activeTab)
         {
             case TabType.Versions:
@@ -42,9 +46,12 @@
                     }
                     else
                     {
-                        <p class="text-muted small">Save the workflow first to manage access.</p>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">Save the workflow first to manage access.</p>
                     }
                 </div>
+                break;
+            case TabType.Roles:
+                <WorkflowRolesPanel State="@State" />
                 break;
         }
     </div>
@@ -55,7 +62,7 @@
     [Parameter] public EventCallback<NodeBase?> OnHoverNode { get; set; }
     [Parameter] public EventCallback OnVersionLoaded { get; set; }
 
-    private enum TabType { Versions, Json, Errors, Access }
+    private enum TabType { Versions, Json, Errors, Access, Roles }
     private TabType _activeTab = TabType.Versions;
 
     private void SetTab(TabType tab) => _activeTab = tab;

@@ -14,36 +14,36 @@
 
 @if (!_loaded)
 {
-    <div class="modeler2-instance-loading">
-        <span class="spinner-border spinner-border-sm text-secondary me-2"></span> Loading diagram…
+    <div class="modeler-instance-loading">
+        <span class="inline-block w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin text-gray-500 dark:text-gray-400 mr-2"></span> Loading diagram…
     </div>
 }
 else if (_nodes.Count == 0)
 {
-    <div class="modeler2-instance-loading text-muted">No workflow diagram available for this instance.</div>
+    <div class="modeler-instance-loading text-gray-500 dark:text-gray-400">No workflow diagram available for this instance.</div>
 }
 else
 {
-    <div class="modeler2-instance-wrap">
-        <div class="modeler2-toolbar">
-            <div class="modeler2-toolbar-left">
-                <span class="modeler2-toolbar-title">Workflow Diagram</span>
+    <div class="modeler-instance-wrap">
+        <div class="modeler-toolbar">
+            <div class="modeler-toolbar-left">
+                <span class="modeler-toolbar-title">Workflow Diagram</span>
             </div>
-            <div class="modeler2-toolbar-right">
-                <button class="modeler2-btn-icon" title="Fit to screen" @onclick="FitToScreen">
+            <div class="modeler-toolbar-right">
+                <button class="modeler-btn-icon" title="Fit to screen" @onclick="FitToScreen">
                     <i class="bi bi-arrows-angle-contract"></i>
                 </button>
-                <span class="modeler2-zoom-label">@(Math.Round(_session.Zoom * 100))%</span>
-                <div class="modeler2-instance-legend">
-                    <span class="modeler2-instance-legend-item modeler2-instance-legend-active">Active</span>
-                    <span class="modeler2-instance-legend-item modeler2-instance-legend-visited">Visited</span>
-                    <span class="modeler2-instance-legend-item modeler2-instance-legend-unvisited">Unvisited</span>
+                <span class="modeler-zoom-label">@(Math.Round(_session.Zoom * 100))%</span>
+                <div class="modeler-instance-legend">
+                    <span class="modeler-instance-legend-item modeler-instance-legend-active">Active</span>
+                    <span class="modeler-instance-legend-item modeler-instance-legend-visited">Visited</span>
+                    <span class="modeler-instance-legend-item modeler-instance-legend-unvisited">Unvisited</span>
                 </div>
             </div>
         </div>
-        <div class="modeler2-body">
+        <div class="modeler-body">
             <div @ref="_canvas"
-                 class="modeler2-canvas"
+                 class="modeler-canvas"
                  tabindex="0"
                  @onpointerdown="OnPointerDown"
                  @onpointermove="OnPointerMove"
@@ -56,7 +56,7 @@ else
                 <svg viewBox="@_session.ViewBox" width="100%" height="100%" style="display:block">
                     <defs>
                         <pattern id="im-grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                            <circle cx="2" cy="2" r="1" fill="#444" />
+                            <circle cx="2" cy="2" r="1" fill="var(--md-grid-dot)" />
                         </pattern>
                         <marker id="im-arrowhead" markerWidth="6" markerHeight="4.5" refX="5" refY="2.25" orient="auto">
                             <polygon points="0 0, 6 2.25, 0 4.5" fill="currentColor" />
@@ -73,16 +73,16 @@ else
                     {
                         if (conn.Waypoints.Count < 2) continue;
                         var path = RoutingService.WaypointsToSvgPath(conn.Waypoints);
-                        <g class="modeler2-conn">
+                        <g class="modeler-conn">
                             <path d="@path" stroke="transparent" stroke-width="14" fill="none" />
-                            <path d="@path" class="modeler2-conn-path" fill="none" marker-end="url(#im-arrowhead)" />
+                            <path d="@path" class="modeler-conn-path" fill="none" marker-end="url(#im-arrowhead)" />
                         </g>
                     }
 
                     @foreach (var node in _nodes)
                     {
                         var visitClass = GetVisitClass(node.NodeData.Id);
-                        <g class="modeler2-node @visitClass"
+                        <g class="modeler-node @visitClass"
                            transform="translate(@node.X.ToString("F2", CultureInfo.InvariantCulture), @node.Y.ToString("F2", CultureInfo.InvariantCulture))">
 
                             @switch (node.Shape)
@@ -90,45 +90,45 @@ else
                                 case NodeShape.Circle:
                                     <ellipse cx="@(node.Width / 2)" cy="@(node.Height / 2)"
                                              rx="@(node.Width / 2)" ry="@(node.Height / 2)"
-                                             class="modeler2-node-shape @node.CssClass" />
+                                             class="modeler-node-shape @node.CssClass" />
                                     break;
                                 case NodeShape.Diamond:
                                     var _idw = node.Width; var _idh = node.Height;
                                     var _icx = _idw / 2.0; var _icy = _idh / 2.0;
                                     var _ihs = Math.Min(_idw, _idh) * 0.17;
                                     <polygon points="@($"{(_idw / 2).ToString("F2", CultureInfo.InvariantCulture)},0 {_idw.ToString("F2", CultureInfo.InvariantCulture)},{(_idh / 2).ToString("F2", CultureInfo.InvariantCulture)} {(_idw / 2).ToString("F2", CultureInfo.InvariantCulture)},{_idh.ToString("F2", CultureInfo.InvariantCulture)} 0,{(_idh / 2).ToString("F2", CultureInfo.InvariantCulture)}")"
-                                             class="modeler2-node-shape @node.CssClass" />
+                                             class="modeler-node-shape @node.CssClass" />
                                     @if (node.NodeData is ExclusiveGateway)
                                     {
-                                        <line class="modeler2-gw-symbol" x1="@(_icx - _ihs)" y1="@(_icy - _ihs)" x2="@(_icx + _ihs)" y2="@(_icy + _ihs)" />
-                                        <line class="modeler2-gw-symbol" x1="@(_icx + _ihs)" y1="@(_icy - _ihs)" x2="@(_icx - _ihs)" y2="@(_icy + _ihs)" />
+                                        <line class="modeler-gw-symbol" x1="@(_icx - _ihs)" y1="@(_icy - _ihs)" x2="@(_icx + _ihs)" y2="@(_icy + _ihs)" />
+                                        <line class="modeler-gw-symbol" x1="@(_icx + _ihs)" y1="@(_icy - _ihs)" x2="@(_icx - _ihs)" y2="@(_icy + _ihs)" />
                                     }
                                     else if (node.NodeData is ParallelGateway)
                                     {
-                                        <line class="modeler2-gw-symbol" x1="@_icx" y1="@(_icy - _ihs)" x2="@_icx" y2="@(_icy + _ihs)" />
-                                        <line class="modeler2-gw-symbol" x1="@(_icx - _ihs)" y1="@_icy" x2="@(_icx + _ihs)" y2="@_icy" />
+                                        <line class="modeler-gw-symbol" x1="@_icx" y1="@(_icy - _ihs)" x2="@_icx" y2="@(_icy + _ihs)" />
+                                        <line class="modeler-gw-symbol" x1="@(_icx - _ihs)" y1="@_icy" x2="@(_icx + _ihs)" y2="@_icy" />
                                     }
                                     else if (node.NodeData is InclusiveGateway)
                                     {
-                                        <circle class="modeler2-gw-symbol" cx="@_icx" cy="@_icy" r="@_ihs" />
+                                        <circle class="modeler-gw-symbol" cx="@_icx" cy="@_icy" r="@_ihs" />
                                     }
                                     break;
                                 default:
                                     <rect x="0" y="0" width="@node.Width" height="@node.Height" rx="6"
-                                          class="modeler2-node-shape @node.CssClass" />
+                                          class="modeler-node-shape @node.CssClass" />
                                     break;
                             }
 
                             @if (node.Shape == NodeShape.Diamond)
                             {
                                 <svg:text x="@(node.Width / 2)" y="@(node.Height + 14)"
-                                          text-anchor="middle" class="modeler2-node-label"
+                                          text-anchor="middle" class="modeler-node-label"
                                           dominant-baseline="middle">@node.Title</svg:text>
                             }
                             else
                             {
                                 <svg:text x="@(node.Width / 2)" y="@(node.Height / 2 + 4)"
-                                          text-anchor="middle" class="modeler2-node-label"
+                                          text-anchor="middle" class="modeler-node-label"
                                           dominant-baseline="middle">@node.Title</svg:text>
                             }
                         </g>
@@ -241,7 +241,7 @@ else
         if (firstRender && _nodes.Count > 0)
         {
             _dotNetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("Modeler2.init", _canvas, _dotNetRef);
+            await JS.InvokeVoidAsync("Modeler.init", _canvas, _dotNetRef);
         }
     }
 
@@ -304,9 +304,9 @@ else
 
     private string GetVisitClass(Guid nodeId)
     {
-        if (_activeNodeIds.Contains(nodeId))  return "modeler2-node-active";
-        if (_visitedNodeIds.Contains(nodeId)) return "modeler2-node-visited";
-        return "modeler2-node-unvisited";
+        if (_activeNodeIds.Contains(nodeId))  return "modeler-node-active";
+        if (_visitedNodeIds.Contains(nodeId)) return "modeler-node-visited";
+        return "modeler-node-unvisited";
     }
 
     private void OnPointerDown(PointerEventArgs e)
@@ -322,7 +322,7 @@ else
     {
         if (!_panning) return;
 
-        var dims = await JS.InvokeAsync<CanvasBounds>("Modeler2.getDimensions", _canvas);
+        var dims = await JS.InvokeAsync<CanvasBounds>("Modeler.getDimensions", _canvas);
         var (sx, sy) = _session.ScreenToWorld(_startMouseX, _startMouseY, dims.Left, dims.Top);
         var (wx, wy) = _session.ScreenToWorld(e.ClientX,    e.ClientY,    dims.Left, dims.Top);
 
@@ -336,7 +336,7 @@ else
 
     private async Task OnWheel(WheelEventArgs e)
     {
-        var dims = await JS.InvokeAsync<CanvasBounds>("Modeler2.getDimensions", _canvas);
+        var dims = await JS.InvokeAsync<CanvasBounds>("Modeler.getDimensions", _canvas);
         var (beforeX, beforeY) = _session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
 
         _session.Zoom = Math.Clamp(_session.Zoom * Math.Pow(1.001, -e.DeltaY), 0.1, 3.0);
@@ -352,7 +352,7 @@ else
     {
         if (_dotNetRef != null)
         {
-            try { await JS.InvokeVoidAsync("Modeler2.destroy", _canvas); }
+            try { await JS.InvokeVoidAsync("Modeler.destroy", _canvas); }
             catch (JSDisconnectedException) { }
             _dotNetRef.Dispose();
         }

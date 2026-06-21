@@ -14,4 +14,6 @@ public class WorkflowVersion
     public WorkflowDefinitionState State { get; set; } = WorkflowDefinitionState.Draft;
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
+    // Mutable post-publish. Key = ProcessRole.Id. Updated without touching the immutable Definition.
+    public Dictionary<Guid, RoleAudience> RoleAudiences { get; set; } = [];
 }

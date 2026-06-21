@@ -1,13 +1,10 @@
-﻿using Argent.Models.Workflows.Modeler;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Text.Json.Serialization;
+using Argent.Models.Workflows.Modeler;
 
 namespace Argent.Models.Workflows;
 
-[JsonDerivedType(typeof(Pool), typeDiscriminator: "pool")]
 public class Pool : LayoutElement
 {
-    public List<Lane> Lane { get; set; } = [];
+    public string Label { get; set; } = string.Empty;
+    public bool IsHorizontal { get; set; } = true;
+    public List<Lane> Lanes { get; set; } = [];
 }

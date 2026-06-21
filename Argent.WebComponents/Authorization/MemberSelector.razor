@@ -2,7 +2,7 @@
     Reusable subject/member picker: shows the selected items and adds new ones.
 
     When Searchable=false (default): shows selected items as a flat removable list with
-    a dropdown + plus button to add. Suitable for small option sets.
+    a dropdown + plus button to add. Suitable for text-sm option sets.
 
     When Searchable=true: shows selected items in a paginated removable list with a page
     size selector, plus a search box to find and add items (results only appear when a
@@ -13,32 +13,32 @@
 *@
 
 <div class="mb-3">
-    <label class="form-label small fw-medium">@Label</label>
-    <div class="border rounded p-2">
+    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">@Label</label>
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
 
         @* === SELECTED ITEMS === *@
         @if (Selected.Count == 0)
         {
-            <div class="small text-muted mb-2">@EmptyText</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">@EmptyText</div>
         }
         else if (!Searchable)
         {
-            <ul class="list-group list-group-flush mb-2">
+            <div class="mb-2 divide-y divide-gray-100 dark:divide-gray-700">
                 @foreach (var id in Selected.ToList())
                 {
                     var opt = Options.FirstOrDefault(o => o.Id == id);
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
-                        <span class="small">
+                    <div class="flex justify-between items-center py-1 px-2">
+                        <span class="text-sm">
                             @if (!string.IsNullOrEmpty(opt?.Icon))
                             {
-                                <i class="bi @opt!.Icon me-2"></i>
+                                <i class="bi @opt!.Icon mr-2"></i>
                             }
                             @if (ItemUrl != null)
                             {
                                 var url = ItemUrl(id);
                                 if (url != null)
                                 {
-                                    <a href="@url" class="text-decoration-none">@(opt?.Label ?? id)</a>
+                                    <a href="@url" class="text-indigo-600 dark:text-indigo-400 hover:underline">@(opt?.Label ?? id)</a>
                                 }
                                 else
                                 {
@@ -50,32 +50,32 @@
                                 @(opt?.Label ?? id)
                             }
                         </span>
-                        <button type="button" class="btn btn-sm btn-link text-danger p-0" title="Remove"
+                        <button type="button" class="text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded p-1 transition-colors" title="Remove"
                                 @onclick="() => Remove(id)">
                             <i class="bi bi-x-lg"></i>
                         </button>
-                    </li>
+                    </div>
                 }
-            </ul>
+            </div>
         }
         else
         {
-            <ul class="list-group list-group-flush mb-2">
+            <div class="mb-2 divide-y divide-gray-100 dark:divide-gray-700">
                 @foreach (var id in SelectedPageItems)
                 {
                     var opt = Options.FirstOrDefault(o => o.Id == id);
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
-                        <span class="small">
+                    <div class="flex justify-between items-center py-1 px-2">
+                        <span class="text-sm">
                             @if (!string.IsNullOrEmpty(opt?.Icon))
                             {
-                                <i class="bi @opt!.Icon me-2"></i>
+                                <i class="bi @opt!.Icon mr-2"></i>
                             }
                             @if (ItemUrl != null)
                             {
                                 var url = ItemUrl(id);
                                 if (url != null)
                                 {
-                                    <a href="@url" class="text-decoration-none">@(opt?.Label ?? id)</a>
+                                    <a href="@url" class="text-indigo-600 dark:text-indigo-400 hover:underline">@(opt?.Label ?? id)</a>
                                 }
                                 else
                                 {
@@ -87,17 +87,17 @@
                                 @(opt?.Label ?? id)
                             }
                         </span>
-                        <button type="button" class="btn btn-sm btn-link text-danger p-0" title="Remove"
+                        <button type="button" class="text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded p-1 transition-colors" title="Remove"
                                 @onclick="() => Remove(id)">
                             <i class="bi bi-x-lg"></i>
                         </button>
-                    </li>
+                    </div>
                 }
-            </ul>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <div class="d-flex align-items-center gap-2">
-                    <small class="text-muted">@Selected.Count members</small>
-                    <select class="form-select form-select-xs" style="width: auto;"
+            </div>
+            <div class="flex justify-between items-center mb-2">
+                <div class="flex items-center gap-2">
+                    <small class="text-gray-500 dark:text-gray-400">@Selected.Count members</small>
+                    <select class="form-input text-sm"
                             @bind="_selectedPageSize" @bind:after="ResetSelectedPage">
                         <option value="5">5</option>
                         <option value="10">10</option>
@@ -107,14 +107,14 @@
                 </div>
                 @if (_selectedTotalPages > 1)
                 {
-                    <div class="d-flex align-items-center gap-1">
-                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                    <div class="flex items-center gap-1">
+                        <button type="button" class="px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 @onclick="PrevSelectedPage"
                                 disabled="@(_selectedPage <= 1)">
                             <i class="bi bi-chevron-left"></i>
                         </button>
-                        <small class="text-muted px-1">@_selectedPage / @_selectedTotalPages</small>
-                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                        <small class="text-gray-500 dark:text-gray-400 px-1">@_selectedPage / @_selectedTotalPages</small>
+                        <button type="button" class="px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 @onclick="NextSelectedPage"
                                 disabled="@(_selectedPage >= _selectedTotalPages)">
                             <i class="bi bi-chevron-right"></i>
@@ -127,15 +127,15 @@
         @* === ADD SECTION === *@
         @if (!Searchable)
         {
-            <div class="d-flex gap-2">
-                <select class="form-select form-select-sm" @bind="_toAdd">
+            <div class="flex gap-2">
+                <select class="form-input text-sm" @bind="_toAdd">
                     <option value="">Add @Label.ToLowerInvariant()…</option>
                     @foreach (var o in Available)
                     {
                         <option value="@o.Id">@o.Label</option>
                     }
                 </select>
-                <button type="button" class="btn btn-sm btn-primary" @onclick="Add"
+                <button type="button" class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" @onclick="Add"
                         disabled="@string.IsNullOrEmpty(_toAdd)">
                     <i class="bi bi-plus-lg"></i>
                 </button>
@@ -143,45 +143,45 @@
         }
         else
         {
-            <hr class="my-2" />
+            <hr class="my-2 border-gray-200 dark:border-gray-700" />
             <div class="mb-2">
-                <input type="text" class="form-control form-control-sm"
+                <input type="text" class="form-input text-sm"
                        placeholder="Search @Label.ToLowerInvariant()…"
                        @bind="_searchTerm" @bind:event="oninput" @bind:after="OnSearchAfter" />
             </div>
 
             @if (!string.IsNullOrEmpty(_searchTerm) && SearchResults.Any())
             {
-                <ul class="list-group list-group-flush mb-2" style="max-height: 240px; overflow-y: auto;">
+                <div class="mb-2 divide-y divide-gray-100 dark:divide-gray-700" style="max-height: 240px; overflow-y: auto;">
                     @foreach (var o in SearchResults)
                     {
-                        <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
-                            <span class="small">
+                        <div class="flex justify-between items-center py-1 px-2">
+                            <span class="text-sm">
                                 @if (!string.IsNullOrEmpty(o.Icon))
                                 {
-                                    <i class="bi @o.Icon me-2"></i>
+                                    <i class="bi @o.Icon mr-2"></i>
                                 }
                                 @o.Label
                             </span>
                             @if (Selected.Contains(o.Id))
                             {
-                                <span class="badge bg-success-subtle text-success small">Added</span>
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">Added</span>
                             }
                             else
                             {
-                                <button type="button" class="btn btn-sm btn-outline-primary py-0"
+                                <button type="button" class="text-xs px-2 py-1 font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors"
                                         @onclick="() => AddSearchResult(o.Id)">
                                     <i class="bi bi-plus-lg"></i>
                                 </button>
                             }
-                        </li>
+                        </div>
                     }
-                </ul>
+                </div>
 
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center gap-2">
-                        <small class="text-muted">@_totalItems found</small>
-                        <select class="form-select form-select-xs" style="width: auto;"
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <small class="text-gray-500 dark:text-gray-400">@_totalItems found</small>
+                        <select class="form-input text-sm"
                                 @bind="_pageSize" @bind:after="RefreshSearch">
                             <option value="5">5</option>
                             <option value="10">10</option>
@@ -191,13 +191,13 @@
                     </div>
                     @if (_totalPages > 1)
                     {
-                        <div class="d-flex align-items-center gap-1">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="PrevPage"
+                        <div class="flex items-center gap-1">
+                            <button type="button" class="px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" @onclick="PrevPage"
                                     disabled="@(_currentPage <= 1)">
                                 <i class="bi bi-chevron-left"></i>
                             </button>
-                            <small class="text-muted px-1">@_currentPage / @_totalPages</small>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NextPage"
+                            <small class="text-gray-500 dark:text-gray-400 px-1">@_currentPage / @_totalPages</small>
+                            <button type="button" class="px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" @onclick="NextPage"
                                     disabled="@(_currentPage >= _totalPages)">
                                 <i class="bi bi-chevron-right"></i>
                             </button>
@@ -207,7 +207,7 @@
             }
             else if (!string.IsNullOrEmpty(_searchTerm))
             {
-                <div class="small text-muted">No matches found.</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">No matches found.</div>
             }
         }
     </div>

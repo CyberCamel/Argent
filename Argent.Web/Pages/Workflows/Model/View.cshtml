@@ -6,16 +6,16 @@
     ViewData["IsFullWidth"] = true;
 }
 
-<div class="d-flex flex-column h-100">
-    <div class="border-bottom bg-white px-3 py-2 d-flex align-items-center gap-3">
+<div class="flex flex-col h-full">
+    <div class="border-b bg-white dark:bg-gray-900 px-3 py-2 flex items-center gap-3">
         <h5 class="mb-0">@Model.WorkflowName</h5>
         @if (!string.IsNullOrEmpty(Model.WorkflowDescription))
         {
-            <span class="text-muted small">- @Model.WorkflowDescription</span>
+            <span class="text-gray-500 dark:text-gray-400 text-sm">- @Model.WorkflowDescription</span>
         }
-        <span class="badge bg-secondary ms-auto">Viewing</span>
+        <span class="ml-auto px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">Viewing</span>
     </div>
-    <div class="flex-grow-1 d-flex" style="height: calc(100vh - 106px);">
+    <div class="flex-1 flex" style="height: calc(100vh - 106px);">
         <component type="typeof(WorkflowModeler)" render-mode="ServerPrerendered"
                    param-WorkflowId="@Model.WorkflowId"
                    param-IsViewMode="true" />

@@ -1,0 +1,78 @@
+@using Argent.Runtime.Workflows.Modeling
+@using Argent.Models.Workflows
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="modeler-roles-panel">
+    <div class="modeler-roles-header">
+        <span class="modeler-roles-title">
+            <i class="bi bi-people-fill"></i> Process Roles
+        </span>
+        @if (!State.IsReadOnlyVersion)
+        {
+            <button class="modeler-btn-icon" @onclick="AddRole" title="Add role">
+                <i class="bi bi-plus-lg"></i>
+            </button>
+        }
+    </div>
+
+    @if (!State.Roles.Any())
+    {
+        <div class="modeler-roles-empty">
+            No roles defined. Roles link swimlane tasks to specific audiences configured at publish time.
+        </div>
+    }
+    else
+    {
+        @foreach (var role in State.Roles)
+        {
+            <div class="modeler-role-item">
+                @if (!State.IsReadOnlyVersion && _editingRoleId == role.Id)
+                {
+                    <input class="modeler-properties-input modeler-role-name-input"
+                           value="@role.Name"
+                           @oninput="e => { role.Name = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }"
+                           @onblur="() => _editingRoleId = null"
+                           @onkeydown="OnRoleNameKeyDown" />
+                }
+                else
+                {
+                    <span class="modeler-role-name">@(string.IsNullOrEmpty(role.Name) ? "(unnamed)" : role.Name)</span>
+                    @if (!State.IsReadOnlyVersion)
+                    {
+                        <button class="modeler-btn-icon" @onclick="() => _editingRoleId = role.Id" title="Rename">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="modeler-btn-icon modeler-btn-danger" @onclick="() => RemoveRole(role)" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    }
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public required DesignerService State { get; set; }
+
+    private Guid? _editingRoleId;
+
+    private void AddRole()
+    {
+        var role = State.AddRole();
+        _editingRoleId = role.Id;
+    }
+
+    private void RemoveRole(ProcessRole role)
+    {
+        if (_editingRoleId == role.Id)
+            _editingRoleId = null;
+        State.RemoveRole(role);
+    }
+
+    private void OnRoleNameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" || e.Key == "Escape")
+            _editingRoleId = null;
+    }
+}

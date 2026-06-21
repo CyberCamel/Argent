@@ -1,6 +1,7 @@
 @using Argent.Runtime.Workflows.Modeling
 @using Argent.Models.Enums
 @using Argent.Models.Workflows
+@using Argent.Models.Identity
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
@@ -8,80 +9,92 @@
 @inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
 @inject IJSRuntime Js
 
-<div class="modeler2-version-panel">
-    <h3 class="modeler2-version-title">
+<div class="modeler-version-panel">
+    <h3 class="modeler-version-title">
         <i class="bi bi-diagram-3"></i> @State.CurrentWorkflowName
     </h3>
 
-    <div class="modeler2-version-subtitle">Versions</div>
+    <div class="modeler-version-subtitle">Versions</div>
 
     @if (_timeline == null)
     {
-        <p class="modeler2-version-empty">Loading...</p>
+        <p class="modeler-version-empty">Loading...</p>
     }
     else if (_timeline.Count == 0)
     {
-        <p class="modeler2-version-empty">No versions yet. Save a draft to get started.</p>
+        <p class="modeler-version-empty">No versions yet. Save a draft to get started.</p>
     }
     else
     {
-        <div class="modeler2-version-timeline">
+        <div class="modeler-version-timeline">
             @for (var i = 0; i < _timeline.Count; i++)
             {
                 var entry = _timeline[i];
                 var isLast = i == _timeline.Count - 1;
 
-                <div class="modeler2-version-node @(entry.IsLoaded ? "modeler2-version-node-active" : "") @(entry.IsDeployed ? "modeler2-version-node-deployed" : "") @(entry.IsDraft ? "modeler2-version-node-draft" : "")">
-                    <div class="modeler2-version-dot @(entry.IsDeployed ? "modeler2-version-dot-deployed" : entry.IsLoaded ? "modeler2-version-dot-active" : "modeler2-version-dot-inactive")"></div>
-                    <div class="modeler2-version-node-body">
-                        <div class="modeler2-version-node-top">
-                            <span class="modeler2-version-node-number">@entry.Label</span>
-                            <span class="modeler2-version-badge @entry.BadgeCss">@entry.BadgeText</span>
+                <div class="modeler-version-node @(entry.IsLoaded ? "modeler-version-node-active" : "") @(entry.IsDeployed ? "modeler-version-node-deployed" : "") @(entry.IsDraft ? "modeler-version-node-draft" : "")">
+                    <div class="modeler-version-dot @(entry.IsDeployed ? "modeler-version-dot-deployed" : entry.IsLoaded ? "modeler-version-dot-active" : "modeler-version-dot-inactive")"></div>
+                    <div class="modeler-version-node-body">
+                        <div class="modeler-version-node-top">
+                            <span class="modeler-version-node-number">@entry.Label</span>
+                            <span class="modeler-version-badge @entry.BadgeCss">@entry.BadgeText</span>
                         </div>
-                        <div class="modeler2-version-node-meta">
+                        <div class="modeler-version-node-meta">
                             @entry.CreatedBy · @entry.CreatedAt.ToString("g")
                         </div>
 
                         @switch (entry)
                         {
                             case { IsDraft: true, IsLoaded: true } when _publishing:
-                                <div class="modeler2-version-publish-inline">
-                                    <span class="modeler2-version-publish-label">Publish as</span>
-                                    <button class="modeler2-version-action-btn modeler2-version-action-btn-primary"
-                                            @onclick="() => Publish(true)" @onclick:stopPropagation>
-                                        <i class="bi bi-arrow-up-short"></i> Major (@_majorVersion)
-                                    </button>
-                                    <button class="modeler2-version-action-btn modeler2-version-action-btn-primary"
-                                            @onclick="() => Publish(false)" @onclick:stopPropagation>
-                                        <i class="bi bi-arrow-right-short"></i> Minor (@_minorVersion)
-                                    </button>
-                                    <button class="modeler2-version-action-btn" @onclick="CancelPublish" @onclick:stopPropagation>
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                </div>
+                                @if (State.Roles.Count > 0)
+                                {
+                                    <div class="modeler-version-publish-inline">
+                                        <span class="modeler-version-publish-label" style="color:#9ca3af;font-size:.8rem;font-style:italic;">Configuring audiences…</span>
+                                        <button class="modeler-version-action-btn" @onclick="CancelPublish" @onclick:stopPropagation>
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="modeler-version-publish-inline">
+                                        <span class="modeler-version-publish-label">Publish as</span>
+                                        <button class="modeler-version-action-btn modeler-version-action-btn-primary"
+                                                @onclick="() => Publish(true)" @onclick:stopPropagation>
+                                            <i class="bi bi-arrow-up-short"></i> Major (@_majorVersion)
+                                        </button>
+                                        <button class="modeler-version-action-btn modeler-version-action-btn-primary"
+                                                @onclick="() => Publish(false)" @onclick:stopPropagation>
+                                            <i class="bi bi-arrow-right-short"></i> Minor (@_minorVersion)
+                                        </button>
+                                        <button class="modeler-version-action-btn" @onclick="CancelPublish" @onclick:stopPropagation>
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                }
                                 break;
                             case { IsDraft: true, IsLoaded: true }:
                             {
-                                <button class="modeler2-version-action-btn modeler2-version-action-btn-primary"
+                                <button class="modeler-version-action-btn modeler-version-action-btn-primary"
                                         @onclick="StartPublish" @onclick:stopPropagation>
                                     <i class="bi bi-send-fill"></i> Publish...
                                 </button>
 
                                 @if (_publishBlockedReason != null)
                                 {
-                                    <div class="modeler2-version-publish-error">
+                                    <div class="modeler-version-publish-error">
                                         <i class="bi bi-exclamation-triangle-fill"></i> @_publishBlockedReason
                                     </div>
                                 }
 
-                                <button class="modeler2-version-action-btn modeler2-version-action-btn-danger"
+                                <button class="modeler-version-action-btn modeler-version-action-btn-danger"
                                         @onclick="DiscardDraft" @onclick:stopPropagation>
                                     <i class="bi bi-trash-fill"></i> Discard draft
                                 </button>
 
                                 if (HasPublishedVersion)
                                 {
-                                    <button class="modeler2-version-action-btn" @onclick="ToggleChanges" @onclick:stopPropagation>
+                                    <button class="modeler-version-action-btn" @onclick="ToggleChanges" @onclick:stopPropagation>
                                         <i class="bi @(_showChanges ? "bi-chevron-up" : "bi-journal-text")"></i> @(_showChanges ? "Hide changes" : "View changes")
                                     </button>
                                 }
@@ -92,60 +105,60 @@
 
                         @if (entry is { IsDraft: true, IsLoaded: true } && _showChanges && _diff != null)
                         {
-                            <div class="modeler2-version-diff">
+                            <div class="modeler-version-diff">
                                 @if (!_diff.HasChanges)
                                 {
-                                    <div class="modeler2-version-diff-empty">No changes since last published version</div>
+                                    <div class="modeler-version-diff-empty">No changes since last published version</div>
                                 }
                                 else
                                 {
                                     @if (_diff.NodeAdditions.Count > 0)
                                     {
-                                        <div class="modeler2-version-diff-group">
-                                            <span class="modeler2-version-diff-label">Added nodes</span>
+                                        <div class="modeler-version-diff-group">
+                                            <span class="modeler-version-diff-label">Added nodes</span>
                                             @foreach (var d in _diff.NodeAdditions)
                                             {
-                                                <div class="modeler2-version-diff-item modeler2-version-diff-added">+ @d.Description</div>
+                                                <div class="modeler-version-diff-item modeler-version-diff-added">+ @d.Description</div>
                                             }
                                         </div>
                                     }
                                     @if (_diff.NodeRemovals.Count > 0)
                                     {
-                                        <div class="modeler2-version-diff-group">
-                                            <span class="modeler2-version-diff-label">Removed nodes</span>
+                                        <div class="modeler-version-diff-group">
+                                            <span class="modeler-version-diff-label">Removed nodes</span>
                                             @foreach (var d in _diff.NodeRemovals)
                                             {
-                                                <div class="modeler2-version-diff-item modeler2-version-diff-removed">- @d.Description</div>
+                                                <div class="modeler-version-diff-item modeler-version-diff-removed">- @d.Description</div>
                                             }
                                         </div>
                                     }
                                     @if (_diff.NodeModifications.Count > 0)
                                     {
-                                        <div class="modeler2-version-diff-group">
-                                            <span class="modeler2-version-diff-label">Modified nodes</span>
+                                        <div class="modeler-version-diff-group">
+                                            <span class="modeler-version-diff-label">Modified nodes</span>
                                             @foreach (var d in _diff.NodeModifications)
                                             {
-                                                <div class="modeler2-version-diff-item modeler2-version-diff-modified">~ @d.Description</div>
+                                                <div class="modeler-version-diff-item modeler-version-diff-modified">~ @d.Description</div>
                                             }
                                         </div>
                                     }
                                     @if (_diff.ConnectionAdditions.Count > 0)
                                     {
-                                        <div class="modeler2-version-diff-group">
-                                            <span class="modeler2-version-diff-label">Added connections</span>
+                                        <div class="modeler-version-diff-group">
+                                            <span class="modeler-version-diff-label">Added connections</span>
                                             @foreach (var d in _diff.ConnectionAdditions)
                                             {
-                                                <div class="modeler2-version-diff-item modeler2-version-diff-added">+ @d.Description</div>
+                                                <div class="modeler-version-diff-item modeler-version-diff-added">+ @d.Description</div>
                                             }
                                         </div>
                                     }
                                     @if (_diff.ConnectionRemovals.Count > 0)
                                     {
-                                        <div class="modeler2-version-diff-group">
-                                            <span class="modeler2-version-diff-label">Removed connections</span>
+                                        <div class="modeler-version-diff-group">
+                                            <span class="modeler-version-diff-label">Removed connections</span>
                                             @foreach (var d in _diff.ConnectionRemovals)
                                             {
-                                                <div class="modeler2-version-diff-item modeler2-version-diff-removed">- @d.Description</div>
+                                                <div class="modeler-version-diff-item modeler-version-diff-removed">- @d.Description</div>
                                             }
                                         </div>
                                     }
@@ -155,28 +168,36 @@
 
                         @if (entry.IsPublished)
                         {
-                            <button class="modeler2-version-action-btn" @onclick="() => Deploy(entry.Id)" @onclick:stopPropagation>
+                            <button class="modeler-version-action-btn" @onclick="() => Deploy(entry.Id)" @onclick:stopPropagation>
                                 <i class="bi bi-rocket-takeoff-fill"></i> Deploy
+                            </button>
+                        }
+
+                        @if ((entry.IsPublished || entry.IsDeployed) && entry.Roles.Count > 0)
+                        {
+                            var captEntry = entry;
+                            <button class="modeler-version-action-btn" @onclick="() => OpenAudienceEditor(captEntry.Id, captEntry.Roles)" @onclick:stopPropagation>
+                                <i class="bi bi-people-fill"></i> Audiences
                             </button>
                         }
 
                         @if (!HasDraft && (entry.IsPublished || entry.IsDeployed))
                         {
-                            <button class="modeler2-version-action-btn" @onclick="() => CreateNewDraft(entry.Id)" @onclick:stopPropagation>
+                            <button class="modeler-version-action-btn" @onclick="() => CreateNewDraft(entry.Id)" @onclick:stopPropagation>
                                 <i class="bi bi-copy"></i> Create new draft
                             </button>
                         }
 
                         @if (entry is { IsDraft: true, IsLoaded: false })
                         {
-                            <button class="modeler2-version-action-btn" @onclick="SwitchToDraft" @onclick:stopPropagation>
+                            <button class="modeler-version-action-btn" @onclick="SwitchToDraft" @onclick:stopPropagation>
                                 <i class="bi bi-pencil-fill"></i> Edit draft
                             </button>
                         }
 
                         @if (entry is { IsDraft: false, IsLoaded: false })
                         {
-                            <button class="modeler2-version-action-btn" @onclick="() => LoadVersion(entry.Id)" @onclick:stopPropagation>
+                            <button class="modeler-version-action-btn" @onclick="() => LoadVersion(entry.Id)" @onclick:stopPropagation>
                                 <i class="bi bi-eye-fill"></i> View this version
                             </button>
                         }
@@ -185,12 +206,192 @@
 
                 @if (!isLast)
                 {
-                    <div class="modeler2-version-line"></div>
+                    <div class="modeler-version-line"></div>
                 }
             }
         </div>
     }
 </div>
+
+@* ── Audience configuration modal ── *@
+@* Shown when: publishing a workflow with roles, OR editing audiences on an existing version *@
+@if ((_publishing && State.Roles.Count > 0) || _editingVersionId.HasValue)
+{
+    <div class="aud-backdrop" @onclick="CloseAudienceModal"></div>
+
+    <div class="aud-modal" @onclick:stopPropagation>
+        <div class="aud-header">
+            <span style="font-weight:600;">Configure Audiences</span>
+            <button style="background:transparent;border:none;color:#9ca3af;cursor:pointer;font-size:1.25rem;line-height:1;padding:0 4px;" @onclick="CloseAudienceModal">&times;</button>
+        </div>
+
+        <div class="aud-body">
+
+            @* ── Left: searchable subject list ── *@
+            <div class="aud-sidebar">
+                <input class="form-input text-sm mb-2"
+                       type="search" placeholder="Search users & groups…"
+                       @bind="_audienceSearch" @bind:event="oninput" />
+
+                <div class="aud-subject-list">
+                    @foreach (var s in FilteredAudienceSubjects)
+                    {
+                        <div class="aud-subject-item @(_draggingSubject?.Id == s.Id ? "dragging" : "")"
+                             draggable="true"
+                             @ondragstart="() => _draggingSubject = s"
+                             @ondragend="() => _draggingSubject = null">
+                            <i class="bi @s.Icon me-1"></i>@s.DisplayName
+                        </div>
+                    }
+                    @if (!FilteredAudienceSubjects.Any())
+                    {
+                        <div style="color:#9ca3af;font-size:.82rem;padding:.25rem .5rem;">No results.</div>
+                    }
+                </div>
+            </div>
+
+            @* ── Right: one drop zone per role ── *@
+            <div class="aud-zones">
+                @foreach (var role in _activeRoles)
+                {
+                    var rid = role.Id;
+                    var aud = _pendingAudiences.GetValueOrDefault(rid) ?? new RoleAudience();
+                    var isOver = _dragEnterCounts.GetValueOrDefault(rid) > 0;
+
+                    <div class="aud-zone @(isOver ? "aud-zone-over" : "")"
+                         @ondragover:preventDefault
+                         @ondragenter="() => { _dragEnterCounts[rid] = _dragEnterCounts.GetValueOrDefault(rid) + 1; }"
+                         @ondragleave="() => { var c = _dragEnterCounts.GetValueOrDefault(rid) - 1; if (c <= 0) _dragEnterCounts.Remove(rid); else _dragEnterCounts[rid] = c; }"
+                         @ondrop="() => { _dragEnterCounts.Remove(rid); DropOnRole(rid); }">
+
+                        <div class="aud-zone-label">@role.Name</div>
+
+                        <div class="aud-zone-chips">
+                            @foreach (var uid in aud.UserIds)
+                            {
+                                var captUid = uid; var captRid = rid;
+                                var label = _allAudienceSubjects.FirstOrDefault(s => s.Id == captUid)?.DisplayName ?? captUid;
+                                <span class="aud-chip">
+                                    <i class="bi bi-person me-1"></i>@label
+                                    <button class="aud-chip-remove" title="Remove"
+                                            @onclick="() => ToggleUser(captRid, captUid, false)"
+                                            @onclick:stopPropagation>
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </span>
+                            }
+                            @foreach (var gid in aud.GroupIds)
+                            {
+                                var captGid = gid; var captRid = rid;
+                                var label = _allAudienceSubjects.FirstOrDefault(s => s.Id == captGid.ToString())?.DisplayName ?? captGid.ToString();
+                                <span class="aud-chip">
+                                    <i class="bi bi-people me-1"></i>@label
+                                    <button class="aud-chip-remove" title="Remove"
+                                            @onclick="() => ToggleGroup(captRid, captGid, false)"
+                                            @onclick:stopPropagation>
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </span>
+                            }
+                            @if (!aud.UserIds.Any() && !aud.GroupIds.Any())
+                            {
+                                <span class="aud-zone-empty">Drop users or groups here</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="aud-footer">
+            <button class="modeler-version-action-btn" @onclick="CloseAudienceModal">Cancel</button>
+            @if (_editingVersionId.HasValue)
+            {
+                <button class="modeler-version-action-btn modeler-version-action-btn-primary" @onclick="SaveAudiences">
+                    <i class="bi bi-check-lg"></i> Save
+                </button>
+            }
+            else
+            {
+                <button class="modeler-version-action-btn modeler-version-action-btn-primary" @onclick="() => Publish(true)">
+                    <i class="bi bi-arrow-up-short"></i> Major (@_majorVersion)
+                </button>
+                <button class="modeler-version-action-btn modeler-version-action-btn-primary" @onclick="() => Publish(false)">
+                    <i class="bi bi-arrow-right-short"></i> Minor (@_minorVersion)
+                </button>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .aud-backdrop {
+        position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 1050;
+    }
+    .aud-modal {
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        z-index: 1051; background: #fff; border-radius: 8px;
+        box-shadow: 0 8px 32px rgba(0,0,0,.2);
+        width: min(860px, 95vw); max-height: 85vh;
+        display: flex; flex-direction: column; overflow: hidden;
+    }
+    :where(.dark) .aud-modal { background: #1f2937; }
+    .aud-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: .75rem 1rem; border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
+    }
+    :where(.dark) .aud-header { border-color: #374151; }
+    .aud-body {
+        display: flex; flex: 1; overflow: hidden; min-height: 0;
+    }
+    .aud-sidebar {
+        width: 220px; min-width: 220px; border-right: 1px solid #e5e7eb;
+        display: flex; flex-direction: column; padding: .75rem; overflow: hidden;
+    }
+    :where(.dark) .aud-sidebar { border-color: #374151; }
+    .aud-subject-list { flex: 1; overflow-y: auto; }
+    .aud-subject-item {
+        padding: .35rem .5rem; border-radius: 4px; cursor: grab; font-size: .85rem;
+        user-select: none; border: 1px solid transparent; color: #374151;
+    }
+    :where(.dark) .aud-subject-item { color: #d1d5db; }
+    .aud-subject-item:hover { background: #eef2ff; border-color: #c7d2fe; }
+    :where(.dark) .aud-subject-item:hover { background: #374151; border-color: #4b5563; }
+    .aud-subject-item.dragging { opacity: .4; }
+    .aud-zones {
+        flex: 1; display: flex; flex-direction: column; gap: .5rem;
+        padding: .75rem; overflow-y: auto;
+    }
+    .aud-zone {
+        border: 2px dashed #e5e7eb; border-radius: 6px; padding: .5rem .75rem;
+        transition: border-color .15s, background .15s; min-height: 72px;
+    }
+    :where(.dark) .aud-zone { border-color: #374151; }
+    .aud-zone-over { border-color: #6366f1; background: #eef2ff; }
+    :where(.dark) .aud-zone-over { border-color: #6366f1; background: rgba(99,102,241,0.1); }
+    .aud-zone-label {
+        font-size: .75rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: .04em; color: #6b7280; margin-bottom: .4rem;
+    }
+    .aud-zone-chips { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+    .aud-zone-empty { font-size: .8rem; color: #9ca3af; }
+    .aud-chip {
+        display: inline-flex; align-items: center; gap: .25rem;
+        background: #f3f4f6; border-radius: 20px; padding: .2rem .6rem .2rem .5rem;
+        font-size: .82rem; white-space: nowrap; color: #374151;
+    }
+    :where(.dark) .aud-chip { background: #374151; color: #d1d5db; }
+    .aud-chip-remove {
+        background: none; border: none; padding: 0; line-height: 1;
+        color: #6b7280; cursor: pointer; display: flex; align-items: center;
+    }
+    .aud-chip-remove:hover { color: #ef4444; }
+    .aud-footer {
+        display: flex; gap: .5rem; justify-content: flex-end;
+        padding: .75rem 1rem; border-top: 1px solid #e5e7eb; flex-shrink: 0;
+    }
+    :where(.dark) .aud-footer { border-color: #374151; }
+</style>
 
 @implements IDisposable
 
@@ -209,6 +410,27 @@
     private DateTime _lastDiffCompute = DateTime.MinValue;
     private bool _lastUnsaved;
 
+    // Audience modal shared state (publish new version OR edit existing)
+    private Dictionary<Guid, RoleAudience> _pendingAudiences = [];
+    private List<AudienceSubject> _allAudienceSubjects = [];
+    private string _audienceSearch = "";
+    private AudienceSubject? _draggingSubject;
+    private Dictionary<Guid, int> _dragEnterCounts = [];
+
+    // Non-null when editing audiences on an already-published/deployed version
+    private Guid? _editingVersionId;
+    private List<ProcessRole> _editingVersionRoles = [];
+
+    private record AudienceSubject(string Id, string DisplayName, string Icon, bool IsGroup);
+
+    private IReadOnlyList<ProcessRole> _activeRoles =>
+        _editingVersionId.HasValue ? _editingVersionRoles : (IReadOnlyList<ProcessRole>)State.Roles;
+
+    private IEnumerable<AudienceSubject> FilteredAudienceSubjects =>
+        string.IsNullOrWhiteSpace(_audienceSearch)
+            ? _allAudienceSubjects
+            : _allAudienceSubjects.Where(s => s.DisplayName.Contains(_audienceSearch, StringComparison.OrdinalIgnoreCase));
+
     private bool HasPublishedVersion => _timeline?.Any(e => e.IsPublished || e.IsDeployed) ?? false;
     private bool HasDraft => _timeline?.Any(e => e.IsDraft) ?? false;
 
@@ -224,6 +446,7 @@
         public bool IsPublished { get; init; }
         public bool IsDeployed { get; init; }
         public bool IsLoaded { get; init; }
+        public List<ProcessRole> Roles { get; init; } = [];
     }
 
     protected override void OnInitialized()
@@ -300,7 +523,7 @@
                 Id = draft.Id,
                 Label = "Draft",
                 BadgeText = "Draft",
-                BadgeCss = "modeler2-version-badge-draft",
+                BadgeCss = "modeler-version-badge-draft",
                 CreatedBy = draft.CreatedBy,
                 CreatedAt = draft.CreatedAt,
                 IsDraft = true,
@@ -316,12 +539,13 @@
                 Id = v.Id,
                 Label = $"v{v.Version}",
                 BadgeText = isDeployed ? "Deployed" : "Published",
-                BadgeCss = isDeployed ? "modeler2-version-badge-deployed" : "modeler2-version-badge-published",
+                BadgeCss = isDeployed ? "modeler-version-badge-deployed" : "modeler-version-badge-published",
                 CreatedBy = v.CreatedBy,
                 CreatedAt = v.CreatedAt,
                 IsPublished = !isDeployed,
                 IsDeployed = isDeployed,
-                IsLoaded = State.LoadedVersionId == v.Id
+                IsLoaded = State.LoadedVersionId == v.Id,
+                Roles = v.Definition?.Roles ?? []
             });
         }
 
@@ -374,7 +598,7 @@
         await OnVersionLoaded.InvokeAsync();
     }
 
-    private void StartPublish()
+    private async Task StartPublish()
     {
         State.Compile();
 
@@ -386,20 +610,133 @@
 
         _publishBlockedReason = null;
         _publishing = true;
+
+        if (State.Roles.Count > 0)
+            await LoadAudienceSubjectsAsync(pendingRoles: State.Roles);
     }
 
-    private void CancelPublish()
+    private async Task OpenAudienceEditor(Guid versionId, List<ProcessRole> roles)
+    {
+        _editingVersionId = versionId;
+        _editingVersionRoles = roles;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        await LoadAudienceSubjectsAsync(db);
+
+        var version = await db.WorkflowVersions.FindAsync(versionId);
+        _pendingAudiences = version?.RoleAudiences is { Count: > 0 }
+            ? new Dictionary<Guid, RoleAudience>(version.RoleAudiences)
+            : roles.ToDictionary(r => r.Id, _ => new RoleAudience());
+    }
+
+    private async Task LoadAudienceSubjectsAsync(
+        Argent.Infrastructure.Data.ArgentDbContext? db = null,
+        IReadOnlyList<ProcessRole>? pendingRoles = null)
+    {
+        bool owned = db == null;
+        db ??= await DbFactory.CreateDbContextAsync();
+
+        try
+        {
+            var users = await db.Users
+                .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+                .Select(u => new { u.Id, u.FirstName, u.LastName })
+                .ToListAsync();
+
+            var groups = await db.Groups
+                .OrderBy(g => g.Name)
+                .Select(g => new { g.Id, g.Name })
+                .ToListAsync();
+
+            _allAudienceSubjects =
+            [
+                ..users.Select(u => new AudienceSubject(u.Id.ToString(), $"{u.FirstName} {u.LastName}", "bi-person", false)),
+                ..groups.Select(g => new AudienceSubject(g.Id.ToString(), g.Name, "bi-people", true))
+            ];
+
+            if (pendingRoles != null)
+                _pendingAudiences = pendingRoles.ToDictionary(r => r.Id, _ => new RoleAudience());
+        }
+        finally
+        {
+            if (owned) await db.DisposeAsync();
+        }
+    }
+
+    private void CloseAudienceModal()
     {
         _publishing = false;
         _publishBlockedReason = null;
+        _editingVersionId = null;
+        _editingVersionRoles = [];
+        _pendingAudiences = [];
+        _allAudienceSubjects = [];
+        _audienceSearch = "";
+        _draggingSubject = null;
+        _dragEnterCounts = [];
+    }
+
+    // Keep as alias so StartPublish's cancel button still works
+    private void CancelPublish() => CloseAudienceModal();
+
+    private async Task SaveAudiences()
+    {
+        if (!_editingVersionId.HasValue) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var version = await db.WorkflowVersions.FindAsync(_editingVersionId.Value);
+        if (version != null)
+        {
+            version.RoleAudiences = new Dictionary<Guid, RoleAudience>(_pendingAudiences);
+            await db.SaveChangesAsync();
+        }
+
+        CloseAudienceModal();
     }
 
     private async Task Publish(bool isMajor)
     {
-        await State.PublishVersionAsync(isMajor);
-        _publishing = false;
+        var audiences = _pendingAudiences.Count > 0 ? _pendingAudiences : null;
+        await State.PublishVersionAsync(isMajor, audiences);
+        CloseAudienceModal();
         await RefreshVersions();
         await OnVersionLoaded.InvokeAsync();
+    }
+
+    private void ToggleUser(Guid roleId, string userId, bool add)
+    {
+        if (!_pendingAudiences.TryGetValue(roleId, out var audience))
+            _pendingAudiences[roleId] = audience = new RoleAudience();
+
+        if (add) { if (!audience.UserIds.Contains(userId)) audience.UserIds.Add(userId); }
+        else audience.UserIds.Remove(userId);
+    }
+
+    private void ToggleGroup(Guid roleId, Guid groupId, bool add)
+    {
+        if (!_pendingAudiences.TryGetValue(roleId, out var audience))
+            _pendingAudiences[roleId] = audience = new RoleAudience();
+
+        if (add) { if (!audience.GroupIds.Contains(groupId)) audience.GroupIds.Add(groupId); }
+        else audience.GroupIds.Remove(groupId);
+    }
+
+    private void DropOnRole(Guid roleId)
+    {
+        if (_draggingSubject == null) return;
+        var subject = _draggingSubject;
+        _draggingSubject = null;
+
+        if (subject.IsGroup)
+        {
+            if (Guid.TryParse(subject.Id, out var gid))
+                ToggleGroup(roleId, gid, true);
+        }
+        else
+        {
+            ToggleUser(roleId, subject.Id, true);
+        }
     }
 
     private async Task Deploy(Guid versionId)

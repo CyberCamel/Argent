@@ -18,7 +18,6 @@ public class UserTask
     public string? AssignedTo { get; set; }
     public DateTime? ClaimedAt { get; set; }
     public string? CandidateUsers { get; set; }
-    public string? CandidateRoles { get; set; }
     public string? Title { get; set; }
     public string? Description { get; set; }
     public short Priority { get; set; }

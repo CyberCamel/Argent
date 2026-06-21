@@ -12,15 +12,15 @@
 
 @if (_loading)
 {
-    <div class="text-muted small">Loading workflow...</div>
+    <div class="text-gray-500 dark:text-gray-400 text-sm">Loading workflow...</div>
 }
 else if (!string.IsNullOrEmpty(_error))
 {
-    <div class="alert alert-danger">@_error</div>
+    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-800 dark:text-red-200">@_error</div>
 }
 else if (_formId == null)
 {
-    <div class="alert alert-warning">This workflow has no start form configured.</div>
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm text-yellow-800 dark:text-yellow-200">This workflow has no start form configured.</div>
 }
 else
 {

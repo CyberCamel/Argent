@@ -1,0 +1,14 @@
+@model Argent.Web.Pages.Shared.EmptyStateModel
+<div class="card text-center py-12">
+    <div class="max-w-sm mx-auto">
+        @if (!string.IsNullOrEmpty(Model.Icon))
+        {
+            <i class="@Model.Icon text-4xl text-gray-300 dark:text-gray-600 mb-3 block"></i>
+        }
+        <p class="text-gray-500 dark:text-gray-400 text-sm mb-0">@Model.Message</p>
+        @if (!string.IsNullOrEmpty(Model.LinkText) && !string.IsNullOrEmpty(Model.LinkUrl))
+        {
+            <a href="@Model.LinkUrl" class="text-indigo-600 dark:text-indigo-400 text-sm font-medium hover:underline mt-2 inline-block">@Model.LinkText</a>
+        }
+    </div>
+</div>

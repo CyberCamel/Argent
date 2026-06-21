@@ -5,37 +5,41 @@
 {
     <tr>
         <td>
-            <a href="/Users/View/@user.Id" class="text-decoration-none">
-                <strong>@user.FirstName @user.LastName</strong>
+            <a href="/Users/View/@user.Id" class="font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
+                @user.FirstName @user.LastName
             </a>
         </td>
-        <td>@user.Email</td>
+        <td class="text-gray-500 dark:text-gray-400">@user.Email</td>
         <td>
-            @foreach (var role in user.Roles)
-            {
-                <span class="badge bg-secondary">@role</span>
-            }
+            <div class="flex flex-wrap gap-1">
+                @foreach (var role in user.Roles)
+                {
+                    <span class="badge bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">@role</span>
+                }
+            </div>
         </td>
-        <td>
-            <a class="btn btn-sm btn-outline-info" href="/Users/View/@user.Id">
-                View
-            </a>
-            <button 
-                hx-get="/UserAdministration/Edit/@user.UserName"
-                hx-target="#modalBody" 
-                hx-trigger="click" 
-                hx-on="htmx:afterSwap: bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show()" 
-                class="btn btn-sm btn-outline-primary">
-                Edit
-            </button>
-
-            <form hx-post="/UserAdministration/Delete/@user.UserName" method="post"
-                  class="d-inline"
-                  hx-confirm="Are you sure?"
-                  hx-target="closest tr"
-                  hx-swap="outerHTML">
-                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-            </form>
+        <td class="text-right">
+            <div class="flex items-center justify-end gap-1">
+                <a class="btn-action btn-action-primary" href="/Users/View/@user.Id" title="View">
+                    <i class="bi bi-eye-fill"></i>
+                </a>
+                <button class="btn-action btn-action-secondary" title="Edit"
+                        hx-get="/UserAdministration/Edit/@user.UserName"
+                        hx-target="#modalBody"
+                        hx-trigger="click"
+                        hx-on="htmx:afterSwap: Alpine.$data(document.getElementById('userModal')).open = true">
+                    <i class="bi bi-pencil-fill"></i>
+                </button>
+                <form hx-post="/UserAdministration/Delete/@user.UserName" method="post"
+                      class="inline"
+                      hx-confirm="Are you sure?"
+                      hx-target="closest tr"
+                      hx-swap="outerHTML">
+                    <button type="submit" class="btn-action btn-action-danger" title="Delete">
+                        <i class="bi bi-trash-fill"></i>
+                    </button>
+                </form>
+            </div>
         </td>
     </tr>
 }

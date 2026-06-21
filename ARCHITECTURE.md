@@ -46,10 +46,13 @@ The leaf-node assembly. Contains no logic — only POCOs, enums, JSON-polymorphi
 |---|---|---|
 | `DomainObjects` | `DomainObject`, `DomainObjectDefinition`, `DomainObjectDraft`, `DomainObjectVersion`, `DomainObjectRecord`, `DomainProperty`, `DomainPropertyType`, `DomainChoiceOption`, `DomainDataSource`, `DomainObjectState` | Schema definitions for custom entity types, their typed properties, data source bindings, version lifecycle (draft → publish), and instance records |
 | `DomainObjects.Querying` | `DomainQuery`, `DomainQueryResult`, `DomainFilter`, `DomainSort`, `DomainFilterCondition`, `DomainFilterOperator`, `DomainFilterLogic` | Declarative query/filter/sort/pagination model for domain object records |
-| `Workflows` | `WorkflowDefinition`, `Workflow`, `WorkflowVersion`, `WorkflowDraft`, `NodeBase`, `Connection`, `StartEvent`, `EndEvent`, `ExclusiveGateway`, `InclusiveGateway`, `ParallelGateway`, `Lane`, `Pool`, `Token`, `WorkflowMetadata`, `WorkflowDiff` | Workflow graph model. `NodeBase` is the JSON-polymorphic base; concrete nodes carry `[WorkflowCanvasElement]` attributes with metadata for the designer. `Connection.Expression` carries the gateway condition (NCalc) for conditional branches |
+| `Workflows` | `WorkflowDefinition`, `Workflow`, `WorkflowVersion`, `WorkflowDraft`, `NodeBase`, `Connection`, `StartEvent`, `EndEvent`, `ExclusiveGateway`, `InclusiveGateway`, `ParallelGateway`, `Lane`, `Pool`, `ProcessRole`, `RoleAudience`, `WorkflowMetadata`, `WorkflowDiff` | Workflow graph model. `NodeBase` is the JSON-polymorphic base; concrete nodes carry `[WorkflowCanvasElement]` attributes with metadata for the designer. `Connection.Expression` carries the gateway condition (NCalc) for conditional branches. `ProcessRole` / `RoleAudience` support swimlane task assignment |
 | `Authorization` | `PolicyDocument`, `PolicyDecision` (enum), `PolicyEffect` (enum), `ResourceActions` | Policy-based access control models. `PolicyDocument` is the persisted policy entity with Effect, ResourceType, ResourceSelectorJson, ActionsJson, SubjectJson, optional Condition tree, and Priority. `ResourceActions` defines well-known action constants per resource type |
-| `Workflows.Activities` | `Activity`, `SQLActivity`, `RestActivity`, `JintActivity`, `UserActivity`, `ServerActivity`, `UserExperience` (`RedirectExperience`, `WaitExperience`, `TaskExperience`) | Concrete node types, each `NodeBase` subtypes discriminated by JSON type discriminator. `UserActivity.UX` selects how a user task is surfaced |
-| `Workflows.Execution` | `WorkflowToken`, `WorkItem`, `WorkflowInstance`, `UserTask`, `WorkItemState`, `InstanceState`, `TokenState`, `UserTaskState` | Token-based execution state. `WorkflowToken` is the BPMN "token" that flows through the graph (carries the variable `Payload` plus `GroupId`/`TokenCount` for gateway join correlation); `WorkItem` is the claimable execution queue row (state, lock fields, retry counters, priority/schedule); `WorkflowInstance` tracks a running execution; `UserTask` is a pending human task |
+| `Workflows.Activities` | `Activity`, `SQLActivity`, `RestActivity`, `JintActivity`, `ScriptActivity`, `ScriptAction`, `UserActivity`, `ServerActivity`, `UserExperience` (`RedirectExperience`, `WaitExperience`, `TaskExperience`) | Concrete node types, each `NodeBase` subtypes discriminated by JSON type discriminator. `ScriptActivity` executes a list of `ScriptAction` steps. `UserActivity.UX` selects how a user task is surfaced |
+| `Workflows.Intermediates` | `CatchingIntermediateEvent`, `CatchingTimerEvent` | Intermediate catch events. `CatchingTimerEvent` pauses the token until a timer fires |
+| `Workflows.BoundaryEvents` | `BoundaryEvent`, `TimerBoundaryEvent` | Boundary events attached to activities. `TimerBoundaryEvent` fires if the parent user task is not completed within the configured schedule |
+| `Workflows.Shared` | `Timer`, `TimerDefinition` (`RelativeTimerDefinition`, `CronTimerDefinition`), `TimerState`, `TimerUnit` | Timer persistence and definition types. `Timer` is the persisted row; `TimerDefinition` is the polymorphic config stored in the node (`RelativeTimerDefinition` for duration-based, `CronTimerDefinition` for 6-field cron) |
+| `Workflows.Execution` | `WorkflowToken`, `WorkItem`, `WorkflowInstance`, `UserTask`, `WorkItemState`, `InstanceState`, `TokenState`, `UserTaskState` | Token-based execution state. `WorkflowToken` is the BPMN "token" that flows through the graph (carries the variable `Payload` plus `GroupId`/`TokenCount` for gateway join correlation); `WorkItem` is the claimable execution queue row (state, lock fields, retry counters, priority/schedule); `WorkflowInstance` tracks a running execution; `UserTask` carries `Title`, `Description`, `Priority`, `DueDate`, `AssignedTo`, `ClaimedAt`, `CandidateUsers` (JSON), `FormId`, `FormData`, and an optimistic-lock `RowVersion` |
 | `Workflows.Auditing` | `WorkflowJournalEntry`, enums | Audit trail entries for workflow execution |
 | `Workflows.Modeler` | `NodeLayout`, `LayoutElement` | Visual layout data (position, dimensions) for the workflow designer canvas |
 | `Forms.Components` | `FormDefinition`, `FormCustomData` | Top-level form definition containing a tree of `FormComponent` items. `FormCustomData` stores field values that have no corresponding `DomainProperty` on the bound domain object |
@@ -65,7 +68,7 @@ The leaf-node assembly. Contains no logic — only POCOs, enums, JSON-polymorphi
 
 All three designer subsystems (workflows, forms, domain objects) store their definitions as `nvarchar(max)` JSON columns. Polymorphism uses `System.Text.Json` type discriminators:
 
-- `NodeBase` → `SQLActivity`, `RestActivity`, `JintActivity`, `UserActivity`, `ServerActivity`, `StartEvent`, `EndEvent`, `ExclusiveGateway`, `InclusiveGateway`, `ParallelGateway`
+- `NodeBase` → `SQLActivity`, `RestActivity`, `JintActivity`, `ScriptActivity`, `UserActivity`, `StartEvent`, `EndEvent`, `ExclusiveGateway`, `InclusiveGateway`, `ParallelGateway`, `CatchingTimerEvent`, `TimerBoundaryEvent`
 - `FormComponent` → `FormField`, `FormLayout` (with `LayoutType` sub-discriminator)
 - `DataSource` → `SqlDataSource`, `RestDataSource`, `SoapDataSource`
 - `Condition` → `AndCondition`, `OrCondition`, `NotCondition`, `CompareCondition`, `RoleCondition`, `ExpressionCondition` — also used by `PolicyDocument.Condition` for attribute-based policy conditions
@@ -138,7 +141,7 @@ through one node.
 | `ITokenExecutionContext` | `InstanceId`, `TokenId`, `NodeId`, `Variables`, `CandidateTargets`, `TokenGroupId`, `TokenCount` | INodeHandler implementations | Read-only per-token context passed to handlers. `CandidateTarget` is an outgoing edge (target node + optional expression) |
 | `IVariableBag` | `Get<T>(key)`, `Get(key)`, `Set(key, value)`, `Snapshot()` | Handlers, gateway evaluators | Token-scoped variable store backed by the token `Payload` JSON |
 | `IWorkflowInstanceManager` | `StartAsync(definitionId, variables, ct)`, `SuspendAsync`, `ResumeAsync`, `CancelAsync`, `GetStateAsync` → `InstanceSnapshot` | External triggers, admin/UI | Instance lifecycle. `StartAsync` seeds the initial StartEvent token + work item |
-| `IUserTaskManager` | `CreateTaskAsync(...)`, `GetTaskByTokenAsync(tokenId, ct)`, `CompleteTaskAsync(taskId, completedBy, resultData, ct)` | UserActivityHandler, external task UI/API | User-task CRUD and completion. `CompleteTaskAsync` re-queues a work item to resume the waiting token |
+| `IUserTaskManager` | `CreateTaskAsync(instanceId, tokenId, nodeId, dueDate, title?, description?, priority, assigneeExpression?, formId?, formData?, ct)`, `GetTaskByTokenAsync(tokenId, ct)`, `GetAsync(taskId, ct)`, `GetTasksForUserAsync(userId, roles, stateFilter?, ct)`, `ClaimAsync(taskId, userId, ct)`, `ReleaseAsync(taskId, ct)`, `ReassignAsync(taskId, toUser, ct)`, `CompleteTaskAsync(taskId, completedBy, roles, action?, ct)`, `SetCandidateUsersAsync(taskId, json, ct)` | UserActivityHandler, task inbox, admin pages | Full user-task lifecycle. `CompleteTaskAsync` marks the task done and re-queues a work item to resume the waiting token. `GetTasksForUserAsync` returns tasks where `AssignedTo == userId` OR `CandidateUsers` contains the user. `ClaimAsync`/`ReleaseAsync` implement task claiming without completion |
 | `IAuditService` | `RecordAsync(category, eventType, instanceId?, tokenId?, actor?, details?, ct)` | Engine, managers | Writes `WorkflowJournalEntry` audit rows (details serialized to JSON) |
 
 **Supporting records:** `ClaimedWork`, `TokenMovementRequest`, `TokenTarget`, `CandidateTarget`,
@@ -204,6 +207,7 @@ Extends `IdentityDbContext<InternalUser, IdentityRole<Guid>, Guid>` and configur
 | `Groups` | `Group` | Named user collections for PBAC subject targeting |
 | `GroupMemberships` | `GroupMembership` | User-to-group join table |
 | `GroupGroupMemberships` | `GroupGroupMembership` | Nested-group edges for transitive membership |
+| `Timers` | `Timer` | Scheduled timers for `CatchingTimerEvent` and `TimerBoundaryEvent` nodes; indexed on `(State, TriggerTime)` |
 
 **Key configuration patterns:**
 
@@ -419,7 +423,7 @@ Maps xtype strings → Blazor component `Type`. Pre-populated in `Program.cs`:
 - `Row` → `ArgentRow`, `Column` → `ArgentColumn`, `Flex` → `ArgentFlex`
 - `Fieldset` → `ArgentFieldset`, `Tabs` → `ArgentTabs`, `Accordion` → `ArgentAccordion`
 - `HtmlBox` → `ArgentHtml`
-- `TextField` → `ArgentText`, `DropdownField` → `ArgentDropdown`, `NumericField` → `ArgentNumeric`, `CheckboxField` → `ArgentCheckbox`
+- `TextField` → `ArgentText`, `NumericField` → `ArgentNumeric`, `DecimalField` → `ArgentDecimal`, `DateField` → `ArgentDate`, `SliderField` → `ArgentSlider`, `DropdownField` → `ArgentDropdown`, `RadioField` → `ArgentRadio`, `CheckboxField` → `ArgentCheckbox`, `FileField` → `ArgentFile`
 
 ### 4d. Form Designer (`Forms/Modeling/`)
 
@@ -609,6 +613,22 @@ done and enqueues a fresh work item so the waiting token resumes.
 `WorkflowMeter` exposes OpenTelemetry instruments under meter `Argent.WorkflowEngine`:
 `ItemsClaimed`, `TokensMoved`, `HandlerDurationMs`.
 
+##### `TimerManager`
+
+**Dependencies:** `IDbContextFactory<ArgentDbContext>`, `ILogger`
+
+Singleton that owns all in-process timer scheduling:
+- **`CreateAsync`** — persists a `Timer` row (called by `CatchingTimerHandler` / `TimerBoundaryEventHandler`)
+- **`SchedulePendingAsync`** — called each engine poll cycle; queries `Pending` timers due within a 1-minute lookahead window, atomically marks each one `Claimed`, then schedules a `Task.Delay` that enqueues a `WorkItem` when it fires; past-due timers are clamped to zero delay
+- **`CancelAsync`** — marks a timer `Cancelled` (called when a user task completes normally, cancelling its boundary timers)
+- **`ReArmAsync`** — called by `RecoveryPass` at startup to re-register any `Claimed` timers that survived a crash
+
+##### `TimerDefinitionResolver`
+
+Computes the absolute `DateTime` a timer should fire from a `TimerDefinition`:
+- `RelativeTimerDefinition` — adds `Amount × Unit` to the anchor (token arrival time, or a date field value from the instance's domain object record when `UseField = true`)
+- `CronTimerDefinition` — uses NCrontab to find the next occurrence after the anchor in the specified `TimeZoneId`
+
 ##### Node Handlers (`Workflows/Handlers/`)
 
 One `INodeHandler` per node type, registered as `IEnumerable<INodeHandler>` and matched by
@@ -621,7 +641,10 @@ One `INodeHandler` per node type, registered as `IEnumerable<INodeHandler>` and 
 | `SQLActivityHandler` | `SQLActivity` | Runs SQL via `IDataSourceRunner`; outputs `result`/`rowCount` |
 | `RestActivityHandler` | `RestActivity` | HTTP via `IHttpClientFactory`; `{{token}}` substitution in URL/headers/body; outputs `statusCode`/`responseBody`/`responseHeaders` |
 | `JintActivityHandler` | `JintActivity` | Executes JS via Jint (30s/10MB limits); injects variables, captures `ReturnVariable` |
-| `UserActivityHandler` | `UserActivity` | Creates a `UserTask` and returns `Waiting`; resumes when the task is completed |
+| `UserActivityHandler` | `UserActivity` | Creates a `UserTask`; resolves candidate users from lane role audience if `LaneRoleId` is set; returns `Waiting`; resumes when the task is completed |
+| `ScriptActivityHandler` | `ScriptActivity` | Executes a list of `ScriptAction` steps (`SetFormField`, `SetVariable`) sequentially; returns `Completed` |
+| `CatchingTimerHandler` | `CatchingTimerEvent` | Computes fire time via `TimerDefinitionResolver`, persists a `Timer` row via `TimerManager`; returns `Waiting`; re-activated when the timer fires |
+| `TimerBoundaryEventHandler` | `TimerBoundaryEvent` | Registers a boundary timer; returns `Waiting`; fires if the parent user task is not completed in time |
 | `ExclusiveGatewayEvaluator` | `ExclusiveGateway` | First matching connection expression wins; falls back to the default (null-expression) edge; no match → `Failed` |
 | `InclusiveGatewayEvaluator` | `InclusiveGateway` | Activates every matching edge (one target each); default edge if none match |
 | `ParallelGatewayEvaluator` | `ParallelGateway` | Unconditional fan-out to all outgoing edges (and acts as the join on the inbound side) |
@@ -742,7 +765,8 @@ The composition root: configures DI, middleware, authentication, and hosts Blazo
 | Transient | `RecoveryPass` | `RecoveryPass` |
 | Singleton | `IUserTaskManager` | `UserTaskManager` |
 | Singleton | `IAuditService` | `AuditService` |
-| Transient | `INodeHandler` (×9) | `StartEventHandler`, `EndEventHandler`, `ExclusiveGatewayEvaluator`, `InclusiveGatewayEvaluator`, `ParallelGatewayEvaluator`, `SQLActivityHandler`, `RestActivityHandler`, `JintActivityHandler`, `UserActivityHandler` |
+| Singleton | `TimerManager` | `TimerManager` |
+| Transient | `INodeHandler` (×12) | `StartEventHandler`, `EndEventHandler`, `ExclusiveGatewayEvaluator`, `InclusiveGatewayEvaluator`, `ParallelGatewayEvaluator`, `SQLActivityHandler`, `RestActivityHandler`, `JintActivityHandler`, `UserActivityHandler`, `ScriptActivityHandler`, `CatchingTimerHandler`, `TimerBoundaryEventHandler` |
 | Scoped | `IDomainObjectDefinitionService` | `DomainObjectDefinitionService` |
 | Scoped | `IDomainObjectStore` | `DomainObjectStore` |
 | Scoped | `DesignerService` | `DesignerService` |

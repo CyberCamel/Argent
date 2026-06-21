@@ -1,13 +1,11 @@
-﻿using Argent.Models.Workflows.Modeler;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Text.Json.Serialization;
+using Argent.Models.Workflows.Modeler;
 
 namespace Argent.Models.Workflows;
 
-[JsonDerivedType(typeof(Lane), typeDiscriminator: "lane")]
 public class Lane : LayoutElement
 {
-    
+    public string Label { get; set; } = string.Empty;
+    public Guid PoolId { get; set; }
+    public Guid? RoleId { get; set; }
+    public int Order { get; set; }
 }

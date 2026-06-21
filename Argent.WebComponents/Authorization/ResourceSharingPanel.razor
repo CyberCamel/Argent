@@ -5,8 +5,8 @@
 @inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
 @inject IResourceOwnershipService OwnershipService
 
-<button class="btn btn-sm btn-outline-secondary" @onclick="Open">
-    <i class="bi bi-shield-lock me-1"></i>Manage Access
+<button class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors" @onclick="Open">
+    <i class="bi bi-shield-lock mr-1"></i>Manage Access
 </button>
 
 @if (_open)
@@ -15,8 +15,8 @@
 
     <div class="rsp-modal" @onclick:stopPropagation>
         <div class="rsp-header">
-            <span class="fw-semibold">Share Access</span>
-            <button class="btn-close" @onclick="Close"></button>
+            <span class="font-semibold">Share Access</span>
+            <button class="bg-transparent border-none text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer text-lg leading-none p-1" @onclick="Close">&times;</button>
         </div>
 
         @if (_loading)
@@ -29,7 +29,7 @@
 
                 @* ── Left: searchable subject list ── *@
                 <div class="rsp-sidebar">
-                    <input class="form-control form-control-sm mb-2"
+                    <input class="form-input text-sm mb-2"
                            type="search" placeholder="Search users & groups…"
                            @bind="_search" @bind:event="oninput" />
 
@@ -40,13 +40,13 @@
                                  draggable="true"
                                  @ondragstart="() => _dragging = s"
                                  @ondragend="() => _dragging = null">
-                                <i class="bi @s.Icon me-1"></i>
+                                <i class="bi @s.Icon mr-1"></i>
                                 @s.Label
                             </div>
                         }
                         @if (!Filtered.Any())
                         {
-                            <div class="text-muted small px-1">No results.</div>
+                            <div class="text-gray-500 dark:text-gray-400 text-sm px-1">No results.</div>
                         }
                     </div>
                 </div>
@@ -55,22 +55,23 @@
                 <div class="rsp-zones">
                     @foreach (var action in AvailableActions)
                     {
-                        var isOver = _dragOver == action;
+                        var act = action;
+                        var isOver = _dragEnterCounts.GetValueOrDefault(act) > 0;
                         <div class="rsp-zone @(isOver ? "rsp-zone-over" : "")"
                              @ondragover:preventDefault
-                             @ondragenter="() => _dragOver = action"
-                             @ondragleave="() => { if (_dragOver == action) _dragOver = null; }"
-                             @ondrop="() => Drop(action)">
+                             @ondragenter="() => { _dragEnterCounts[act] = _dragEnterCounts.GetValueOrDefault(act) + 1; }"
+                             @ondragleave="() => { var c = _dragEnterCounts.GetValueOrDefault(act) - 1; if (c <= 0) _dragEnterCounts.Remove(act); else _dragEnterCounts[act] = c; }"
+                             @ondrop="() => { _dragEnterCounts.Remove(act); Drop(act); }">
 
                             <div class="rsp-zone-label">
-                                <i class="bi @ActionIcon(action) me-1"></i>@ActionLabel(action)
+                                <i class="bi @ActionIcon(action) mr-1"></i>@ActionLabel(action)
                             </div>
 
                             <div class="rsp-zone-chips">
                                 @foreach (var entry in EntriesFor(action))
                                 {
                                     <span class="rsp-chip">
-                                        <i class="bi @entry.Icon me-1"></i>
+                                        <i class="bi @entry.Icon mr-1"></i>
                                         @entry.Label
                                         <button class="rsp-chip-remove" title="Remove"
                                                 @onclick="() => RemoveAction(entry, action)"
@@ -103,53 +104,61 @@
         width: min(900px, 95vw); max-height: 85vh;
         display: flex; flex-direction: column; overflow: hidden;
     }
+    :where(.dark) .rsp-modal { background: #1f2937; }
     .rsp-header {
         display: flex; justify-content: space-between; align-items: center;
-        padding: .75rem 1rem; border-bottom: 1px solid #dee2e6;
+        padding: .75rem 1rem; border-b: 1px solid #e5e7eb;
     }
-    .rsp-loading { padding: 2rem; text-align: center; color: #6c757d; }
+    :where(.dark) .rsp-header { border-color: #374151; }
+    .rsp-loading { padding: 2rem; text-align: center; color: #6b7280; }
     .rsp-body {
         display: flex; flex: 1; overflow: hidden;
     }
     .rsp-sidebar {
-        width: 220px; min-width: 220px; border-right: 1px solid #dee2e6;
+        width: 220px; min-width: 220px; border-right: 1px solid #e5e7eb;
         display: flex; flex-direction: column; padding: .75rem;
         overflow: hidden;
     }
+    :where(.dark) .rsp-sidebar { border-color: #374151; }
     .rsp-subject-list { flex: 1; overflow-y: auto; }
     .rsp-subject-item {
         padding: .35rem .5rem; border-radius: 4px; cursor: grab; font-size: .85rem;
-        user-select: none; border: 1px solid transparent;
+        user-select: none; border: 1px solid transparent; color: #374151;
     }
-    .rsp-subject-item:hover { background: #f0f4ff; border-color: #c5d3f0; }
+    :where(.dark) .rsp-subject-item { color: #d1d5db; }
+    .rsp-subject-item:hover { background: #eef2ff; border-color: #c7d2fe; }
+    :where(.dark) .rsp-subject-item:hover { background: #374151; border-color: #4b5563; }
     .rsp-subject-item.dragging { opacity: .4; }
     .rsp-zones {
         flex: 1; display: flex; flex-direction: column; gap: .5rem;
         padding: .75rem; overflow-y: auto;
     }
     .rsp-zone {
-        border: 2px dashed #dee2e6; border-radius: 6px; padding: .5rem .75rem;
+        border: 2px dashed #e5e7eb; border-radius: 6px; padding: .5rem .75rem;
         transition: border-color .15s, background .15s; min-height: 72px;
     }
+    :where(.dark) .rsp-zone { border-color: #374151; }
     .rsp-zone-over {
-        border-color: #0d6efd; background: #f0f4ff;
+        border-color: #6366f1; background: #eef2ff;
     }
+    :where(.dark) .rsp-zone-over { border-color: #6366f1; background: rgba(99,102,241,0.1); }
     .rsp-zone-label {
         font-size: .75rem; font-weight: 600; text-transform: uppercase;
-        letter-spacing: .04em; color: #6c757d; margin-bottom: .4rem;
+        letter-spacing: .04em; color: #6b7280; margin-bottom: .4rem;
     }
     .rsp-zone-chips { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
-    .rsp-zone-empty { font-size: .8rem; color: #adb5bd; }
+    .rsp-zone-empty { font-size: .8rem; color: #9ca3af; }
     .rsp-chip {
         display: inline-flex; align-items: center; gap: .25rem;
-        background: #e9ecef; border-radius: 20px; padding: .2rem .6rem .2rem .5rem;
-        font-size: .82rem; white-space: nowrap;
+        background: #f3f4f6; border-radius: 20px; padding: .2rem .6rem .2rem .5rem;
+        font-size: .82rem; white-space: nowrap; color: #374151;
     }
+    :where(.dark) .rsp-chip { background: #374151; color: #d1d5db; }
     .rsp-chip-remove {
         background: none; border: none; padding: 0; line-height: 1;
-        color: #6c757d; cursor: pointer; display: flex; align-items: center;
+        color: #6b7280; cursor: pointer; display: flex; align-items: center;
     }
-    .rsp-chip-remove:hover { color: #dc3545; }
+    .rsp-chip-remove:hover { color: #ef4444; }
 </style>
 
 @code {
@@ -165,7 +174,7 @@
     private bool _loading;
     private string _search = "";
     private SubjectItem? _dragging;
-    private string? _dragOver;
+    private Dictionary<string, int> _dragEnterCounts = [];
 
     private List<SubjectItem> _allSubjects = [];
     private List<PermissionEntry> _entries = [];
@@ -214,7 +223,7 @@
     {
         _open = false;
         _dragging = null;
-        _dragOver = null;
+        _dragEnterCounts = [];
         _search = "";
     }
 
@@ -260,7 +269,7 @@
                 var existing = result.FirstOrDefault(e => e.SubjectId == subjectId.Id && e.PolicyId == policy.Id);
                 if (existing != null) continue;
 
-                var subject = _allSubjects.FirstOrDefault(s => s.Id == subjectId.Id);
+                var subject = _allSubjects.FirstOrDefault(s => string.Equals(s.Id, subjectId.Id, StringComparison.OrdinalIgnoreCase));
                 var label = subject?.Label ?? subjectId.Id;
                 var icon  = subject?.Icon  ?? (subjectId.IsGroup ? "bi-people" : "bi-person");
                 result.Add(new PermissionEntry(subjectId.Id, label, icon, policy.Id, actions));
@@ -272,7 +281,6 @@
 
     private async Task Drop(string action)
     {
-        _dragOver = null;
         if (_dragging == null) return;
         var subject = _dragging;
         _dragging = null;

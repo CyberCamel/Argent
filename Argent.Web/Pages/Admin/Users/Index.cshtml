@@ -4,66 +4,64 @@
     ViewData["Title"] = "User Management";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold mb-1">User Management</h4>
-        <p class="text-muted small mb-0">Manage users and their roles</p>
-    </div>
-    <button class="btn btn-primary"
-            hx-get="/UserAdministration/Create"
-            hx-target="#modalBody"
-            hx-trigger="click"
-            hx-on="htmx:afterSwap: bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show()">
-        <i class="bi bi-plus-lg"></i> Add User
-    </button>
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = "User Management",
+    Subtitle = "Manage users and their roles",
+    ActionModal = new Argent.Web.Pages.Shared.ModalModel("Add User", "userModalContent", "bi-plus-lg")
+}' />
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Roles</th>
+                <th class="text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="userTable"
+               hx-get="/UserAdministration/List"
+               hx-trigger="load, userActionCompleted from:body, userDeleted from:body"
+               hx-swap="innerHTML">
+            <partial name="~/Pages/Admin/Users/_UserTablePartial.cshtml" model="Model.Users" />
+        </tbody>
+    </table>
 </div>
 
-<div class="card">
-    <div class="table-responsive">
-        <table class="table table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Roles</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="userTable"
-                   hx-get="/UserAdministration/List"
-                   hx-trigger="load, userActionCompleted from:body, userDeleted from:body"
-                   hx-swap="innerHTML">
-                <partial name="~/Pages/Admin/Users/_UserTablePartial.cshtml" model="Model.Users" />
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="modal fade" id="userModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="fw-bold"><i class="bi bi-person me-2 text-primary"></i>Manage User</h5>
-            </div>
-            <div class="modal-body" id="modalBody"></div>
+@* User modal (Alpine-based) *@
+<div id="userModal" class="fixed inset-0 z-50 flex items-center justify-center"
+     x-data="{ open: false }"
+     x-init="open = false"
+     x-show="open"
+     x-cloak
+     @@open-modal.window="if ($event.detail === 'userModalContent') open = true"
+     @@keydown.escape.window="open = false">
+    <div class="fixed inset-0 bg-black/50" @@click="open = false"></div>
+    <div class="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg mx-4" @@click.outside="open = false">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+            <h2 class="text-lg font-bold flex items-center gap-2">
+                <i class="bi bi-person text-indigo-600 dark:text-indigo-400"></i>Manage User
+            </h2>
+            <button type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" @@click="open = false">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="p-4" id="modalBody">
+            <div class="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">Loading…</div>
         </div>
     </div>
 </div>
 
-<partial name="~/Pages/Shared/_ValidationScriptsPartial.cshtml" />
-
 <script>
     document.body.addEventListener('htmx:afterSwap', function (e) {
         if (e.target.id === "modalBody") {
-            const form = e.target.querySelector("form");
-            if (form) {
-                $.validator.unobtrusive.parse(form);
-            }
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show();
+            // Open the Alpine modal
+            Alpine.$data(document.getElementById('userModal')).open = true;
         }
     });
 
     document.body.addEventListener('userActionCompleted', function () {
-        bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+        Alpine.$data(document.getElementById('userModal')).open = false;
     });
 </script>

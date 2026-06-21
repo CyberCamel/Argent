@@ -69,7 +69,6 @@ public class FormDesignerService(
         new() { TypeName = "FileField",     Category = "Fields", DisplayName = "File Upload", Icon = "bi-paperclip",             Factory = () => new FormField { Xtype = "FileField",     Name = "", FieldLabel = "File" } },
 
         // Layout
-        new() { TypeName = "Row",       Category = "Layout", DisplayName = "Row",       Icon = "bi-layout-three-columns", Factory = () => new FormLayout { Xtype = "Row", Direction = "row" } },
         new() { TypeName = "Column",    Category = "Layout", DisplayName = "Column",    Icon = "bi-layout-split",         Factory = () => new FormLayout { Xtype = "Column", Direction = "column" } },
         new() { TypeName = "Flex",      Category = "Layout", DisplayName = "Flex Box",  Icon = "bi-distribute-horizontal",Factory = () => new FormLayout { Xtype = "Flex", Direction = "row", Gap = 3 } },
         new() { TypeName = "Fieldset",  Category = "Layout", DisplayName = "Fieldset",  Icon = "bi-border-all",           Factory = () => new FormLayout { Xtype = "Fieldset", Title = "Fieldset", LayoutType = LayoutType.Fieldset, Direction = "column" } },

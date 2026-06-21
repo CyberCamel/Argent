@@ -4,78 +4,77 @@
     ViewData["Title"] = $"{Model.Definition.DisplayName} — Records";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="flex flex-wrap justify-between items-center gap-4 mb-6">
     <div>
-        <nav aria-label="breadcrumb" class="mb-1">
-            <ol class="breadcrumb mb-0 small">
-                <li class="breadcrumb-item"><a href="/DomainObjects">Domain Objects</a></li>
-                <li class="breadcrumb-item active">@Model.Definition.DisplayName</li>
-            </ol>
+        <nav class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="/DomainObjects" class="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Domain Objects</a>
+            <span class="text-gray-300 dark:text-gray-600">/</span>
+            <span class="text-gray-900 dark:text-gray-100 font-medium">@Model.Definition.DisplayName</span>
         </nav>
-        <h4 class="fw-bold mb-0">@Model.Definition.DisplayName — Records</h4>
-        <p class="text-muted small mb-0">@Model.TotalCount record@(Model.TotalCount == 1 ? "" : "s")</p>
+        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">@Model.Definition.DisplayName — Records</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400">@Model.TotalCount record@(Model.TotalCount == 1 ? "" : "s")</p>
     </div>
-    <a class="btn btn-primary" href="/DomainObjects/@Model.Key/Records/Form">
+    <a class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm" href="/DomainObjects/@Model.Key/Records/Form">
         <i class="bi bi-plus-lg"></i> New Record
     </a>
 </div>
 
 @if (Model.Records.Count == 0)
 {
-    <div class="card">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-inbox fs-1 text-muted mb-3 d-block"></i>
-            <p class="text-muted mb-0">No records yet. <a href="/DomainObjects/@Model.Key/Records/Form">Create the first one</a>.</p>
-        </div>
+    <div class="card text-center py-12">
+        <i class="bi bi-inbox text-4xl text-gray-300 dark:text-gray-600 mb-3 block"></i>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mb-0">
+            No records yet. <a href="/DomainObjects/@Model.Key/Records/Form" class="text-indigo-600 dark:text-indigo-400 hover:underline">Create the first one</a>.
+        </p>
     </div>
 }
 else
 {
-    <div class="card">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    @foreach (var prop in Model.Definition.Properties.Take(5))
+                    {
+                        <th>@prop.DisplayName</th>
+                    }
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var record in Model.Records)
+                {
                     <tr>
                         @foreach (var prop in Model.Definition.Properties.Take(5))
                         {
-                            <th>@prop.DisplayName</th>
+                            <td class="text-sm">
+                                @{
+                                    record.Values.TryGetValue(prop.Key, out var val);
+                                    var display = val?.ToString();
+                                    if (display != null && display.Length > 60)
+                                        display = display[..57] + "…";
+                                }
+                                @(display ?? "—")
+                            </td>
                         }
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var record in Model.Records)
-                    {
-                        <tr>
-                            @foreach (var prop in Model.Definition.Properties.Take(5))
-                            {
-                                <td class="small">
-                                    @{
-                                        record.Values.TryGetValue(prop.Key, out var val);
-                                        var display = val?.ToString();
-                                        if (display != null && display.Length > 60)
-                                            display = display[..57] + "…";
-                                    }
-                                    @(display ?? "—")
-                                </td>
-                            }
-                            <td class="text-end">
-                                <a class="btn btn-outline-secondary btn-sm"
-                                   href="/DomainObjects/@Model.Key/Records/Form?id=@record.Id">
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <a class="btn-action btn-action-secondary"
+                                   href="/DomainObjects/@Model.Key/Records/Form?id=@record.Id" title="Edit">
                                     <i class="bi bi-pencil-fill"></i>
                                 </a>
                                 <form method="post" asp-page-handler="Delete" asp-route-id="@record.Id"
                                       asp-route-key="@Model.Key" style="display:inline"
                                       onsubmit="return confirm('Delete this record?')">
-                                    <button class="btn btn-outline-danger btn-sm">
+                                    <button class="btn-action btn-action-danger" title="Delete">
                                         <i class="bi bi-trash-fill"></i>
                                     </button>
                                 </form>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 }

@@ -14,6 +14,14 @@ public class UserActivityHandlerTests
     private static TokenExecutionContext Context(Guid instanceId, Guid tokenId, Guid nodeId) =>
         new(instanceId, tokenId, nodeId, new TokenVariableBag([]), [], null, null);
 
+    private static UserActivityHandler MakeHandler(IUserTaskManager manager)
+    {
+        var resolver = new Mock<IWorkflowAudienceResolver>();
+        resolver.Setup(r => r.ResolveAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        return new UserActivityHandler(manager, resolver.Object);
+    }
+
     [Fact]
     public async Task First_execution_creates_task_and_waits()
     {
@@ -32,7 +40,7 @@ public class UserActivityHandlerTests
             UX = new TaskExperience { Timeout = TimeSpan.FromMinutes(5), FallbackUrl = "https://x" },
         };
 
-        var result = await new UserActivityHandler(manager.Object)
+        var result = await MakeHandler(manager.Object)
             .ExecuteAsync(activity, Context(instanceId, tokenId, nodeId), default);
 
         Assert.Equal(NodeResultType.Waiting, result.ResultType);
@@ -40,7 +48,7 @@ public class UserActivityHandlerTests
             instanceId, tokenId, nodeId,
             It.Is<DateTime?>(d => d != null),
             It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<short>(),
-            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Guid?>(),
+            It.IsAny<string?>(), It.IsAny<Guid?>(),
             It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -54,7 +62,7 @@ public class UserActivityHandlerTests
 
         var activity = new UserActivity { Id = Guid.NewGuid(), Name = "Approve" };
 
-        var result = await new UserActivityHandler(manager.Object)
+        var result = await MakeHandler(manager.Object)
             .ExecuteAsync(activity, Context(Guid.NewGuid(), tokenId, Guid.NewGuid()), default);
 
         Assert.NotEqual(NodeResultType.Waiting, result.ResultType);
@@ -62,8 +70,8 @@ public class UserActivityHandlerTests
         manager.Verify(m => m.CreateTaskAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
             It.IsAny<DateTime?>(), It.IsAny<string?>(), It.IsAny<string?>(),
-            It.IsAny<short>(), It.IsAny<string?>(), It.IsAny<string?>(),
-            It.IsAny<Guid?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<short>(), It.IsAny<string?>(), It.IsAny<Guid?>(),
+            It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -81,7 +89,7 @@ public class UserActivityHandlerTests
 
         var activity = new UserActivity { Id = Guid.NewGuid(), Name = "Approve" };
 
-        var result = await new UserActivityHandler(manager.Object)
+        var result = await MakeHandler(manager.Object)
             .ExecuteAsync(activity, Context(Guid.NewGuid(), tokenId, Guid.NewGuid()), default);
 
         Assert.Equal(NodeResultType.Waiting, result.ResultType);

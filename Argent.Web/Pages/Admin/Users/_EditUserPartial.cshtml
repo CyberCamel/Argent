@@ -4,53 +4,49 @@
 <form hx-post="/UserAdministration/Edit"
       hx-target="#modalBody"
       hx-swap="innerHTML">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div asp-validation-summary="ModelOnly" class="text-sm text-red-600 dark:text-red-400 mb-3"></div>
 
-    <div class="row">
-        <div class="col-md-6 mb-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
             <label asp-for="FirstName" class="form-label"></label>
-            <input asp-for="FirstName" class="form-control" />
-            <span asp-validation-for="FirstName" class="text-danger"></span>
+            <input asp-for="FirstName" class="form-input" />
+            <span asp-validation-for="FirstName" class="text-xs text-red-500"></span>
         </div>
-        <div class="col-md-6 mb-3">
+        <div>
             <label asp-for="LastName" class="form-label"></label>
-            <input asp-for="LastName" class="form-control" />
-            <span asp-validation-for="LastName" class="text-danger"></span>
+            <input asp-for="LastName" class="form-input" />
+            <span asp-validation-for="LastName" class="text-xs text-red-500"></span>
         </div>
     </div>
 
     <div class="mb-3">
         <label asp-for="UserName" class="form-label"></label>
-        <input asp-for="UserName" class="form-control" />
-        <span asp-validation-for="UserName" class="text-danger"></span>
+        <input asp-for="UserName" class="form-input" />
+        <span asp-validation-for="UserName" class="text-xs text-red-500"></span>
     </div>
 
     <div class="mb-3">
         <label asp-for="Email" class="form-label"></label>
-        <input asp-for="Email" class="form-control" />
-        <span asp-validation-for="Email" class="text-danger"></span>
+        <input asp-for="Email" class="form-input" />
+        <span asp-validation-for="Email" class="text-xs text-red-500"></span>
     </div>
+
     <div class="mb-3">
         <label class="form-label">Roles</label>
-        <div class="dropdown">
-            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="rolesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                Select roles
-            </button>
-            <ul class="dropdown-menu p-3" aria-labelledby="rolesDropdown">
-                @foreach (var role in Model.AvailableRoles)
-                {
-                    <li>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="Roles" value="@role"
-                                   @(Model.Roles.Contains(role) ? "checked" : "") id="role_@role" />
-                            <label class="form-check-label" for="role_@role">@role</label>
-                        </div>
-                    </li>
-                }
-            </ul>
+        <div class="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            @foreach (var role in Model.AvailableRoles)
+            {
+                <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <input type="checkbox" name="Roles" value="@role"
+                           @(Model.Roles.Contains(role) ? "checked" : "")
+                           class="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500" />
+                    @role
+                </label>
+            }
         </div>
     </div>
-    <div class="mt-3 text-end">
-        <button type="submit" class="btn btn-primary">Save</button>
+
+    <div class="text-right mt-4">
+        <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm">Save</button>
     </div>
 </form>

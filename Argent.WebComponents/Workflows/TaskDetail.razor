@@ -10,18 +10,18 @@
 
 @if (_task == null)
 {
-    <div class="alert alert-warning">Task not found.</div>
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm text-yellow-800 dark:text-yellow-200">Task not found.</div>
 }
 else
 {
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h5 class="fw-bold mb-3">@(_task.Title ?? "Task")</h5>
+    <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 mb-4">
+        <div class="p-4">
+            <h5 class="font-bold mb-3">@(_task.Title ?? "Task")</h5>
             @if (!string.IsNullOrEmpty(_task.Description))
             {
-                <p class="text-muted">@_task.Description</p>
+                <p class="text-gray-500 dark:text-gray-400">@_task.Description</p>
             }
-            <div class="small text-muted mb-3">
+            <div class="text-sm text-gray-500 dark:text-gray-400 mb-3">
                 <div>Priority: @_task.Priority</div>
                 @if (_task.DueDate.HasValue)
                 {
@@ -34,14 +34,14 @@ else
 
     @if (_completed)
     {
-        <div class="alert alert-success">Task completed successfully.</div>
-        <a href="/Tasks" class="btn btn-outline-primary">Back to Inbox</a>
+        <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-800 dark:text-green-200">Task completed successfully.</div>
+        <a href="/Tasks" class="px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors">Back to Inbox</a>
     }
     else if (_task.State == Argent.Models.Workflows.Execution.UserTaskState.Pending)
     {
         @if (!string.IsNullOrEmpty(_error))
         {
-            <div class="alert alert-danger">@_error</div>
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-800 dark:text-red-200">@_error</div>
         }
 
         @* Show the form when present. When action buttons also exist, hide the form's
@@ -60,13 +60,13 @@ else
         @* Action buttons — shown when the outgoing connections are named *@
         @if (_actions.Count > 0)
         {
-            <div class="card mt-3">
-                <div class="card-body">
-                    <p class="text-muted small mb-2">Select an action to complete this task:</p>
-                    <div class="d-flex gap-2 flex-wrap">
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 mt-3">
+                <div class="p-4">
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">Select an action to complete this task:</p>
+                    <div class="flex gap-2 flex-wrap">
                         @foreach (var action in _actions)
                         {
-                            <button class="btn btn-outline-primary" @onclick="() => CompleteWithAction(action)">
+                            <button class="px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors" @onclick="() => CompleteWithAction(action)">
                                 @action
                             </button>
                         }
@@ -77,8 +77,8 @@ else
         else if (!_task.FormId.HasValue)
         {
             @* No form and no named actions — show a generic complete button *@
-            <button class="btn btn-primary" @onclick="() => CompleteWithAction(null)">
-                <i class="bi bi-check-lg me-1"></i>Complete Task
+            <button class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors" @onclick="() => CompleteWithAction(null)">
+                <i class="bi bi-check-lg mr-1"></i>Complete Task
             </button>
         }
     }

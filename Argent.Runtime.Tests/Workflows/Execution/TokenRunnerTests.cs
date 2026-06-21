@@ -114,6 +114,13 @@ public class TokenRunnerTests : IDisposable
 
         var (runner, db) = CreateRunner(workflowId, nodeId, nextNodeId);
 
+        db.WorkflowInstances.Add(new WorkflowInstance
+        {
+            InstanceId = instanceId,
+            WorkflowId = workflowId,
+            State = InstanceState.Running,
+            StartTime = DateTime.UtcNow,
+        });
         db.WorkflowTokens.Add(new WorkflowToken
         {
             Id = tokenId, InstanceId = instanceId, NodeId = nodeId,
@@ -160,6 +167,13 @@ public class TokenRunnerTests : IDisposable
 
         var (runner, db) = CreateRunner(workflowId, nodeId, handler: handlerMock.Object);
 
+        db.WorkflowInstances.Add(new WorkflowInstance
+        {
+            InstanceId = instanceId,
+            WorkflowId = workflowId,
+            State = InstanceState.Running,
+            StartTime = DateTime.UtcNow,
+        });
         db.WorkflowTokens.Add(new WorkflowToken
         {
             Id = tokenId, InstanceId = instanceId, NodeId = nodeId,
@@ -200,6 +214,13 @@ public class TokenRunnerTests : IDisposable
 
         var (runner, db) = CreateRunner(workflowId, nodeId, handler: handlerMock.Object);
 
+        db.WorkflowInstances.Add(new WorkflowInstance
+        {
+            InstanceId = instanceId,
+            WorkflowId = workflowId,
+            State = InstanceState.Running,
+            StartTime = DateTime.UtcNow,
+        });
         db.WorkflowTokens.Add(new WorkflowToken
         {
             Id = tokenId, InstanceId = instanceId, NodeId = nodeId,

@@ -12,38 +12,38 @@
 @inject IDomainObjectDefinitionService DomainObjectDefinitions
 @inject IDbContextFactory<ArgentDbContext> DbContextFactory
 
-<div class="modeler2-properties">
-    <div class="modeler2-properties-header">
-        <span class="modeler2-properties-title">
+<div class="modeler-properties">
+    <div class="modeler-properties-header">
+        <span class="modeler-properties-title">
             <i class="bi bi-arrow-right-circle"></i> Connection —
-            <span class="modeler2-properties-type">@Connection.Source.Title</span>
-            <span class="modeler2-properties-sep">→</span>
-            <span class="modeler2-properties-name">@Connection.Target.Title</span>
+            <span class="modeler-properties-type">@Connection.Source.Title</span>
+            <span class="modeler-properties-sep">→</span>
+            <span class="modeler-properties-name">@Connection.Target.Title</span>
         </span>
-        <button type="button" class="modeler2-properties-close" @onclick="HandleClose" title="Close">
+        <button type="button" class="modeler-properties-close" @onclick="HandleClose" title="Close">
             <i class="bi bi-x-lg"></i>
         </button>
     </div>
-    <div class="modeler2-properties-body">
-        <div class="modeler2-properties-section">
-            <div class="modeler2-properties-field">
-                <label class="modeler2-properties-label">Label</label>
-                <input class="modeler2-properties-input"
+    <div class="modeler-properties-body">
+        <div class="modeler-properties-section">
+            <div class="modeler-properties-field">
+                <label class="modeler-properties-label">Label</label>
+                <input class="modeler-properties-input"
                        value="@_conn.Label"
                        @oninput="@(e => { _conn.Label = e.Value?.ToString(); State.MarkDirty(); })" />
             </div>
             @if (_isGateway)
             {
-                <div class="modeler2-properties-field modeler2-properties-field-inline">
-                    <label class="modeler2-properties-label">Default path</label>
-                    <label class="modeler2-properties-switch">
+                <div class="modeler-properties-field modeler-properties-field-inline">
+                    <label class="modeler-properties-label">Default path</label>
+                    <label class="modeler-properties-switch">
                         <input type="checkbox" checked="@_conn.IsDefault"
                                @onchange="OnIsDefaultChanged" />
-                        <span class="modeler2-properties-switch-slider"></span>
+                        <span class="modeler-properties-switch-slider"></span>
                     </label>
                     @if (_conn.IsDefault)
                     {
-                        <span class="modeler2-conn-default-hint">Used when no other path matches</span>
+                        <span class="modeler-conn-default-hint">Used when no other path matches</span>
                     }
                 </div>
             }
@@ -51,9 +51,9 @@
 
         @if (_isGateway && !_conn.IsDefault)
         {
-            <div class="modeler2-properties-section modeler2-properties-section-dyn">
-                <div class="modeler2-properties-label mb-1">Condition</div>
-                <div class="modeler2-conn-condition-wrap">
+            <div class="modeler-properties-section modeler-properties-section-dyn">
+                <div class="modeler-properties-label mb-1">Condition</div>
+                <div class="modeler-conn-condition-wrap">
                     <ConditionBuilder Condition="@_conn.Condition"
                                       ConditionChanged="@OnConditionChanged"
                                       OnChanged="@OnConditionEdited"
@@ -61,7 +61,7 @@
                 </div>
                 @if (_fields == null)
                 {
-                    <div class="small text-muted mt-1">
+                    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         <i class="bi bi-info-circle"></i> Add a domain object to StartEvent to get field hints.
                     </div>
                 }

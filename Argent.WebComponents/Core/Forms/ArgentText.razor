@@ -4,17 +4,17 @@
 @if (IsVisible)
 {
     <div class="mb-3 @Metadata.CssClass">
-        <label class="form-label">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             @Metadata.FieldLabel
             @if (Context.IsRequired(Metadata))
             {
-                <span class="text-danger">*</span>
+                <span class="text-red-600 dark:text-red-400">*</span>
             }
         </label>
         @{var _textErrors = Errors.ToList();}
         @if (Metadata.Grow && Metadata.Rows > 1)
         {
-            <textarea class="form-control @(_textErrors.Count > 0 ? "is-invalid" : "")"
+            <textarea class="form-input @(_textErrors.Count > 0 ? "border-red-500 ring-1 ring-red-500" : "")"
                       rows="@Metadata.Rows"
                       value="@CurrentValue"
                       @oninput="(e) => OnValueChanged(e.Value)"
@@ -26,7 +26,7 @@
         else
         {
             <input type="text"
-                   class="form-control @(_textErrors.Count > 0 ? "is-invalid" : "")"
+                   class="form-input @(_textErrors.Count > 0 ? "border-red-500 ring-1 ring-red-500" : "")"
                    value="@CurrentValue"
                    @oninput="(e) => OnValueChanged(e.Value)"
                    placeholder="@Metadata.Placeholder"
@@ -36,13 +36,13 @@
         }
         @if (_textErrors.Count > 0)
         {
-            <div class="invalid-feedback d-block">
+            <div class="text-red-600 dark:text-red-400 text-sm mt-1">
                 @foreach (var err in _textErrors) { <div>@err</div> }
             </div>
         }
         @if (Metadata.Description != null)
         {
-            <div class="form-text">@Metadata.Description</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">@Metadata.Description</div>
         }
     </div>
 }

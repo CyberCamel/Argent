@@ -21,8 +21,8 @@
     {
         get
         {
-            var dir = Metadata.Direction == "row" ? "" : "flex-column";
-            return $"d-flex {dir} gap-{Metadata.Gap}".Trim();
+            var dir = Metadata.Direction == "row" ? "" : "flex-col";
+            return $"flex {dir} gap-{Metadata.Gap}".Trim();
         }
     }
 

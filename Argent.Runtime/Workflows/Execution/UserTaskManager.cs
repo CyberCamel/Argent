@@ -27,7 +27,6 @@ public class UserTaskManager : IUserTaskManager
         string? description = null,
         short priority = 0,
         string? assigneeExpression = null,
-        string? candidateRoles = null,
         Guid? formId = null,
         string? formData = null,
         CancellationToken ct = default)
@@ -46,7 +45,6 @@ public class UserTaskManager : IUserTaskManager
             Title = title,
             Description = description,
             Priority = priority,
-            CandidateRoles = candidateRoles,
             FormId = formId,
             FormData = formData
         };
@@ -59,7 +57,7 @@ public class UserTaskManager : IUserTaskManager
             eventType: nameof(WorkflowAuditEventType.TaskCreated),
             instanceId: instanceId,
             tokenId: tokenId,
-            details: new { Title = title, AssigneeExpression = assigneeExpression, CandidateRoles = candidateRoles, Priority = priority },
+            details: new { Title = title, AssigneeExpression = assigneeExpression, Priority = priority },
             ct: ct);
 
         return task;
@@ -100,38 +98,17 @@ public class UserTaskManager : IUserTaskManager
             .ToListAsync(ct);
 
         return tasks
-            .Where(t => t.AssignedTo == userId || RoleMatches(t.CandidateRoles, roles))
+            .Where(t => t.AssignedTo == userId
+                     || CandidateUsersContains(t.CandidateUsers, userId))
             .ToList();
     }
 
-    private static bool RoleMatches(string? candidateRoles, List<string> roles)
+    public async Task SetCandidateUsersAsync(Guid taskId, string candidateUsersJson, CancellationToken ct = default)
     {
-        var candidates = ParseCandidateRoles(candidateRoles);
-        return candidates.Count > 0 && candidates.Any(roles.Contains);
-    }
-
-    // Candidate roles may be stored as a JSON array or a comma-separated string (the workflow
-    // designer writes CSV). Accept either so matching is robust to the stored format.
-    private static List<string> ParseCandidateRoles(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-            return [];
-
-        if (raw.TrimStart().StartsWith('['))
-        {
-            try
-            {
-                return JsonSerializer.Deserialize<List<string>>(raw) ?? [];
-            }
-            catch
-            {
-                // Not valid JSON after all — fall through to CSV parsing.
-            }
-        }
-
-        return raw
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToList();
+        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        await context.UserTasks
+            .Where(t => t.Id == taskId)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.CandidateUsers, candidateUsersJson), ct);
     }
 
     public async Task ClaimAsync(Guid taskId, string userId, CancellationToken ct = default)
@@ -256,9 +233,20 @@ public class UserTaskManager : IUserTaskManager
 
     private static bool IsAuthorizedForTask(UserTask task, string userId, List<string> roles)
     {
-        if (task.AssignedTo == userId)
-            return true;
+        return task.AssignedTo == userId
+            || CandidateUsersContains(task.CandidateUsers, userId);
+    }
 
-        return RoleMatches(task.CandidateRoles, roles);
+    private static bool CandidateUsersContains(string? raw, string userId)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(raw)?.Contains(userId) ?? false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

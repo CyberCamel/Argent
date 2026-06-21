@@ -7,36 +7,111 @@
 {
     <div class="mb-3 @Metadata.CssClass">
         @{var _ddErrors = Errors.ToList();}
-        <label class="form-label">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             @Metadata.FieldLabel
             @if (Context.IsRequired(Metadata))
             {
-                <span class="text-danger">*</span>
+                <span class="text-red-600 dark:text-red-400">*</span>
             }
         </label>
 
-        @if (Metadata.MultiSelect)
+        @if (Metadata.Filterable && !Metadata.MultiSelect)
         {
-            <div class="@(_ddErrors.Count > 0 ? "is-invalid" : "")">
+            @* ── ComboBox: editable text input + filtered dropdown ── *@
+            <div class="relative" @ref="_comboContainer">
+                <input type="text"
+                       class="form-input @(_ddErrors.Count > 0 ? "border-red-500 ring-1 ring-red-500" : "")"
+                       placeholder="@(Metadata.Placeholder ?? "-- Select --")"
+                       value="@FilterDisplay"
+                       @oninput="OnInput"
+                       @onfocus="OnFocus"
+                       @onblur="OnBlur"
+                       @onkeydown="OnKeyDown"
+                       disabled="@Metadata.Disabled"
+                       autocomplete="off" />
+                @if (_isOpen && _filteredOptions.Count > 0)
+                {
+                    <div class="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        @for (int i = 0; i < _filteredOptions.Count; i++)
+                        {
+                            var opt = _filteredOptions[i];
+                            var idx = i;
+                            var isHighlighted = idx == _highlightedIndex;
+                            <div class="px-3 py-2 cursor-pointer text-sm text-gray-900 dark:text-gray-100
+                                        @(isHighlighted ? "bg-indigo-100 dark:bg-indigo-900/40" : "hover:bg-gray-100 dark:hover:bg-gray-700")"
+                                 @onmousedown="() => SelectOption(opt)">
+                                @opt.Label
+                            </div>
+                        }
+                    </div>
+                }
+                @if (_isOpen && _filteredOptions.Count == 0 && !string.IsNullOrEmpty(_filterText))
+                {
+                    <div class="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                        No matches
+                    </div>
+                }
+            </div>
+        }
+        else if (Metadata.Filterable && Metadata.MultiSelect)
+        {
+            @* ── Filterable multi-select: filter input + checkbox list ── *@
+            <div class="border border-gray-300 dark:border-gray-600 rounded-lg @(_ddErrors.Count > 0 ? "border-red-500 ring-1 ring-red-500" : "")">
+                <div class="p-1">
+                    <input type="text"
+                           class="form-input form-input-sm"
+                           placeholder="Filter options..."
+                           value="@_multiFilter"
+                           @oninput="OnMultiFilterInput"
+                           disabled="@Metadata.Disabled"
+                           autocomplete="off" />
+                </div>
+                <div class="max-h-48 overflow-y-auto px-2 pb-2">
+                    @foreach (var opt in _filteredMultiOptions)
+                    {
+                        var optVal = opt.Value?.ToString() ?? string.Empty;
+                        var isChecked = CurrentValues.Contains(optVal);
+                        <div class="flex items-center py-0.5">
+                            <input type="checkbox"
+                                   class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500"
+                                   id="@($"{Metadata.Id}_{optVal}")"
+                                   checked="@isChecked"
+                                   @onchange="() => ToggleOption(optVal)"
+                                   disabled="@(Metadata.Disabled || opt.Disabled)" />
+                            <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer" for="@($"{Metadata.Id}_{optVal}")">@opt.Label</label>
+                        </div>
+                    }
+                    @if (_filteredMultiOptions.Count == 0 && !string.IsNullOrEmpty(_multiFilter))
+                    {
+                        <div class="text-sm text-gray-500 dark:text-gray-400 py-1">No matches</div>
+                    }
+                </div>
+            </div>
+        }
+        else if (Metadata.MultiSelect)
+        {
+            @* ── Plain multi-select: checkbox list (unchanged) ── *@
+            <div class="@(_ddErrors.Count > 0 ? "border-red-500 ring-1 ring-red-500" : "")">
                 @foreach (var opt in _resolvedItems)
                 {
                     var optVal = opt.Value?.ToString() ?? string.Empty;
                     var isChecked = CurrentValues.Contains(optVal);
-                    <div class="form-check">
+                    <div class="flex items-center">
                         <input type="checkbox"
-                               class="form-check-input"
+                               class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-600 focus:ring-indigo-500"
                                id="@($"{Metadata.Id}_{optVal}")"
                                checked="@isChecked"
                                @onchange="() => ToggleOption(optVal)"
                                disabled="@(Metadata.Disabled || opt.Disabled)" />
-                        <label class="form-check-label" for="@($"{Metadata.Id}_{optVal}")">@opt.Label</label>
+                        <label class="pl-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer" for="@($"{Metadata.Id}_{optVal}")">@opt.Label</label>
                     </div>
                 }
             </div>
         }
         else
         {
-            <select class="form-select @(_ddErrors.Count > 0 ? "is-invalid" : "")"
+            @* ── Plain single-select dropdown (unchanged) ── *@
+            <select class="form-input @(_ddErrors.Count > 0 ? "border-red-500 ring-1 ring-red-500" : "")"
                     @onchange="(e) => OnValueChanged(e.Value)"
                     disabled="@Metadata.Disabled">
                 <option value="">-- Select --</option>
@@ -50,11 +125,11 @@
 
         @if (Metadata.Description != null)
         {
-            <div class="form-text">@Metadata.Description</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">@Metadata.Description</div>
         }
         @if (_ddErrors.Count > 0)
         {
-            <div class="invalid-feedback d-block">
+            <div class="text-red-600 dark:text-red-400 text-sm mt-1">
                 @foreach (var err in _ddErrors) { <div>@err</div> }
             </div>
         }
@@ -64,6 +139,16 @@
 @code {
     private List<SelectOption> _resolvedItems = [];
     private string? _resolvedKey;
+
+    // ── ComboBox state ──────────────────────────────────────────────
+    private ElementReference _comboContainer;
+    private bool _isOpen;
+    private int _highlightedIndex;
+    private string? _filterText;
+    private CancellationTokenSource? _closeCts;
+
+    // ── Multi-filter state ──────────────────────────────────────────
+    private string _multiFilter = string.Empty;
 
     private string Key => Metadata.Name ?? Metadata.Id;
     private bool IsVisible => Context.IsVisible(Metadata);
@@ -85,6 +170,38 @@
         }
     }
 
+    private string CurrentOptionLabel =>
+        _resolvedItems.FirstOrDefault(o => o.Value?.ToString() == CurrentValue)?.Label ?? string.Empty;
+
+    private string FilterDisplay =>
+        _filterText ?? CurrentOptionLabel;
+
+    private List<SelectOption> _filteredOptions
+    {
+        get
+        {
+            var filter = _filterText?.Trim();
+            if (string.IsNullOrEmpty(filter))
+                return _resolvedItems;
+            return _resolvedItems
+                .Where(o => o.Label?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true)
+                .ToList();
+        }
+    }
+
+    private List<SelectOption> _filteredMultiOptions
+    {
+        get
+        {
+            var filter = _multiFilter.Trim();
+            if (string.IsNullOrEmpty(filter))
+                return _resolvedItems;
+            return _resolvedItems
+                .Where(o => o.Label?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true)
+                .ToList();
+        }
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         var dp = Metadata.DataProvider;
@@ -92,6 +209,14 @@
         if (key == _resolvedKey) return;
         _resolvedKey = key;
         await ResolveItemsAsync();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _filterText = null;
+        }
     }
 
     private async Task ResolveItemsAsync()
@@ -117,6 +242,109 @@
             _resolvedItems = [];
         }
     }
+
+    // ── ComboBox event handlers ─────────────────────────────────────
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        _filterText = e.Value?.ToString() ?? string.Empty;
+        _highlightedIndex = 0;
+        _isOpen = _resolvedItems.Count > 0;
+    }
+
+    private void OnFocus()
+    {
+        _isOpen = _resolvedItems.Count > 0;
+        _highlightedIndex = 0;
+    }
+
+    private async Task OnBlur()
+    {
+        _closeCts?.Cancel();
+        _closeCts = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(200, _closeCts.Token);
+            CommitFilter();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                if (!_isOpen)
+                {
+                    _isOpen = _resolvedItems.Count > 0;
+                }
+                else if (_filteredOptions.Count > 0)
+                {
+                    _highlightedIndex = (_highlightedIndex + 1) % _filteredOptions.Count;
+                }
+                break;
+
+            case "ArrowUp":
+                if (_filteredOptions.Count > 0)
+                {
+                    _highlightedIndex = (_highlightedIndex - 1 + _filteredOptions.Count) % _filteredOptions.Count;
+                }
+                break;
+
+            case "Enter":
+                if (_isOpen && _highlightedIndex >= 0 && _highlightedIndex < _filteredOptions.Count)
+                {
+                    SelectOption(_filteredOptions[_highlightedIndex]);
+                }
+                break;
+
+            case "Escape":
+                _isOpen = false;
+                _filterText = null;
+                break;
+        }
+    }
+
+    private void SelectOption(SelectOption opt)
+    {
+        _closeCts?.Cancel();
+        Context.SetValue(Key, opt.Value?.ToString());
+        _filterText = opt.Label;
+        _isOpen = false;
+        _highlightedIndex = 0;
+    }
+
+    private void CommitFilter()
+    {
+        var typed = _filterText?.Trim();
+        _filterText = null;
+
+        if (string.IsNullOrEmpty(typed))
+        {
+            Context.SetValue(Key, string.Empty);
+        }
+        else
+        {
+            var match = _resolvedItems.FirstOrDefault(o =>
+                string.Equals(o.Label, typed, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                Context.SetValue(Key, match.Value?.ToString());
+            }
+        }
+        _isOpen = false;
+    }
+
+    // ── Multi-filter handler ────────────────────────────────────────
+
+    private void OnMultiFilterInput(ChangeEventArgs e)
+    {
+        _multiFilter = e.Value?.ToString() ?? string.Empty;
+    }
+
+    // ── Value handlers (shared by all modes) ────────────────────────
 
     private void OnValueChanged(object? val)
     {

@@ -5,9 +5,9 @@
     ViewData["Title"] = Model.FormName;
 }
 
-<div class="container py-4" style="max-width: 720px;">
-    <div class="card shadow-sm">
-        <div class="card-body">
+<div class="max-w-2xl mx-auto">
+    <div class="card">
+        <div class="p-5">
             <component type="typeof(ArgentForm)" render-mode="ServerPrerendered"
                        param-FormId="@Model.Id" />
         </div>
