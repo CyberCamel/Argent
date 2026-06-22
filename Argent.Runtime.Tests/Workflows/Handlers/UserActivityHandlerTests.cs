@@ -48,7 +48,7 @@ public class UserActivityHandlerTests
             instanceId, tokenId, nodeId,
             It.Is<DateTime?>(d => d != null),
             It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<short>(),
-            It.IsAny<string?>(), It.IsAny<Guid?>(),
+            It.IsAny<Guid?>(),
             It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -70,7 +70,7 @@ public class UserActivityHandlerTests
         manager.Verify(m => m.CreateTaskAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
             It.IsAny<DateTime?>(), It.IsAny<string?>(), It.IsAny<string?>(),
-            It.IsAny<short>(), It.IsAny<string?>(), It.IsAny<Guid?>(),
+            It.IsAny<short>(), It.IsAny<Guid?>(),
             It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

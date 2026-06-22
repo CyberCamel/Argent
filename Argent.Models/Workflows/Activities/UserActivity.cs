@@ -17,9 +17,6 @@ public class UserActivity : Activity
     [NodeProperty("Task Priority", "Higher values mean higher priority", false, PropertyDataType.Number)]
     public short TaskPriority { get; set; }
 
-    [NodeProperty("Assignee Expression", "NCalc expression returning the assigned user ID", false, PropertyDataType.Text)]
-    public string? AssigneeExpression { get; set; }
-
     // Baked in at compile time when the node is inside a role-bearing swimlane; null otherwise.
     public Guid? LaneRoleId { get; set; }
 }

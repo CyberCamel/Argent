@@ -343,20 +343,21 @@
                             {
                                 var lSel = State.SelectedLane == lane;
                                 <g class="swimlane-group @(lSel ? "lane-selected" : "")"
-                                   @onpointerdown="e => OnLaneHeaderPointerDown(e, lane)" @onpointerdown:stopPropagation
                                    @onclick:stopPropagation>
                                     <rect class="swimlane-bg"
                                           x="@lane.X.ToString("F2", CultureInfo.InvariantCulture)"
                                           y="@lane.Y.ToString("F2", CultureInfo.InvariantCulture)"
                                           width="@lane.Width.ToString("F2", CultureInfo.InvariantCulture)"
                                           height="@lane.Height.ToString("F2", CultureInfo.InvariantCulture)" />
-                                    @* Lane header strip *@
+                                    @* Lane header strip — clicking the header selects the lane *@
                                     <rect class="swimlane-header"
                                           x="@lane.X.ToString("F2", CultureInfo.InvariantCulture)"
                                           y="@lane.Y.ToString("F2", CultureInfo.InvariantCulture)"
-                                          width="@headerW" height="@lane.Height.ToString("F2", CultureInfo.InvariantCulture)" />
+                                          width="@headerW" height="@lane.Height.ToString("F2", CultureInfo.InvariantCulture)"
+                                          @onpointerdown="e => OnLaneHeaderPointerDown(e, lane)" @onpointerdown:stopPropagation />
                                     <text class="swimlane-label"
-                                          transform="translate(@((lane.X + headerW / 2).ToString("F2", CultureInfo.InvariantCulture)),@((lane.Y + lane.Height / 2).ToString("F2", CultureInfo.InvariantCulture))) rotate(-90)">
+                                          transform="translate(@((lane.X + headerW / 2).ToString("F2", CultureInfo.InvariantCulture)),@((lane.Y + lane.Height / 2).ToString("F2", CultureInfo.InvariantCulture))) rotate(-90)"
+                                          @onpointerdown="e => OnLaneHeaderPointerDown(e, lane)" @onpointerdown:stopPropagation>
                                         @lane.Data.Label
                                     </text>
                                     @{
@@ -1787,6 +1788,7 @@
             }
         }
 
+        UpdateNodeConnections(n, 0, 0);
         State.MarkDirty();
     }
 

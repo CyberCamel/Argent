@@ -3,7 +3,6 @@ using Argent.Models.Workflows;
 using Argent.Models.Workflows.Activities;
 using Argent.Models.Workflows.Execution;
 using Argent.Runtime.Workflows.Execution;
-using NCalc;
 using System.Text.Json;
 
 namespace Argent.Runtime.Workflows.Handlers;
@@ -28,17 +27,6 @@ public class UserActivityHandler(
                 _ => null
             };
 
-            string? assignee = null;
-            if (!string.IsNullOrWhiteSpace(activity.AssigneeExpression))
-            {
-                var expr = new Expression(activity.AssigneeExpression);
-                foreach (var kvp in ctx.Variables.Snapshot())
-                    expr.Parameters[kvp.Key] = kvp.Value;
-                var result = expr.Evaluate();
-                if (result != null)
-                    assignee = result.ToString();
-            }
-
             Guid? formId = activity.UX switch
             {
                 FormExperience f => f.FormId,
@@ -50,7 +38,6 @@ public class UserActivityHandler(
                 title: activity.TaskTitle,
                 description: activity.TaskDescription,
                 priority: activity.TaskPriority,
-                assigneeExpression: assignee,
                 formId: formId,
                 formData: null,
                 ct: ct);

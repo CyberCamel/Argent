@@ -26,7 +26,6 @@ public class UserTaskManager : IUserTaskManager
         string? title = null,
         string? description = null,
         short priority = 0,
-        string? assigneeExpression = null,
         Guid? formId = null,
         string? formData = null,
         CancellationToken ct = default)
@@ -57,7 +56,7 @@ public class UserTaskManager : IUserTaskManager
             eventType: nameof(WorkflowAuditEventType.TaskCreated),
             instanceId: instanceId,
             tokenId: tokenId,
-            details: new { Title = title, AssigneeExpression = assigneeExpression, Priority = priority },
+            details: new { Title = title, Priority = priority },
             ct: ct);
 
         return task;

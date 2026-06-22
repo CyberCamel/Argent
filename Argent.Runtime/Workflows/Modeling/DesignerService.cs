@@ -341,10 +341,22 @@ public class DesignerService(
         var dp = new DesignerPool { Data = pool, X = x, Y = y, Width = width, Height = height };
         Pools.Add(dp);
 
-        // Two default lanes filling the pool
-        AddLane(dp, "Lane 1", order: 0);
-        AddLane(dp, "Lane 2", order: 1);
-        RedistributeLanes(dp);
+        // Two default lanes splitting the initial pool height equally
+        const double headerWidth = 40;
+        double laneH = height / 2;
+        for (int i = 0; i < 2; i++)
+        {
+            var lane = new Lane { Label = $"Lane {i + 1}", PoolId = pool.Id, Order = i };
+            Lanes.Add(new DesignerLane
+            {
+                Data = lane,
+                Pool = dp,
+                X = x + headerWidth,
+                Y = y + i * laneH,
+                Width = width - headerWidth,
+                Height = laneH
+            });
+        }
 
         MarkDirty();
         return dp;
@@ -354,23 +366,21 @@ public class DesignerService(
     {
         if (order < 0) order = Lanes.Count(l => l.Pool == pool);
 
-        var lane = new Lane
-        {
-            Label = label,
-            PoolId = pool.Data.Id,
-            Order = order
-        };
+        const double defaultLaneHeight = 200;
+        const double headerWidth = 40;
+
+        var lane = new Lane { Label = label, PoolId = pool.Data.Id, Order = order };
         var dl = new DesignerLane
         {
             Data = lane,
             Pool = pool,
-            X = pool.X + 40,
-            Y = pool.Y,
-            Width = pool.Width - 40,
-            Height = pool.Height
+            X = pool.X + headerWidth,
+            Y = pool.Y + pool.Height,
+            Width = pool.Width - headerWidth,
+            Height = defaultLaneHeight
         };
         Lanes.Add(dl);
-        RedistributeLanes(pool);
+        pool.Height += defaultLaneHeight;
         MarkDirty();
         return dl;
     }

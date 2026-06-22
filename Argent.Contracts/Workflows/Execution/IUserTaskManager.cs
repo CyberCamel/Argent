@@ -12,7 +12,6 @@ public interface IUserTaskManager
         string? title = null,
         string? description = null,
         short priority = 0,
-        string? assigneeExpression = null,
         Guid? formId = null,
         string? formData = null,
         CancellationToken ct = default);

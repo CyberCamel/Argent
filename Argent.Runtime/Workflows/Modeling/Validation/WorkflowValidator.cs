@@ -71,10 +71,9 @@ public class WorkflowValidator
     {
         foreach (var node in wf.Nodes.OfType<UserActivity>())
         {
-            if (string.IsNullOrWhiteSpace(node.AssigneeExpression) &&
-                node.LaneRoleId == null)
+            if (node.LaneRoleId == null)
             {
-                _validationResult!.AddError(node, "User task must have an assignee expression or be placed in a role lane");
+                _validationResult!.AddError(node, "User task must be placed in a role lane");
             }
         }
     }
