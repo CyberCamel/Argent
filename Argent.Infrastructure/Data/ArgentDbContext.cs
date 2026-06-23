@@ -14,6 +14,7 @@ using Argent.Models.Forms.Components.Configuration;
 using Argent.Models.Forms;
 using Argent.Infrastructure.Serialization;
 using Timer = Argent.Models.Workflows.Shared.Timer;
+using Argent.Models;
 
 namespace Argent.Infrastructure.Data;
 
@@ -61,6 +62,8 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
     public DbSet<GroupGroupMembership> GroupGroupMemberships { get; set; }
     
     public DbSet<Timer> Timers { get; set; }
+
+    public DbSet<BrandingSettings> BrandingSettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -392,6 +395,20 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
             entity.ToTable("Timers");
             entity.HasIndex(e => new { e.State, e.TriggerTime })
                 .HasDatabaseName("IX_Timers_State_TriggerTime");
+        });
+
+        builder.Entity<BrandingSettings>(entity =>
+        {
+            entity.ToTable("BrandingSettings");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.SiteName).HasMaxLength(128);
+            entity.Property(e => e.LogoUrl).HasMaxLength(512);
+            entity.Property(e => e.FaviconUrl).HasMaxLength(512);
+            entity.Property(e => e.PrimaryColor).HasMaxLength(16);
+            entity.Property(e => e.PrimaryHoverColor).HasMaxLength(16);
+            entity.Property(e => e.FooterText).HasMaxLength(256);
+            entity.Property(e => e.CustomCss).HasColumnType("nvarchar(max)");
         });
     }
 }

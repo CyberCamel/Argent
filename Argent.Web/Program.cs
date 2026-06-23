@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using Argent.Contracts.Authorization;
+using Argent.Contracts.Branding;
 using Argent.Contracts.DataSources;
 using Argent.Contracts.DomainObjects;
 using Argent.Contracts.Forms;
@@ -10,6 +11,7 @@ using Argent.Infrastructure.Data;
 using Argent.Models.Forms.Components;
 using Argent.Models.Identity;
 using Argent.Runtime.Authorization;
+using Argent.Runtime.Branding;
 using Argent.Runtime.DataSources;
 using Argent.Runtime.DomainObjects;
 using Argent.Runtime.Forms;
@@ -149,6 +151,7 @@ builder.Services.AddScoped<IDataSourceProvider, SqlDataSourceProvider>();
 builder.Services.AddScoped<IDataSourceProvider, RestDataSourceProvider>();
 builder.Services.AddScoped<IDataSourceProvider, SoapDataSourceProvider>();
 builder.Services.AddScoped<IDataSourceCatalog, DataSourceCatalog>();
+builder.Services.AddSingleton<IBrandingService, BrandingService>();
 builder.Services.AddScoped<IDataSourceRunner, DataSourceRunner>();
 
 builder.Services.AddLogging(config =>

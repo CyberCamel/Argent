@@ -1,11 +1,23 @@
-﻿<!DOCTYPE html>
+﻿@using Argent.Contracts.Branding
+@inject IBrandingService BrandingService
+@{
+    var branding = await BrandingService.GetAsync();
+    var siteName = branding?.SiteName ?? "Argent";
+    var logoUrl = branding?.LogoUrl;
+    var faviconUrl = branding?.FaviconUrl;
+    var primaryColor = (branding?.IsEnabled ?? true) ? (branding?.PrimaryColor ?? "#4f46e5") : "#4f46e5";
+    var primaryHoverColor = (branding?.IsEnabled ?? true) ? (branding?.PrimaryHoverColor ?? "#4338ca") : "#4338ca";
+    var footerText = branding?.FooterText;
+    var customCss = (branding?.IsEnabled ?? true) ? branding?.CustomCss : null;
+}
+<!DOCTYPE html>
 <html lang="en" x-data="theme()" x-init="init" :class="dark ? 'dark' : ''">
 <head>
     <base href="/" />
     <component type="typeof(Microsoft.AspNetCore.Components.Web.HeadOutlet)" render-mode="ServerPrerendered" />
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Argent</title>
+    <title>@ViewData["Title"] - @siteName</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
@@ -13,9 +25,18 @@
     <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/modeler.css" asp-append-version="true" />
+    @if (!string.IsNullOrEmpty(faviconUrl))
+    {
+        <link rel="icon" type="image/x-icon" href="@faviconUrl">
+    }
     @await RenderSectionAsync("Styles", required: false)
     <style>
         [x-cloak] { display: none !important; }
+        :root { --primary: @primaryColor; --primary-hover: @primaryHoverColor; }
+        @if (!string.IsNullOrEmpty(customCss))
+        {
+            @Html.Raw((string)customCss)
+        }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col font-sans antialiased">
@@ -26,8 +47,15 @@
                 <div class="flex items-center justify-between h-14">
                     <div class="flex items-center gap-6">
                         <a asp-page="/Index" class="flex items-center gap-2 text-white font-semibold tracking-tight text-lg">
-                            <i class="bi bi-diamond-fill text-indigo-500"></i>
-                            Argent
+                            @if (!string.IsNullOrEmpty(logoUrl))
+                            {
+                                <img src="@logoUrl" alt="@siteName" class="h-7 w-auto" />
+                            }
+                            else
+                            {
+                                <i class="bi bi-diamond-fill" style="color: @primaryColor"></i>
+                            }
+                            @siteName
                         </a>
                         <div class="hidden md:flex items-center gap-1">
                             <a asp-page="/Index" class="nav-link">Home</a>
@@ -57,6 +85,9 @@
                                         </a>
                                         <a asp-page="/Admin/Groups/Index" class="nav-dropdown-item">
                                             <i class="bi bi-people w-5 text-gray-400"></i>Groups
+                                        </a>
+                                        <a asp-page="/Admin/Branding" class="nav-dropdown-item">
+                                            <i class="bi bi-palette w-5 text-gray-400"></i>Branding
                                         </a>
                                     </div>
                                 </div>
@@ -121,6 +152,7 @@
                             <a asp-page="/Admin/Audit/Index" class="nav-link-mobile">Audit</a>
                             <a asp-page="/Admin/Capabilities" class="nav-link-mobile">Capabilities</a>
                             <a asp-page="/Admin/Groups/Index" class="nav-link-mobile">Groups</a>
+                            <a asp-page="/Admin/Branding" class="nav-link-mobile">Branding</a>
                         </div>
                     }
                 </div>
@@ -145,7 +177,14 @@
 
     <footer class="border-t border-gray-200 dark:border-gray-800 py-4 mt-auto">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <span class="text-gray-400 text-sm">&copy; 2026 Argent</span>
+            @if (!string.IsNullOrEmpty(footerText))
+            {
+                <span class="text-gray-400 text-sm">@footerText</span>
+            }
+            else
+            {
+                <span class="text-gray-400 text-sm">&copy; 2026 Argent</span>
+            }
             <a asp-area="" asp-page="/Privacy" class="text-gray-400 text-sm hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Privacy</a>
         </div>
     </footer>

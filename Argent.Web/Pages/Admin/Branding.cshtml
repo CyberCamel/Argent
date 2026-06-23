@@ -1,0 +1,116 @@
+@page "/Admin/Branding"
+@model Argent.Web.Pages.Admin.BrandingModel
+@{
+    ViewData["Title"] = "Branding";
+}
+
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = "Branding & Styling",
+    Subtitle = "Customize the look and feel of the application"
+}' />
+
+@if (Model.Saved)
+{
+    <div class="mb-6 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3 text-green-800 dark:text-green-200 text-sm">
+        <i class="bi bi-check-circle-fill text-lg"></i>
+        <span>Branding settings saved successfully.</span>
+    </div>
+}
+
+<form method="post" class="max-w-2xl space-y-6">
+    <div class="card p-6">
+        <h5 class="font-semibold text-gray-900 dark:text-gray-100 mb-4">General</h5>
+
+        <div class="space-y-4">
+            <div>
+                <label asp-for="SiteName" class="form-label">Site Name</label>
+                <input asp-for="SiteName" class="form-input" />
+                <span asp-validation-for="SiteName" class="text-red-500 text-xs"></span>
+            </div>
+
+            <div>
+                <label asp-for="FooterText" class="form-label">Footer Text</label>
+                <input asp-for="FooterText" class="form-input" placeholder="&copy; 2026 Argent" />
+            </div>
+
+            <div>
+                <label class="form-label flex items-center gap-2">
+                    <input asp-for="IsEnabled" type="checkbox" class="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800" />
+                    Enable custom branding
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-6">
+        <h5 class="font-semibold text-gray-900 dark:text-gray-100 mb-4">Logo & Favicon</h5>
+
+        <div class="space-y-4">
+            <div>
+                <label asp-for="LogoUrl" class="form-label">Logo URL</label>
+                <input asp-for="LogoUrl" class="form-input" placeholder="https://example.com/logo.png" />
+                <p class="text-xs text-gray-400 mt-1">Shown in the navigation bar. Recommended size: 32x32px.</p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.LogoUrl))
+            {
+                <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <span class="text-sm text-gray-500">Preview:</span>
+                    <img src="@Model.LogoUrl" alt="Logo preview" class="h-8 w-auto" />
+                </div>
+            }
+
+            <div>
+                <label asp-for="FaviconUrl" class="form-label">Favicon URL</label>
+                <input asp-for="FaviconUrl" class="form-input" placeholder="https://example.com/favicon.ico" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-6">
+        <h5 class="font-semibold text-gray-900 dark:text-gray-100 mb-4">Colors</h5>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label asp-for="PrimaryColor" class="form-label">Primary Color</label>
+                <div class="flex gap-2">
+                    <input asp-for="PrimaryColor" type="color" class="w-10 h-10 rounded border border-gray-300 dark:border-gray-600 cursor-pointer p-0.5" />
+                    <input asp-for="PrimaryColor" class="form-input flex-1 font-mono text-sm" placeholder="#4f46e5" />
+                </div>
+            </div>
+
+            <div>
+                <label asp-for="PrimaryHoverColor" class="form-label">Primary Hover Color</label>
+                <div class="flex gap-2">
+                    <input asp-for="PrimaryHoverColor" type="color" class="w-10 h-10 rounded border border-gray-300 dark:border-gray-600 cursor-pointer p-0.5" />
+                    <input asp-for="PrimaryHoverColor" class="form-input flex-1 font-mono text-sm" placeholder="#4338ca" />
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg flex items-center gap-4">
+            <span class="text-sm text-gray-500">Preview:</span>
+            <span class="px-4 py-1.5 rounded-lg text-white text-sm font-medium" style="background-color: @Model.PrimaryColor">Primary</span>
+            <span class="px-4 py-1.5 rounded-lg text-white text-sm font-medium" style="background-color: @Model.PrimaryHoverColor">Hover</span>
+        </div>
+    </div>
+
+    <div class="card p-6">
+        <h5 class="font-semibold text-gray-900 dark:text-gray-100 mb-4">Custom CSS</h5>
+
+        <div>
+            <label asp-for="CustomCss" class="form-label">Additional CSS</label>
+            <textarea asp-for="CustomCss" class="form-input font-mono text-sm" rows="6" placeholder="/* Add custom CSS rules here */"></textarea>
+            <p class="text-xs text-gray-400 mt-1">Injected into every page. Use to override default styles.</p>
+        </div>
+    </div>
+
+    <div class="flex items-center gap-3 pt-2">
+        <button type="submit" class="btn-primary">
+            <i class="bi bi-check-lg"></i> Save Settings
+        </button>
+        <a href="/Admin/Branding" class="btn-secondary">Reset</a>
+    </div>
+</form>
+
+
