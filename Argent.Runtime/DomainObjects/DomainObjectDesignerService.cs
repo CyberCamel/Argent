@@ -19,6 +19,9 @@ public class DomainObjectDesignerService(
     public DomainProperty? SelectedProperty { get; private set; }
     public bool HasUnsavedChanges { get; private set; }
     public string? PublishedVersion { get; private set; }
+    public bool IsReadOnly { get; private set; }
+    public Guid? LoadedVersionId { get; private set; }
+    public List<DomainObjectVersion> Versions { get; private set; } = [];
 
     /// <summary>Other domain objects, for reference-target and title pickers. Loaded once.</summary>
     public IReadOnlyList<DomainObjectSummary> Catalog { get; private set; } = [];
@@ -46,6 +49,9 @@ public class DomainObjectDesignerService(
         SelectedProperty = null;
         HasUnsavedChanges = false;
         PublishedVersion = null;
+        IsReadOnly = false;
+        LoadedVersionId = null;
+        Versions = [];
     }
 
     public async Task EnsureCatalogAsync()
@@ -65,14 +71,57 @@ public class DomainObjectDesignerService(
         SelectedProperty = null;
         HasUnsavedChanges = false;
 
-        var versions = await _definitions.GetVersionsAsync(id);
-        PublishedVersion = versions.FirstOrDefault()?.Version.ToString();
+        Versions = await _definitions.GetVersionsAsync(id);
+        PublishedVersion = Versions.FirstOrDefault()?.Version.ToString();
+        IsReadOnly = false;
+        LoadedVersionId = null;
         Notify();
+    }
+
+    /// <summary>Copies a published version's definition into a new draft and switches to editing mode.</summary>
+    public async Task CreateDraftFromVersionAsync(Guid versionId)
+    {
+        if (!StoredObjectId.HasValue) return;
+
+        var version = await _definitions.GetVersionAsync(versionId);
+        if (version == null) return;
+
+        Definition = version.Definition;
+        await _definitions.SaveDraftAsync(StoredObjectId.Value, Definition);
+        IsReadOnly = false;
+        LoadedVersionId = null;
+        HasUnsavedChanges = false;
+        Notify();
+    }
+
+    public async Task LoadVersionAsync(Guid versionId)
+    {
+        var version = await _definitions.GetVersionAsync(versionId);
+        if (version is null) return;
+
+        var header = await _definitions.GetAsync(version.DomainObjectId);
+        if (header is null) return;
+
+        Definition = version.Definition;
+        StoredObjectId = version.DomainObjectId;
+        SelectedProperty = null;
+        HasUnsavedChanges = false;
+        IsReadOnly = true;
+        LoadedVersionId = versionId;
+        Name = header.Name;
+        Notify();
+    }
+
+    public async Task SwitchToDraftAsync()
+    {
+        if (StoredObjectId.HasValue)
+            await LoadAsync(StoredObjectId.Value);
     }
 
     /// <summary>Creates the object on first save, then persists the working definition as its draft.</summary>
     public async Task SaveAsync()
     {
+        if (IsReadOnly) return;
         if (string.IsNullOrWhiteSpace(Key))
             throw new InvalidOperationException("A system key is required before saving.");
         Key = Key.Trim();

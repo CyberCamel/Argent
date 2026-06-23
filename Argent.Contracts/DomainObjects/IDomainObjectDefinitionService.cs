@@ -29,4 +29,6 @@ public interface IDomainObjectDefinitionService
     Task<DomainObjectVersion> PublishAsync(Guid id, string? createdBy = null);
 
     Task<List<DomainObjectVersion>> GetVersionsAsync(Guid id);
+
+    Task<DomainObjectVersion?> GetVersionAsync(Guid versionId);
 }

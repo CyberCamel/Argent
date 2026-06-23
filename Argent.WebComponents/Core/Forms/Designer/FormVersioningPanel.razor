@@ -1,0 +1,253 @@
+@using Argent.Models.Forms
+@using Argent.Runtime.Forms.Modeling
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+
+@inject IDbContextFactory<Argent.Infrastructure.Data.ArgentDbContext> DbFactory
+@inject IJSRuntime Js
+
+@implements IDisposable
+
+<div class="modeler-version-panel">
+    <h3 class="modeler-version-title">
+        <i class="bi bi-ui-checks"></i> @State.Name
+    </h3>
+
+    <div class="modeler-version-subtitle">Versions</div>
+
+    @if (_timeline == null)
+    {
+        <p class="modeler-version-empty">Loading...</p>
+    }
+    else if (_timeline.Count == 0)
+    {
+        <p class="modeler-version-empty">No versions yet. Save a draft and publish to create the first version.</p>
+    }
+    else
+    {
+        <div class="modeler-version-timeline">
+            @for (var i = 0; i < _timeline.Count; i++)
+            {
+                var entry = _timeline[i];
+                var isLast = i == _timeline.Count - 1;
+
+                <div class="modeler-version-node @(entry.IsLoaded ? "modeler-version-node-active" : "") @(entry.IsDraft ? "modeler-version-node-draft" : "")">
+                    <div class="modeler-version-dot @(entry.IsLoaded ? "modeler-version-dot-active" : "modeler-version-dot-inactive")"></div>
+                    <div class="modeler-version-node-body">
+                        <div class="modeler-version-node-top">
+                            <span class="modeler-version-node-number">@entry.Label</span>
+                            <span class="modeler-version-badge @entry.BadgeCss">@entry.BadgeText</span>
+                        </div>
+                        <div class="modeler-version-node-meta">
+                            @entry.CreatedBy · @entry.CreatedAt.ToString("g")
+                        </div>
+
+                        @if (entry.IsDraft && entry.IsLoaded)
+                        {
+                            if (_confirming)
+                            {
+                                <div class="modeler-version-publish-inline">
+                                    <span class="modeler-version-publish-label">Publish as v@(_nextVersion)?</span>
+                                    <button class="modeler-version-action-btn modeler-version-action-btn-primary" @onclick="ConfirmPublish" @onclick:stopPropagation>
+                                        <i class="bi bi-check-lg"></i> Confirm
+                                    </button>
+                                    <button class="modeler-version-action-btn" @onclick="() => _confirming = false" @onclick:stopPropagation>
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <button class="modeler-version-action-btn modeler-version-action-btn-primary"
+                                        @onclick="StartPublish" @onclick:stopPropagation>
+                                    <i class="bi bi-send-fill"></i> Publish...
+                                </button>
+                            }
+
+                            @if (!string.IsNullOrEmpty(_publishError))
+                            {
+                                <div class="modeler-version-publish-error">
+                                    <i class="bi bi-exclamation-triangle-fill"></i> @_publishError
+                                </div>
+                            }
+                        }
+
+                        @if (!entry.IsDraft && !entry.IsLoaded)
+                        {
+                            <button class="modeler-version-action-btn" @onclick="() => LoadVersion(entry.Id)" @onclick:stopPropagation>
+                                <i class="bi bi-eye-fill"></i> View this version
+                            </button>
+                        }
+
+                        @if (!entry.IsDraft && entry.IsLoaded)
+                        {
+                            <button class="modeler-version-action-btn" @onclick="SwitchToDraft" @onclick:stopPropagation>
+                                <i class="bi bi-pencil-fill"></i> Return to draft
+                            </button>
+                        }
+
+                        @if (!entry.IsDraft && !_hasDraft)
+                        {
+                            <button class="modeler-version-action-btn" @onclick="() => CreateDraftFromVersion(entry.Id)" @onclick:stopPropagation>
+                                <i class="bi bi-copy"></i> Create new draft
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                @if (!isLast)
+                {
+                    <div class="modeler-version-line"></div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public required FormDesignerService State { get; set; }
+    [Parameter] public EventCallback OnVersionLoaded { get; set; }
+
+    private List<TimelineEntry>? _timeline;
+    private bool _confirming;
+    private bool _hasDraft;
+    private string _nextVersion = "1.0";
+    private string? _publishError;
+    private Guid? _lastFormId;
+
+    private record TimelineEntry(
+        Guid Id, string Label, string BadgeText, string BadgeCss,
+        string CreatedBy, DateTime CreatedAt,
+        bool IsDraft, bool IsLoaded);
+
+    protected override void OnInitialized()
+    {
+        State.OnChange += OnStateChanged;
+        _lastFormId = State.StoredFormId;
+    }
+
+    protected override async Task OnInitializedAsync() => await RefreshVersions();
+
+    private void OnStateChanged()
+    {
+        if (_lastFormId != State.StoredFormId)
+        {
+            _lastFormId = State.StoredFormId;
+            _ = InvokeAsync(RefreshVersions);
+        }
+        else if (!State.HasUnsavedChanges)
+        {
+            _ = InvokeAsync(RefreshVersions);
+        }
+    }
+
+    public void Dispose() => State.OnChange -= OnStateChanged;
+
+    private async Task RefreshVersions()
+    {
+        if (State.StoredFormId == null)
+        {
+            _timeline = [];
+            StateHasChanged();
+            return;
+        }
+
+        _timeline = null;
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var draft = await db.FormDesignDrafts.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.FormDesignId == State.StoredFormId.Value);
+
+        var versions = await db.FormDesignVersions.AsNoTracking()
+            .Where(v => v.FormDesignId == State.StoredFormId.Value)
+            .OrderByDescending(v => v.Version)
+            .ToListAsync();
+
+        _hasDraft = draft != null;
+        _timeline = [];
+
+        if (draft != null)
+        {
+            _timeline.Add(new TimelineEntry(
+                draft.Id, "Draft", "Draft", "modeler-version-badge-draft",
+                draft.UpdatedBy, draft.UpdatedAt,
+                IsDraft: true, IsLoaded: !State.IsReadOnly));
+        }
+
+        foreach (var v in versions)
+        {
+            _timeline.Add(new TimelineEntry(
+                v.Id, $"v{v.Version}", "Published", "modeler-version-badge-published",
+                v.CreatedBy, v.CreatedAt,
+                IsDraft: false, IsLoaded: _loadedVersionId == v.Id));
+        }
+
+        var latest = versions.FirstOrDefault();
+        _nextVersion = latest == null
+            ? "1.0"
+            : new Version(latest.Version.Major, latest.Version.Minor + 1).ToString();
+
+        _confirming = false;
+        _publishError = null;
+        StateHasChanged();
+    }
+
+    private Guid? _loadedVersionId;
+
+    private void StartPublish()
+    {
+        _publishError = null;
+        _confirming = true;
+    }
+
+    private async Task ConfirmPublish()
+    {
+        _confirming = false;
+        try
+        {
+            await State.PublishAsync();
+            _loadedVersionId = null;
+            await RefreshVersions();
+            await OnVersionLoaded.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            _publishError = ex.Message;
+        }
+    }
+
+    private async Task LoadVersion(Guid versionId)
+    {
+        if (State.HasUnsavedChanges)
+        {
+            var confirmed = await Js.InvokeAsync<bool>("confirm", "You have unsaved changes. Load this version and discard changes?");
+            if (!confirmed) return;
+        }
+        await State.LoadVersionAsync(versionId);
+        _loadedVersionId = versionId;
+        await RefreshVersions();
+        await OnVersionLoaded.InvokeAsync();
+    }
+
+    private async Task SwitchToDraft()
+    {
+        if (State.HasUnsavedChanges)
+        {
+            var confirmed = await Js.InvokeAsync<bool>("confirm", "You have unsaved changes. Discard and return to draft?");
+            if (!confirmed) return;
+        }
+        if (State.StoredFormId.HasValue)
+            await State.LoadAsync(State.StoredFormId.Value);
+        _loadedVersionId = null;
+        await RefreshVersions();
+        await OnVersionLoaded.InvokeAsync();
+    }
+
+    private async Task CreateDraftFromVersion(Guid versionId)
+    {
+        await State.CreateDraftFromVersionAsync(versionId);
+        _loadedVersionId = null;
+        await RefreshVersions();
+        await OnVersionLoaded.InvokeAsync();
+    }
+}

@@ -25,6 +25,10 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
 
     public DbSet<FormDesign> FormDesigns { get; set; }
 
+    public DbSet<FormDesignDraft> FormDesignDrafts { get; set; }
+
+    public DbSet<FormDesignVersion> FormDesignVersions { get; set; }
+
     public DbSet<FormCustomData> FormCustomData { get; set; }
 
     public DbSet<WorkItem> WorkItems { get; set; }
@@ -140,13 +144,34 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
         builder.Entity<FormDesign>(entity =>
         {
             entity.ToTable("FormDesigns");
+            entity.Property(e => e.ObjectKey).HasMaxLength(128);
+            entity.HasIndex(e => e.ObjectKey);
+        });
+
+        builder.Entity<FormDesignDraft>(entity =>
+        {
+            entity.ToTable("FormDesignDrafts");
             entity.Property(e => e.Definition)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, FormSerializer.Options),
                     v => JsonSerializer.Deserialize<FormDefinition>(v) ?? new FormDefinition())
                 .HasColumnType("nvarchar(max)");
-            entity.Property(e => e.ObjectKey).HasMaxLength(128);
-            entity.HasIndex(e => e.ObjectKey);
+            entity.HasIndex(e => e.FormDesignId).IsUnique();
+        });
+
+        builder.Entity<FormDesignVersion>(entity =>
+        {
+            entity.ToTable("FormDesignVersions");
+            entity.Property(e => e.Definition)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, FormSerializer.Options),
+                    v => JsonSerializer.Deserialize<FormDefinition>(v) ?? new FormDefinition())
+                .HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Version)
+                .HasConversion(
+                    v => v.ToString(),
+                    v => Version.Parse(v));
+            entity.HasIndex(e => new { e.FormDesignId, e.Version }).IsUnique();
         });
 
         builder.Entity<FormCustomData>(entity =>

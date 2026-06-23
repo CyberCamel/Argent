@@ -180,6 +180,13 @@ public class DomainObjectDefinitionService(
         return versions.OrderByDescending(v => v.Version).ToList();
     }
 
+    public async Task<DomainObjectVersion?> GetVersionAsync(Guid versionId)
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        return await dbContext.DomainObjectVersions.AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == versionId);
+    }
+
     private async Task<DomainObjectDefinition?> GetLatestPublishedDefinitionAsync(
         System.Linq.Expressions.Expression<Func<DomainObject, bool>> predicate)
     {

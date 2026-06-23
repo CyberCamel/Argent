@@ -3,6 +3,7 @@ using System.Text.Json;
 using Argent.Contracts.Authorization;
 using Argent.Infrastructure.Data;
 using Argent.Infrastructure.Serialization;
+using Argent.Models.Forms;
 using Argent.Models.Forms.Components;
 using Argent.Models.Forms.Components.Base;
 using Microsoft.AspNetCore.Http;
@@ -358,16 +359,89 @@ public class FormDesignerService(
 
     // ── Persistence ────────────────────────────────────────────────
 
+    public List<FormDesignVersion> Versions { get; private set; } = [];
+    public bool IsReadOnly { get; private set; }
+
     public async Task LoadAsync(Guid id)
     {
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var doc = await dbContext.FormDesigns.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
-        if (doc?.Definition == null) return;
+        if (doc == null) return;
 
-        Definition = doc.Definition;
+        var draft = await dbContext.FormDesignDrafts.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.FormDesignId == id);
+
+        Definition = draft?.Definition ?? NewDefinition();
+
+        Versions = await dbContext.FormDesignVersions.AsNoTracking()
+            .Where(v => v.FormDesignId == id)
+            .OrderByDescending(v => v.CreatedAt)
+            .ToListAsync();
+
         Name = doc.Name;
         Description = doc.Description;
         StoredFormId = doc.Id;
+        IsReadOnly = false;
+        SelectedComponent = null;
+        HasUnsavedChanges = false;
+        Notify();
+    }
+
+    /// <summary>Copies a published version's definition into a new draft and switches to editing mode.</summary>
+    public async Task CreateDraftFromVersionAsync(Guid versionId)
+    {
+        if (!StoredFormId.HasValue) return;
+
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var version = await dbContext.FormDesignVersions.AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == versionId);
+        if (version == null) return;
+
+        var currentUser = _httpContextAccessor.HttpContext?.User;
+        var updatedBy = currentUser?.Identity?.Name ?? "Unknown";
+        var definitionCopy = CloneDefinition(version.Definition);
+
+        var draft = await dbContext.FormDesignDrafts
+            .FirstOrDefaultAsync(d => d.FormDesignId == StoredFormId.Value);
+        if (draft != null)
+        {
+            draft.Definition = definitionCopy;
+            draft.UpdatedAt = DateTime.UtcNow;
+            draft.UpdatedBy = updatedBy;
+        }
+        else
+        {
+            dbContext.FormDesignDrafts.Add(new FormDesignDraft
+            {
+                FormDesignId = StoredFormId.Value,
+                Definition = definitionCopy,
+                UpdatedBy = updatedBy
+            });
+        }
+        await dbContext.SaveChangesAsync();
+
+        Definition = definitionCopy;
+        IsReadOnly = false;
+        HasUnsavedChanges = false;
+        Notify();
+    }
+
+    /// <summary>Loads a specific published version for read-only viewing.</summary>
+    public async Task LoadVersionAsync(Guid versionId)
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var version = await dbContext.FormDesignVersions.AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == versionId);
+        if (version == null) return;
+
+        var doc = await dbContext.FormDesigns.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == version.FormDesignId);
+
+        Definition = version.Definition;
+        Name = doc?.Name ?? string.Empty;
+        Description = string.Empty;
+        StoredFormId = version.FormDesignId;
+        IsReadOnly = true;
         SelectedComponent = null;
         HasUnsavedChanges = false;
         Notify();
@@ -375,10 +449,10 @@ public class FormDesignerService(
 
     public async Task SaveAsync()
     {
+        if (IsReadOnly) return;
+
         var currentUser = _httpContextAccessor.HttpContext?.User;
         var updatedBy = currentUser?.Identity?.Name ?? "Unknown";
-
-        // Detach the stored copy from the live designer instance.
         var definitionCopy = CloneDefinition(Definition);
 
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
@@ -390,7 +464,6 @@ public class FormDesignerService(
 
         if (existing != null)
         {
-            existing.Definition = definitionCopy;
             existing.Name = Name;
             existing.Description = Description;
             existing.ObjectKey = definitionCopy.ObjectKey;
@@ -404,11 +477,30 @@ public class FormDesignerService(
                 Name = Name,
                 Description = Description,
                 ObjectKey = definitionCopy.ObjectKey,
-                Definition = definitionCopy,
                 CreatedBy = updatedBy
             };
             dbContext.FormDesigns.Add(doc);
             StoredFormId = doc.Id;
+        }
+
+        var draft = StoredFormId.HasValue
+            ? await dbContext.FormDesignDrafts.FirstOrDefaultAsync(d => d.FormDesignId == StoredFormId.Value)
+            : null;
+
+        if (draft != null)
+        {
+            draft.Definition = definitionCopy;
+            draft.UpdatedAt = DateTime.UtcNow;
+            draft.UpdatedBy = updatedBy;
+        }
+        else if (StoredFormId.HasValue)
+        {
+            dbContext.FormDesignDrafts.Add(new FormDesignDraft
+            {
+                FormDesignId = StoredFormId.Value,
+                Definition = definitionCopy,
+                UpdatedBy = updatedBy
+            });
         }
 
         await dbContext.SaveChangesAsync();
@@ -424,6 +516,48 @@ public class FormDesignerService(
         Notify();
     }
 
+    public async Task<FormDesignVersion> PublishAsync()
+    {
+        if (IsReadOnly || !StoredFormId.HasValue)
+            throw new InvalidOperationException("Cannot publish: no form design loaded or in read-only mode.");
+
+        var currentUser = _httpContextAccessor.HttpContext?.User;
+        var createdBy = currentUser?.Identity?.Name ?? "Unknown";
+        var definitionCopy = CloneDefinition(Definition);
+
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+
+        var latestVersion = await dbContext.FormDesignVersions
+            .Where(v => v.FormDesignId == StoredFormId.Value)
+            .OrderByDescending(v => v.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        var nextVersion = latestVersion == null
+            ? new Version(1, 0)
+            : new Version(latestVersion.Version.Major, latestVersion.Version.Minor + 1);
+
+        var version = new FormDesignVersion
+        {
+            FormDesignId = StoredFormId.Value,
+            Version = nextVersion,
+            Definition = definitionCopy,
+            CreatedBy = createdBy
+        };
+        dbContext.FormDesignVersions.Add(version);
+
+        var draft = await dbContext.FormDesignDrafts
+            .FirstOrDefaultAsync(d => d.FormDesignId == StoredFormId.Value);
+        if (draft != null)
+            dbContext.FormDesignDrafts.Remove(draft);
+
+        await dbContext.SaveChangesAsync();
+
+        Versions.Insert(0, version);
+        HasUnsavedChanges = false;
+        Notify();
+        return version;
+    }
+
     private static FormDefinition CloneDefinition(FormDefinition definition)
     {
         var json = JsonSerializer.Serialize(definition, FormSerializer.Options);
@@ -436,6 +570,8 @@ public class FormDesignerService(
         Name = "New Form";
         Description = "";
         StoredFormId = null;
+        IsReadOnly = false;
+        Versions = [];
         SelectedComponent = null;
         HasUnsavedChanges = false;
         EndDrag();

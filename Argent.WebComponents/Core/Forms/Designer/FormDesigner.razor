@@ -5,10 +5,12 @@
 @using Argent.Runtime.Forms.Modeling
 @using Argent.WebComponents.Core.Forms
 @using Argent.WebComponents.Authorization
+@using Microsoft.JSInterop
 @implements IDisposable
 @inject FormDesignerService State
 @inject NavigationManager Navigation
 @inject IDomainObjectDefinitionService DomainObjectDefinitions
+@inject IJSRuntime Js
 
 <style>
     .fd-dropzone { height: 0; overflow: hidden; border-radius: 4px; transition: height 0.1s, background 0.1s; }
@@ -82,25 +84,41 @@
                value="@State.Description"
                @onchange="(e) => { State.Description = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }"
                placeholder="Description (optional)" />
-        <button class="px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors" @onclick="HandleSave" disabled="@_isSaving">
-            @if (_isSaving)
-            {
-                <span class="inline-block w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin mr-1"></span>
-            }
-            <i class="bi bi-save-fill"></i> Save
-        </button>
-        <span title="@(State.HasUnsavedChanges ? "Unsaved changes" : "Saved")"
-              class="@(State.HasUnsavedChanges ? "text-yellow-600 dark:text-yellow-400" : "text-green-600 dark:text-green-400")">
-            <i class="bi @(State.HasUnsavedChanges ? "bi-circle-fill" : "bi-check-circle-fill")"></i>
-        </span>
-        <button class="px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-lg transition-colors" @onclick="() => _showPreview = true">
+        @if (!State.IsReadOnly)
+        {
+            <button class="px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors" @onclick="HandleSave" disabled="@_isBusy">
+                @if (_isBusy && _busyMode == "save")
+                {
+                    <span class="inline-block w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin mr-1"></span>
+                }
+                <i class="bi bi-save-fill"></i> Save
+            </button>
+            <button class="px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-lg transition-colors" @onclick="HandlePublish" disabled="@_isBusy">
+                @if (_isBusy && _busyMode == "publish")
+                {
+                    <span class="inline-block w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin mr-1"></span>
+                }
+                <i class="bi bi-send-fill"></i> Publish
+            </button>
+            <span title="@(State.HasUnsavedChanges ? "Unsaved changes" : "Saved")"
+                  class="@(State.HasUnsavedChanges ? "text-yellow-600 dark:text-yellow-400" : "text-green-600 dark:text-green-400")">
+                <i class="bi @(State.HasUnsavedChanges ? "bi-circle-fill" : "bi-check-circle-fill")"></i>
+            </span>
+        }
+        else
+        {
+            <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                <i class="bi bi-eye-fill mr-1"></i> Read-only view
+            </span>
+        }
+        <button class="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors" @onclick="() => _showPreview = true">
             <i class="bi bi-eye-fill"></i> Preview
         </button>
         @if (!string.IsNullOrEmpty(_saveError))
         {
             <span class="text-red-600 dark:text-red-400 text-sm ml-2"><i class="bi bi-exclamation-triangle-fill"></i> @_saveError</span>
         }
-        @if (State.StoredFormId.HasValue)
+        @if (State.StoredFormId.HasValue && !State.IsReadOnly)
         {
             <hr />
             <ResourceSharingPanel ResourceType="Form" ResourceId="@State.StoredFormId.Value" />
@@ -160,12 +178,34 @@
             </CascadingValue>
         </div>
 
-        @* ── Property panel ──────────────────────────────────── *@
-        <div class="border-s bg-gray-100 dark:bg-gray-800 p-3" style="width: 360px; min-width: 360px; overflow-y: auto;">
-            <h6 class="text-gray-500 dark:text-gray-400 mb-3"><i class="bi bi-sliders"></i> Properties</h6>
-            <FormPropertyPanel State="@State" />
-
-            
+        @* ── Sidebar (Properties / Versions) ─────────────────── *@
+        <div class="border-s bg-gray-100 dark:bg-gray-800 flex flex-col" style="width: 360px; min-width: 360px;">
+            @* Tab bar *@
+            <div class="flex border-b bg-white dark:bg-gray-900">
+                <button class="px-4 py-2 text-sm font-medium transition-colors @(_sidebarTab == "props" ? "border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300")"
+                        @onclick='() => _sidebarTab = "props"'>
+                    <i class="bi bi-sliders mr-1"></i> Properties
+                </button>
+                <button class="px-4 py-2 text-sm font-medium transition-colors @(_sidebarTab == "versions" ? "border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300")"
+                        @onclick='() => _sidebarTab = "versions"'>
+                    <i class="bi bi-clock-history mr-1"></i> Versions
+                    @if (State.Versions.Count > 0)
+                    {
+                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400">@State.Versions.Count</span>
+                    }
+                </button>
+            </div>
+            @* Tab content *@
+            <div class="flex-1 overflow-y-auto p-3">
+                @if (_sidebarTab == "props")
+                {
+                    <FormPropertyPanel State="@State" />
+                }
+                else
+                {
+                    <FormVersioningPanel State="@State" OnVersionLoaded="StateHasChanged" />
+                }
+            </div>
         </div>
     </div>
 </div>
@@ -198,8 +238,10 @@
     [Parameter] public Guid? FormId { get; set; }
 
     private bool _showPreview;
-    private bool _isSaving;
+    private bool _isBusy;
+    private string _busyMode = "";
     private string? _saveError;
+    private string _sidebarTab = "props";
     private readonly DesignerFormContext _designContext = new(new ConditionEvaluator());
     private IReadOnlyList<DomainObjectSummary> _objectCatalog = [];
 
@@ -226,8 +268,7 @@
 
     private async Task HandleSave()
     {
-        _isSaving = true;
-        _saveError = null;
+        _isBusy = true; _busyMode = "save"; _saveError = null;
         try
         {
             var isNew = !State.StoredFormId.HasValue;
@@ -235,20 +276,32 @@
             if (isNew && State.StoredFormId.HasValue)
                 Navigation.NavigateTo($"/Forms/Edit/{State.StoredFormId}", forceLoad: true);
         }
-        catch (Exception ex)
+        catch (Exception ex) { _saveError = ex.Message; }
+        finally { _isBusy = false; _busyMode = ""; }
+    }
+
+    private async Task HandlePublish()
+    {
+        _isBusy = true; _busyMode = "publish"; _saveError = null;
+        try
         {
-            _saveError = ex.Message;
+            var isNew = !State.StoredFormId.HasValue;
+            await State.SaveAsync();
+            if (isNew && State.StoredFormId.HasValue)
+            {
+                Navigation.NavigateTo($"/Forms/Edit/{State.StoredFormId}", forceLoad: true);
+                return;
+            }
+            await State.PublishAsync();
+            _sidebarTab = "versions";
         }
-        finally
-        {
-            _isSaving = false;
-        }
+        catch (Exception ex) { _saveError = ex.Message; }
+        finally { _isBusy = false; _busyMode = ""; }
     }
 
     private void HandleKeyDown(KeyboardEventArgs e)
     {
-        // Only fires from the canvas (it has focus there) — typing in the
-        // property panel can no longer delete the selected component.
+        if (State.IsReadOnly) return;
         if (e.Key == "Delete")
             State.RemoveSelected();
         else if (e.Key == "Escape")

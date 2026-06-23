@@ -51,6 +51,9 @@ else
     /// <summary>Load the form blueprint from the database by design id.</summary>
     [Parameter] public Guid? FormId { get; set; }
 
+    /// <summary>Pin to a specific published version (set by workflow publish). Null = latest published.</summary>
+    [Parameter] public Guid? FormVersionId { get; set; }
+
     /// <summary>Supply a definition directly (e.g. designer preview).</summary>
     [Parameter] public FormDefinition? Definition { get; set; }
 
@@ -83,11 +86,31 @@ else
         {
             _definition = Definition;
         }
+        else if (FormVersionId.HasValue)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var ver = await db.FormDesignVersions.AsNoTracking()
+                .FirstOrDefaultAsync(v => v.Id == FormVersionId.Value);
+            _definition = ver?.Definition;
+        }
         else if (FormId.HasValue)
         {
             await using var db = await DbFactory.CreateDbContextAsync();
-            var doc = await db.FormDesigns.AsNoTracking().FirstOrDefaultAsync(f => f.Id == FormId.Value);
-            _definition = doc?.Definition;
+            // Load latest published version; fall back to draft if none published yet
+            var ver = await db.FormDesignVersions.AsNoTracking()
+                .Where(v => v.FormDesignId == FormId.Value)
+                .OrderByDescending(v => v.CreatedAt)
+                .FirstOrDefaultAsync();
+            if (ver != null)
+            {
+                _definition = ver.Definition;
+            }
+            else
+            {
+                var draft = await db.FormDesignDrafts.AsNoTracking()
+                    .FirstOrDefaultAsync(d => d.FormDesignId == FormId.Value);
+                _definition = draft?.Definition;
+            }
         }
 
         if (_definition != null && !string.IsNullOrEmpty(_definition.ObjectKey)

@@ -112,16 +112,21 @@
             if (def != null)
                 allFields.AddRange(def.Properties.Select(p => p.Key));
 
-            // Form field keys (includes FormCustomData fields not in the domain object)
+            // Form field keys from latest published versions (includes FormCustomData fields not in the domain object)
             await using var db = await DbContextFactory.CreateDbContextAsync();
-            var formDesigns = await db.FormDesigns
+            var formDesignIds = await db.FormDesigns
                 .AsNoTracking()
                 .Where(f => f.ObjectKey == startEvent.ObjectKey)
+                .Select(f => f.Id)
                 .ToListAsync();
 
-            foreach (var design in formDesigns)
+            foreach (var designId in formDesignIds)
             {
-                if (design.Definition?.Components is { } components)
+                var ver = await db.FormDesignVersions.AsNoTracking()
+                    .Where(v => v.FormDesignId == designId)
+                    .OrderByDescending(v => v.CreatedAt)
+                    .FirstOrDefaultAsync();
+                if (ver?.Definition?.Components is { } components)
                     allFields.AddRange(CollectFieldNames(components));
             }
         }

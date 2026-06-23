@@ -18,7 +18,13 @@ public class LiveModel(ArgentDbContext _ctx) : PageModel
             .AsNoTracking()
             .FirstOrDefaultAsync(f => f.Id == Id);
 
-        if (doc?.Definition == null)
+        if (doc == null)
+            return NotFound();
+
+        // Require at least a draft or a published version to consider the form usable
+        var hasDraft = await _ctx.FormDesignDrafts.AnyAsync(d => d.FormDesignId == Id);
+        var hasVersion = await _ctx.FormDesignVersions.AnyAsync(v => v.FormDesignId == Id);
+        if (!hasDraft && !hasVersion)
             return NotFound();
 
         FormName = doc.Name;
