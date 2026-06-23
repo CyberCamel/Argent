@@ -14,6 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Argent.Engine\Argent.Engine.csproj" />
     <ProjectReference Include="..\Argent.Web\Argent.Web.csproj" />
   </ItemGroup>
 

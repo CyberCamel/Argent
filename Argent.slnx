@@ -1,5 +1,6 @@
 <Solution>
 <Project Path="Argent.Contracts/Argent.Contracts.csproj" />
+<Project Path="Argent.Engine/Argent.Engine.csproj" />
 <Project Path="Argent.Models/Argent.Models.csproj" />
 <Project Path="Argent.Host/Argent.Host.csproj" Id="e32ca8c1-03b4-4369-a1dc-df4d6180bc5c" />
 <Project Path="Argent.Infrastructure/Argent.Infrastructure.csproj" />

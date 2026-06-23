@@ -11,10 +11,12 @@ namespace Argent.Runtime.Workflows.Execution;
 public class TokenMovement : ITokenMovement
 {
     private readonly ArgentDbContext _context;
+    private readonly WorkItemSignal? _signal;
 
-    public TokenMovement(ArgentDbContext context)
+    public TokenMovement(ArgentDbContext context, WorkItemSignal? signal = null)
     {
         _context = context;
+        _signal = signal;
     }
 
     public async Task CommitAsync(TokenMovementRequest request, CancellationToken ct)
@@ -80,6 +82,10 @@ public class TokenMovement : ITokenMovement
 
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+
+        // Signal the engine that new work items are ready.
+        if (request.Targets.Count > 0)
+            _signal?.Signal();
 
         // 5. Post-commit completion check. Running this AFTER the commit means the consumed
         // token is now visible to all concurrent threads. When two EndEvents finish in the same

@@ -9,7 +9,8 @@ public class WorkflowEngine(
     ILogger<WorkflowEngine> logger,
     IServiceProvider serviceProvider,
     RecoveryPass recoveryPass,
-    TimerManager timerManager) : BackgroundService
+    TimerManager timerManager,
+    WorkItemSignal signal) : BackgroundService
 {
     private readonly SemaphoreSlim _semaphore = new(50);
 
@@ -19,7 +20,7 @@ public class WorkflowEngine(
 
         await recoveryPass.RunAsync(stoppingToken);
 
-        logger.LogInformation("Workflow engine started (polling every 1s, max concurrency: 50)");
+        logger.LogInformation("Workflow engine started (signal-driven, 5s recovery poll, max concurrency: 50)");
 
         var lastRecovery = DateTime.UtcNow;
 
@@ -82,7 +83,10 @@ public class WorkflowEngine(
                 logger.LogError(ex, "Workflow engine tick failed");
             }
 
-            await Task.Delay(1000, stoppingToken);
+            // Wait for a signal from TokenMovement (new work items committed) or 5s timeout.
+            // The timeout acts as a safety-net poll for work created by external processes
+            // (e.g. the web app completing a user task).
+            await signal.WaitAsync(TimeSpan.FromSeconds(5), stoppingToken);
         }
 
         logger.LogInformation("Workflow engine stopping...");

@@ -18,7 +18,6 @@ using Argent.Runtime.Forms;
 using Argent.Runtime.Forms.Modeling;
 using Argent.Runtime.Workflows;
 using Argent.Runtime.Workflows.Execution;
-using Argent.Runtime.Workflows.Handlers;
 using Argent.Runtime.Workflows.Modeling;
 using Argent.Web;
 using Argent.Web.Extensions;
@@ -108,38 +107,11 @@ builder.Services.AddScoped<DesignerService, DesignerService>();
 builder.Services.AddScoped<FormDesignerService, FormDesignerService>();
 builder.Services.AddSingleton<IWorkflowNodeRegistry, ArgentWorkflowNodeRegistry>();
 
-// --- Workflow Engine ---
-builder.Services.AddSingleton<IWorkClaimer>(sp =>
-{
-    var factory = sp.GetRequiredService<IDbContextFactory<ArgentDbContext>>();
-    using var ctx = factory.CreateDbContext();
-    return new WorkClaimer(ctx.Database.GetConnectionString()!);
-});
-builder.Services.AddSingleton<ITokenRunner, TokenRunner>();
-builder.Services.AddScoped<ITokenMovement, TokenMovement>();
+// --- Workflow (web-side services only; engine runs in Argent.Engine) ---
 builder.Services.AddScoped<IWorkflowInstanceManager, WorkflowInstanceManager>();
-builder.Services.AddTransient<RecoveryPass>();
-builder.Services.AddSingleton<TimerManager>();
 builder.Services.AddSingleton<IUserTaskManager, UserTaskManager>();
-builder.Services.AddTransient<IWorkflowAudienceResolver, WorkflowAudienceResolver>();
 builder.Services.AddSingleton<IAuditService, AuditService>();
-builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics
-    .AddMeter(WorkflowMeter.Engine.Name));
-builder.Services.AddHostedService<WorkflowEngine>();
-
-// --- Workflow Handlers ---
-builder.Services.AddTransient<INodeHandler, StartEventHandler>();
-builder.Services.AddTransient<INodeHandler, EndEventHandler>();
-builder.Services.AddTransient<INodeHandler, ExclusiveGatewayEvaluator>();
-builder.Services.AddTransient<INodeHandler, InclusiveGatewayEvaluator>();
-builder.Services.AddTransient<INodeHandler, ParallelGatewayEvaluator>();
-builder.Services.AddTransient<INodeHandler, SQLActivityHandler>();
-builder.Services.AddTransient<INodeHandler, RestActivityHandler>();
-builder.Services.AddTransient<INodeHandler, JintActivityHandler>();
-builder.Services.AddTransient<INodeHandler, UserActivityHandler>();
-builder.Services.AddTransient<INodeHandler, ScriptActivityHandler>();
-builder.Services.AddTransient<INodeHandler, CatchingTimerHandler>();
-builder.Services.AddTransient<INodeHandler, TimerBoundaryEventHandler>();
+builder.Services.AddTransient<IWorkflowAudienceResolver, WorkflowAudienceResolver>();
 
 builder.Services.AddScoped<IDomainObjectDefinitionService, DomainObjectDefinitionService>();
 builder.Services.AddScoped<IDomainObjectStore, DomainObjectStore>();
