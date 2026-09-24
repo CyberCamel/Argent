@@ -93,7 +93,7 @@
 {/if}
 
 <style>
-  form { display: grid; gap: 1rem; max-width: var(--argent-form-max-width, 48rem); color: var(--argent-text, #111827); font-family: var(--argent-font-family, system-ui, sans-serif); }
+  form { display: grid; gap: 1rem; width: 100%; max-width: var(--argent-form-max-width, 100%); color: var(--argent-text, inherit); font-family: var(--argent-font-family, system-ui, sans-serif); }
   h1 { margin: 0 0 0.5rem; font-size: 1.75rem; line-height: 1.2; }
   button { justify-self: start; min-height: 2.75rem; padding: 0.625rem 1rem; border: 0; border-radius: 0.375rem; background: var(--argent-primary, #4f46e5); color: white; font: inherit; font-weight: 700; cursor: pointer; }
   button:focus-visible { outline: 3px solid var(--argent-focus, #4f46e5); outline-offset: 2px; }

@@ -4,13 +4,49 @@
 
 @if (State.SelectedComponent is null)
 {
+    @if (State.SelectedBinding is { } selectedBinding)
+    {
+        <div class="property-section">
+            <div class="property-label">Object binding: @selectedBinding.Key</div>
+            <label class="text-sm">Binding key</label>
+            <input class="form-input mb-2" value="@selectedBinding.Key" disabled />
+            @if (!selectedBinding.IsPrimary)
+            {
+                <label class="text-sm">Create/update only when this boolean field is true</label>
+                <select class="form-input mb-2" value="@ConditionField(selectedBinding)"
+                        @onchange="e => SetCondition(selectedBinding, e.Value?.ToString())">
+                    <option value="">Always</option>
+                    @foreach (var booleanField in State.AllFields().Where(field => field.Type == "boolean" && field.ObjectBinding != selectedBinding.Key))
+                    {
+                        <option value="@booleanField.Name">@booleanField.Label</option>
+                    }
+                </select>
+                <label class="text-sm">Put this record ID in a reference property on</label>
+                <select class="form-input mb-2" value="@selectedBinding.AssignToBinding"
+                        @onchange="e => SetAssignmentTarget(selectedBinding, e.Value?.ToString())">
+                    <option value="">No automatic link</option>
+                    @foreach (var target in State.Definition.Objects.Where(binding => binding.Key != selectedBinding.Key))
+                    {
+                        <option value="@target.Key">@target.Key</option>
+                    }
+                </select>
+                @if (selectedBinding.AssignToBinding is not null)
+                {
+                    <label class="text-sm">Reference property key</label>
+                    <input class="form-input mb-2" value="@selectedBinding.AssignToProperty"
+                           @onchange="e => Set(() => selectedBinding.AssignToProperty = EmptyToNull(e.Value))" />
+                }
+            }
+        </div>
+    }
     @if (_boundDefinition is not null)
     {
         <div class="property-section">
             <div class="property-label">Domain property coverage</div>
             @foreach (var property in _boundDefinition.Properties)
             {
-                var isBound = State.AllFieldNames().Contains(property.Key);
+                var isBound = State.AllFields().Any(field => field.ObjectBinding == State.SelectedBindingKey &&
+                    (field.PropertyKey ?? field.Name) == property.Key);
                 <div class="flex items-center gap-2 text-sm mb-1">
                     <i class="bi @(isBound ? "bi-check-circle-fill text-green-600" : "bi-circle text-gray-400")"></i>
                     <span>@property.DisplayName</span>
@@ -87,6 +123,14 @@ else if (State.SelectedComponent is FormField field)
                 <div class="text-xs text-gray-500 mb-2">Type is controlled by the bound domain property.</div>
             }
         }
+        <label class="text-sm">Object binding</label>
+        <select class="form-input mb-2" value="@field.ObjectBinding" @onchange="e => SetFieldBinding(field, e.Value?.ToString())">
+            <option value="">Form-only field</option>
+            @foreach (var binding in State.Definition.Objects)
+            {
+                <option value="@binding.Key">@binding.Key (@binding.ObjectKey)</option>
+            }
+        </select>
         @if (_boundDefinition is not null)
         {
             <label class="text-sm">@(field.Reference is null ? "Domain property" : "Reference property")</label>
@@ -95,7 +139,8 @@ else if (State.SelectedComponent is FormField field)
                 <option value="">@(field.Reference is null ? "Custom field" : "— select reference property —")</option>
                 @foreach (var property in AvailableProperties(field))
                 {
-                    var alreadyBound = State.AllFieldNames().Any(name => name != field.Name && name == property.Key);
+                    var alreadyBound = State.AllFields().Any(other => other != field &&
+                        other.ObjectBinding == field.ObjectBinding && (other.PropertyKey ?? other.Name) == property.Key);
                     var unsupportedCollectionReference = property.Type == DomainPropertyType.Reference && property.IsCollection;
                     <option value="@property.Key" disabled="@(alreadyBound || unsupportedCollectionReference)">
                         @property.DisplayName (@property.Key)@(property.Required ? " *" : "")@(alreadyBound ? " — bound" : "")@(unsupportedCollectionReference ? " — multi-reference not supported yet" : "")
@@ -157,7 +202,8 @@ else if (State.SelectedComponent is FormField field)
 
     protected override async Task OnParametersSetAsync()
     {
-        var objectKey = State.Definition.ObjectKey;
+        var bindingKey = State.SelectedComponent is FormField field ? field.ObjectBinding : State.SelectedBindingKey;
+        var objectKey = State.Definition.Objects.FirstOrDefault(binding => binding.Key == bindingKey)?.ObjectKey;
         if (string.Equals(objectKey, _loadedObjectKey, StringComparison.Ordinal)) return;
         _loadedObjectKey = objectKey;
         _boundDefinition = string.IsNullOrWhiteSpace(objectKey)
@@ -172,7 +218,7 @@ else if (State.SelectedComponent is FormField field)
     private void AddOption(FormField field) => Set(() => field.Options.Add(new() { Label = "Option", Value = $"option-{field.Options.Count + 1}" }));
     private void RemoveOption(FormField field, int index) => Set(() => field.Options.RemoveAt(index));
     private DomainProperty? BoundProperty(FormField field) =>
-        _boundDefinition?.Properties.FirstOrDefault(property => property.Key == field.Name);
+        _boundDefinition?.Properties.FirstOrDefault(property => property.Key == (field.PropertyKey ?? field.Name));
 
     private IEnumerable<DomainProperty> AvailableProperties(FormField field) =>
         field.Reference is null
@@ -185,7 +231,9 @@ else if (State.SelectedComponent is FormField field)
         var property = _boundDefinition?.Properties.FirstOrDefault(candidate => candidate.Key == propertyKey);
         if (property is null || property.Type == DomainPropertyType.Reference && property.IsCollection) return;
 
-        State.RenameField(field, property.Key);
+        field.ObjectBinding ??= State.SelectedBindingKey;
+        field.PropertyKey = property.Key;
+        State.RenameField(field, $"{field.ObjectBinding}.{property.Key}");
         await ConfigureForDomainPropertyAsync(field, property, preserveContent: true);
         State.MarkDirty();
     }
@@ -193,9 +241,42 @@ else if (State.SelectedComponent is FormField field)
     private async Task AddDomainPropertyAsync(DomainProperty property)
     {
         if (property.Type == DomainPropertyType.Reference && property.IsCollection) return;
-        var field = new FormField { Name = property.Key, Label = property.DisplayName };
+        var field = new FormField
+        {
+            Name = $"{State.SelectedBindingKey}.{property.Key}",
+            ObjectBinding = State.SelectedBindingKey,
+            PropertyKey = property.Key,
+            Label = property.DisplayName
+        };
         await ConfigureForDomainPropertyAsync(field, property, preserveContent: false);
         State.AddField(field);
+    }
+
+    private void SetFieldBinding(FormField field, string? key)
+    {
+        field.ObjectBinding = EmptyToNull(key);
+        field.PropertyKey = null;
+        State.MarkDirty();
+    }
+
+    private static string? ConditionField(FormObjectBinding binding) => binding.When?.Left?.Field;
+
+    private void SetCondition(FormObjectBinding binding, string? fieldName)
+    {
+        binding.When = string.IsNullOrWhiteSpace(fieldName) ? null : new FormExpression
+        {
+            Operator = "equals",
+            Left = new FormOperand { Field = fieldName },
+            Right = new FormOperand { Value = System.Text.Json.JsonSerializer.SerializeToElement(true) }
+        };
+        State.MarkDirty();
+    }
+
+    private void SetAssignmentTarget(FormObjectBinding binding, string? key)
+    {
+        binding.AssignToBinding = EmptyToNull(key);
+        if (binding.AssignToBinding is null) binding.AssignToProperty = null;
+        State.MarkDirty();
     }
 
     private async Task ConfigureForDomainPropertyAsync(FormField field, DomainProperty property, bool preserveContent)

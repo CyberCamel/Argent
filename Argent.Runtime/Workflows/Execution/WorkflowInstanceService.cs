@@ -28,6 +28,14 @@ public class WorkflowInstanceService : IWorkflowInstanceService
         Guid recordId,
         IReadOnlyDictionary<string, object?>? variables,
         CancellationToken ct)
+        => await StartAsync(definitionId, recordId, new Dictionary<string, Guid>(), variables, ct);
+
+    public async Task<Guid> StartAsync(
+        Guid definitionId,
+        Guid recordId,
+        IReadOnlyDictionary<string, Guid> recordIds,
+        IReadOnlyDictionary<string, object?>? variables,
+        CancellationToken ct)
     {
         // Load the latest deployed version
         var version = await _context.WorkflowVersions
@@ -65,7 +73,8 @@ public class WorkflowInstanceService : IWorkflowInstanceService
             Description = version.Description,
             State = InstanceState.Running,
             StartTime = DateTime.UtcNow,
-            RecordId = recordId
+            RecordId = recordId,
+            RecordBindingsJson = JsonSerializer.Serialize(recordIds)
         };
         _context.WorkflowInstances.Add(instance);
 
@@ -208,6 +217,15 @@ public class WorkflowInstanceService : IWorkflowInstanceService
             activeTokenCount,
             instance.StartTime,
             instance.EndTime,
-            instance.RecordId);
+            instance.RecordId,
+            JsonSerializer.Deserialize<Dictionary<string, Guid>>(instance.RecordBindingsJson) ?? []);
+    }
+
+    public async Task SaveRecordIdsAsync(Guid instanceId, IReadOnlyDictionary<string, Guid> recordIds, CancellationToken ct)
+    {
+        var instance = await _context.WorkflowInstances.FindAsync([instanceId], ct)
+            ?? throw new InvalidOperationException($"Instance {instanceId} not found");
+        instance.RecordBindingsJson = JsonSerializer.Serialize(recordIds);
+        await _context.SaveChangesAsync(ct);
     }
 }

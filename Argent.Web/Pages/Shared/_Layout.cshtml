@@ -172,13 +172,13 @@
 
     @if (ViewData["IsFullWidth"] is bool fullWidth && fullWidth == true)
     {
-        <div class="flex-1 flex flex-col">
+        <div class="w-full flex-1 flex flex-col">
             @RenderBody()
         </div>
     }
     else
     {
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col py-6">
+        <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col py-6">
             <main class="flex-1">
                 @RenderBody()
             </main>

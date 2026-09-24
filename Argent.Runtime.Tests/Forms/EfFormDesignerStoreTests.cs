@@ -1,4 +1,5 @@
 using Argent.Core.Authorization;
+using Argent.Core.DomainObjects;
 using Argent.Core.Forms;
 using Argent.Core.Forms.Protocol.V2;
 using Argent.Infrastructure.Data;
@@ -11,6 +12,44 @@ namespace Argent.Runtime.Tests.Forms;
 
 public sealed class EfFormDesignerStoreTests
 {
+    [Fact]
+    public async Task Publish_rejects_a_create_binding_missing_required_domain_properties()
+    {
+        var options = new DbContextOptionsBuilder<ArgentDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N")).Options;
+        await using (var db = new ArgentDbContext(options))
+        {
+            var invoice = new DomainObject { Key = "invoice", Name = "Invoice" };
+            db.DomainObjects.Add(invoice);
+            db.DomainObjectVersions.Add(new DomainObjectVersion
+            {
+                DomainObjectId = invoice.Id, State = DomainObjectState.Published,
+                Definition = new DomainObjectDefinition
+                {
+                    Key = "invoice", Properties = [new DomainProperty { Key = "number", Required = true }]
+                }
+            });
+            await db.SaveChangesAsync();
+        }
+        var store = new EfFormDesignerStore(new TestDbContextFactory(options), Mock.Of<IResourceOwnershipService>());
+        var saved = await store.SaveAsync(new FormDesignerSaveRequest
+        {
+            Name = "Invoice", Description = "", Definition = new FormDefinition
+            {
+                Id = "invoiceForm", ObjectKey = "invoice",
+                Objects = [new() { Key = "invoice", ObjectKey = "invoice", IsPrimary = true }]
+            }
+        });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.PublishAsync(new FormPublishRequest
+        {
+            FormDesignId = saved.FormDesignId
+        }));
+        await using var verify = new ArgentDbContext(options);
+        Assert.Empty(await verify.FormDesignVersions.ToListAsync());
+        Assert.Single(await verify.FormDesignDrafts.ToListAsync());
+    }
+
     [Fact]
     public async Task First_save_and_publish_preserves_authored_definition()
     {

@@ -40,13 +40,58 @@ public static class FormDefinitionCompiler
         if (definition.ProtocolVersion != "2.0")
             errors.Add(new("protocol.unsupported", "protocolVersion", $"Unsupported protocol version '{definition.ProtocolVersion}'."));
         ValidateProtocolId(definition.Id, "id", "form.id_invalid", errors);
-        ValidateIdentifier(definition.ObjectKey, "objectKey", "form.object_key_invalid", errors);
+        if (definition.Objects.Count == 0)
+            ValidateIdentifier(definition.ObjectKey, "objectKey", "form.object_key_invalid", errors);
+        else
+        {
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            if (definition.Objects.Count(binding => binding.IsPrimary) != 1)
+                errors.Add(new("form.primary_object_required", "objects", "Exactly one primary object binding is required."));
+            for (var index = 0; index < definition.Objects.Count; index++)
+            {
+                var binding = definition.Objects[index];
+                ValidateIdentifier(binding.Key, $"objects[{index}].key", "object.binding_invalid", errors);
+                ValidateIdentifier(binding.ObjectKey, $"objects[{index}].objectKey", "object.key_invalid", errors);
+                if (!keys.Add(binding.Key))
+                    errors.Add(new("object.binding_duplicate", $"objects[{index}].key", "Object binding keys must be unique."));
+                if (binding.IsPrimary && binding.When is not null)
+                    errors.Add(new("object.primary_conditional", $"objects[{index}].when", "The primary object cannot be conditional."));
+                if ((binding.AssignToBinding is null) != (binding.AssignToProperty is null))
+                    errors.Add(new("object.assignment_incomplete", $"objects[{index}]", "Both assignment target and property are required."));
+                if (binding.AssignToBinding is not null && !definition.Objects.Any(target => target.Key == binding.AssignToBinding))
+                    errors.Add(new("object.assignment_unknown", $"objects[{index}].assignToBinding", "Assignment target binding does not exist."));
+                if (binding.AssignToProperty is not null)
+                    ValidateIdentifier(binding.AssignToProperty, $"objects[{index}].assignToProperty", "object.assignment_property_invalid", errors);
+            }
+        }
 
         var fields = new Dictionary<string, string>(StringComparer.Ordinal);
         var layoutIds = new HashSet<string>(StringComparer.Ordinal);
         var expressions = new List<(string Path, FormExpression Expression)>();
         var comparisons = new List<(string Path, string OtherField)>();
         Walk(definition.Components, "components", fields, layoutIds, expressions, comparisons, errors);
+        foreach (var (binding, index) in definition.Objects.Select((item, index) => (item, index)))
+            if (binding.When is not null)
+            {
+                expressions.Add(($"objects[{index}].when", binding.When));
+                var ownFields = Fields(definition.Components).Where(field => field.ObjectBinding == binding.Key)
+                    .Select(field => field.Name).ToHashSet(StringComparer.Ordinal);
+                if (FormExpressionEvaluator.Dependencies(binding.When).Any(ownFields.Contains))
+                    errors.Add(new("object.condition_self_reference", $"objects[{index}].when",
+                        "An object cannot be activated by one of its own fields."));
+            }
+        var boundProperties = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var field in Fields(definition.Components))
+        {
+            if (field.ObjectBinding is null) continue;
+            if (!definition.Objects.Any(binding => binding.Key == field.ObjectBinding))
+                errors.Add(new("field.binding_unknown", fields[field.Name] + ".objectBinding", $"Unknown object binding '{field.ObjectBinding}'."));
+            if (field.PropertyKey is not null)
+                ValidateIdentifier(field.PropertyKey, fields[field.Name] + ".propertyKey", "field.property_invalid", errors);
+            if (!boundProperties.Add($"{field.ObjectBinding}\0{field.PropertyKey ?? field.Name}"))
+                errors.Add(new("field.property_duplicate", fields[field.Name] + ".propertyKey",
+                    "A domain property can be bound only once within an object binding."));
+        }
 
         foreach (var (path, otherField) in comparisons)
             if (!fields.ContainsKey(otherField))
@@ -75,6 +120,14 @@ public static class FormDefinitionCompiler
             item => (IReadOnlySet<string>)item.Value,
             StringComparer.Ordinal);
         return new(new(definition, frozen), errors);
+    }
+
+    private static IEnumerable<FormField> Fields(IEnumerable<FormComponent> components)
+    {
+        foreach (var component in components)
+            if (component is FormField field) yield return field;
+            else if (component is FormLayout layout)
+                foreach (var nestedField in Fields(layout.Children)) yield return nestedField;
     }
 
     private static void Walk(

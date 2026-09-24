@@ -26,4 +26,6 @@ public record WorkflowInstance
     public DateTime StartTime { get; set; } = DateTime.Now;
     public DateTime? EndTime { get; set; }
     public Guid RecordId { get; set; }
+    /// <summary>JSON map from form object binding key to record ID.</summary>
+    public string RecordBindingsJson { get; set; } = "{}";
 }

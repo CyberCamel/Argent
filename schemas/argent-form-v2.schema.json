@@ -4,11 +4,12 @@
   "title": "Argent Form Protocol v2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["protocolVersion", "id", "objectKey", "components"],
+  "required": ["protocolVersion", "id", "components"],
   "properties": {
     "protocolVersion": { "const": "2.0" },
     "id": { "$ref": "#/$defs/protocolId" },
     "objectKey": { "$ref": "#/$defs/identifier" },
+    "objects": { "type": "array", "items": { "$ref": "#/$defs/objectBinding" } },
     "title": { "type": "string" },
     "components": {
       "type": "array",
@@ -16,6 +17,20 @@
     }
   },
   "$defs": {
+    "objectBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "objectKey"],
+      "properties": {
+        "key": { "$ref": "#/$defs/identifier" },
+        "objectKey": { "$ref": "#/$defs/identifier" },
+        "operation": { "type": "string", "deprecated": true, "description": "Ignored legacy setting; the workflow instance determines whether a record is created or updated." },
+        "isPrimary": { "type": "boolean" },
+        "when": { "$ref": "#/$defs/expression" },
+        "assignToBinding": { "$ref": "#/$defs/identifier" },
+        "assignToProperty": { "$ref": "#/$defs/identifier" }
+      }
+    },
     "identifier": {
       "type": "string",
       "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$",
@@ -44,6 +59,8 @@
           "enum": ["text", "integer", "decimal", "date", "timestamp", "boolean", "choice", "file"]
         },
         "name": { "$ref": "#/$defs/identifier" },
+        "objectBinding": { "$ref": "#/$defs/identifier" },
+        "propertyKey": { "$ref": "#/$defs/identifier" },
         "label": { "type": "string", "minLength": 1 },
         "description": { "type": "string" },
         "placeholder": { "type": "string" },

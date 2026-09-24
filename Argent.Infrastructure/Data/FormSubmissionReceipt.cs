@@ -10,6 +10,7 @@ public sealed class FormSubmissionReceipt
     public Guid FormDesignId { get; set; }
     public Guid FormVersionId { get; set; }
     public Guid RecordId { get; set; }
+    public string RecordBindingsJson { get; set; } = "{}";
     public Guid? WorkflowInstanceId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

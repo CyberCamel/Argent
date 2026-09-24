@@ -1,4 +1,5 @@
 @using Argent.Core.DomainObjects
+@using Argent.Core.Forms.Protocol.V2
 @using Argent.Core.DomainObjects
 @using Argent.WebComponents.Forms.Designer
 @using Argent.WebComponents.Forms
@@ -61,7 +62,7 @@
 
 <div class="flex flex-col h-full flex-1">
     @* ── Toolbar ─────────────────────────────────────────────── *@
-    <div class="flex items-center gap-2 p-2 border-b bg-white dark:bg-gray-900" style="min-height: 42px;">
+    <div class="flex flex-wrap items-center gap-2 p-2 border-b bg-white dark:bg-gray-900" style="min-height: 42px;">
         <a href="/Forms" class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors mr-1" title="@Localizer["FormDesigner.Back"]">
             <i class="bi bi-arrow-left"></i>
         </a>
@@ -74,6 +75,13 @@
             @foreach (var obj in _objectCatalog)
             {
                 <option value="@obj.Key" selected="@(State.Definition.ObjectKey == obj.Key)">@obj.Name</option>
+            }
+        </select>
+        <select @key="_addObjectPickerVersion" class="form-input text-sm" style="max-width: 180px;" @onchange="OnAddObject" aria-label="Add another domain object">
+            <option value="">+ Add object</option>
+            @foreach (var obj in _objectCatalog)
+            {
+                <option value="@obj.Key">@obj.Name</option>
             }
         </select>
         @if (_showObjectKeyError && string.IsNullOrWhiteSpace(State.Definition.ObjectKey))
@@ -128,6 +136,20 @@
             <ResourceSharingPanel ResourceType="Form" ResourceId="@State.StoredFormId.Value" />
         }
     </div>
+
+    @if (State.Definition.Objects.Count > 0)
+    {
+        <div class="flex flex-wrap gap-2 px-3 py-2 border-b bg-gray-50 dark:bg-gray-800 text-sm">
+            @foreach (var binding in State.Definition.Objects.ToList())
+            {
+                <div class="flex items-center gap-1 rounded border px-2 py-1 @(State.SelectedBindingKey == binding.Key ? "border-indigo-500" : "border-gray-300")">
+                    <button type="button" @onclick="() => State.SelectBinding(binding.Key)">@binding.Key (@binding.ObjectKey)</button>
+                    <button type="button" title="Set as primary" @onclick="() => State.SetPrimary(binding)">@(binding.IsPrimary ? "Primary" : "Set primary")</button>
+                    <button type="button" title="Remove object" @onclick="() => State.RemoveObject(binding)">×</button>
+                </div>
+            }
+        </div>
+    }
 
     @if (_initializationError is not null)
     {
@@ -259,6 +281,7 @@
     private string? _initializationError;
     private bool _isInitializing;
     private bool _showObjectKeyError;
+    private int _addObjectPickerVersion;
     private string _sidebarTab = "props";
     private IReadOnlyList<DomainObjectSummary> _objectCatalog = [];
 
@@ -292,14 +315,31 @@
 
     private void OnObjectKeyChanged(ChangeEventArgs e)
     {
-        State.Definition.ObjectKey = e.Value?.ToString() ?? string.Empty;
+        var objectKey = e.Value?.ToString() ?? string.Empty;
+        var primary = State.Definition.Objects.FirstOrDefault(binding => binding.IsPrimary);
+        if (primary is null && !string.IsNullOrWhiteSpace(objectKey)) State.AddObject(objectKey);
+        else if (primary is not null)
+        {
+            primary.ObjectKey = objectKey;
+            State.Definition.ObjectKey = objectKey;
+        }
         _showObjectKeyError = string.IsNullOrWhiteSpace(State.Definition.ObjectKey);
         if (!_showObjectKeyError)
             _saveError = null;
         State.MarkDirty();
     }
 
-    private async Task<bool> ValidateDesignerPrerequisitesAsync()
+    private void OnAddObject(ChangeEventArgs e)
+    {
+        var objectKey = e.Value?.ToString();
+        if (!string.IsNullOrWhiteSpace(objectKey))
+        {
+            State.AddObject(objectKey);
+            _addObjectPickerVersion++;
+        }
+    }
+
+    private async Task<bool> ValidateDesignerPrerequisitesAsync(bool requireCoverage = false)
     {
         _showObjectKeyError = string.IsNullOrWhiteSpace(State.Definition.ObjectKey);
         if (_showObjectKeyError)
@@ -308,33 +348,57 @@
             return false;
         }
 
-        var domainDefinition = await DomainObjectDefinitions.GetPublishedDefinitionAsync(State.Definition.ObjectKey);
-        if (domainDefinition is null)
+        if (State.Definition.Objects.Count == 0)
         {
-            _saveError = $"The published domain object '{State.Definition.ObjectKey}' could not be loaded.";
+            _saveError = "Add at least one object binding.";
             return false;
         }
-
-        var properties = domainDefinition.Properties.ToDictionary(property => property.Key, StringComparer.Ordinal);
-        foreach (var field in State.AllFields())
+        foreach (var binding in State.Definition.Objects)
         {
-            if (!properties.TryGetValue(field.Name, out var property)) continue;
-            if (property.Type == DomainPropertyType.Reference && property.IsCollection)
+            var domainDefinition = await DomainObjectDefinitions.GetPublishedDefinitionAsync(binding.ObjectKey);
+            if (domainDefinition is null)
             {
-                _saveError = $"Field '{field.Label}' is bound to a collection reference. Multi-reference fields are not supported yet.";
+                _saveError = $"The published domain object '{binding.ObjectKey}' could not be loaded.";
                 return false;
             }
-            var expectedType = FormDesignerService.FieldTypeFor(property.Type);
-            if (field.Type != expectedType)
+            var properties = domainDefinition.Properties.ToDictionary(property => property.Key, StringComparer.Ordinal);
+            var bindingFields = State.AllFields().Where(field => field.ObjectBinding == binding.Key).ToList();
+            foreach (var field in bindingFields)
             {
-                _saveError = $"Field '{field.Label}' is bound to {property.DisplayName} ({property.Type}) and must use field type '{expectedType}', not '{field.Type}'.";
-                return false;
+                if (!properties.TryGetValue(field.PropertyKey ?? field.Name, out var property))
+                {
+                    _saveError = $"Field '{field.Label}' is not a property of '{binding.ObjectKey}'.";
+                    return false;
+                }
+                if (property.Type == DomainPropertyType.Reference && property.IsCollection)
+                {
+                    _saveError = $"Field '{field.Label}' is bound to a collection reference. Multi-reference fields are not supported yet.";
+                    return false;
+                }
+                var expectedType = FormDesignerService.FieldTypeFor(property.Type);
+                if (field.Type != expectedType)
+                {
+                    _saveError = $"Field '{field.Label}' must use field type '{expectedType}'.";
+                    return false;
+                }
+                if (property.Type == DomainPropertyType.Reference &&
+                    (field.Reference is null || field.Reference.ObjectKey != property.ReferenceTargetKey))
+                {
+                    _saveError = $"Field '{field.Label}' has incomplete reference configuration.";
+                    return false;
+                }
             }
-            if (property.Type == DomainPropertyType.Reference &&
-                (field.Reference is null || field.Reference.ObjectKey != property.ReferenceTargetKey))
+            if (requireCoverage)
             {
-                _saveError = $"Field '{field.Label}' has incomplete reference configuration. Rebind it to {property.DisplayName}.";
-                return false;
+                var missing = domainDefinition.Properties.FirstOrDefault(property => property.Required &&
+                    !bindingFields.Any(field => (field.PropertyKey ?? field.Name) == property.Key) &&
+                    !State.Definition.Objects.Any(child => child.AssignToBinding == binding.Key &&
+                        child.AssignToProperty == property.Key && child.When is null));
+                if (missing is not null)
+                {
+                    _saveError = $"'{binding.ObjectKey}' requires '{missing.DisplayName}'. Add that property to the form.";
+                    return false;
+                }
             }
         }
 
@@ -363,7 +427,7 @@
 
     private async Task HandlePublish()
     {
-        if (!await ValidateDesignerPrerequisitesAsync()) return;
+        if (!await ValidateDesignerPrerequisitesAsync(requireCoverage: true)) return;
         _isBusy = true; _busyMode = "publish"; _saveError = null;
         try
         {

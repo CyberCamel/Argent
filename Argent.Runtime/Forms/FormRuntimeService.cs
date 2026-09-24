@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Argent.Runtime.Forms;
 
-public sealed class FormRuntimeService(
+public sealed partial class FormRuntimeService(
     IDbContextFactory<ArgentDbContext> dbFactory,
     IDomainObjectDefinitionService domainDefinitions,
     IDomainObjectStore domainObjects,
@@ -16,6 +16,14 @@ public sealed class FormRuntimeService(
 {
     public async Task<FormBootstrap?> BootstrapAsync(
         Guid formDesignId, Guid? recordId = null, CancellationToken cancellationToken = default)
+        => await BootstrapAsync(formDesignId, new Dictionary<string, Guid>(), recordId, cancellationToken);
+
+    public Task<FormBootstrap?> BootstrapAsync(
+        Guid formDesignId, IReadOnlyDictionary<string, Guid> recordIds, CancellationToken cancellationToken = default)
+        => BootstrapAsync(formDesignId, recordIds, null, cancellationToken);
+
+    private async Task<FormBootstrap?> BootstrapAsync(
+        Guid formDesignId, IReadOnlyDictionary<string, Guid> recordIds, Guid? recordId, CancellationToken cancellationToken)
     {
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var version = await db.FormDesignVersions.AsNoTracking()
@@ -29,6 +37,9 @@ public sealed class FormRuntimeService(
         if (!compilation.IsValid)
             throw new InvalidOperationException("The published form definition is invalid: " +
                 string.Join("; ", compilation.Errors.Select(error => $"{error.Path}: {error.Message}")));
+
+        if (version.Definition.Objects.Count > 0)
+            return await BootstrapObjectsAsync(formDesignId, version, recordIds, recordId, cancellationToken);
 
         await HydrateReferenceOptionsAsync(version.Definition);
 
@@ -59,7 +70,8 @@ public sealed class FormRuntimeService(
         Guid formDesignId,
         FormSubmitRequest request,
         string? user,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool updateAttachedRecords = false)
     {
         if (request.ProtocolVersion != "2.0")
             return Invalid("protocolVersion", "protocol.unsupported", $"Unsupported protocol version '{request.ProtocolVersion}'.");
@@ -76,6 +88,7 @@ public sealed class FormRuntimeService(
             return new(new FormSubmitResult
             {
                 RecordId = prior.RecordId,
+                RecordIds = JsonSerializer.Deserialize<Dictionary<string, Guid>>(prior.RecordBindingsJson) ?? [],
                 WorkflowInstanceId = prior.WorkflowInstanceId,
                 IsReplay = true
             }, []);
@@ -107,6 +120,10 @@ public sealed class FormRuntimeService(
         var activeValues = request.Values
             .Where(item => activeKeys.Contains(item.Key))
             .ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
+
+        if (version.Definition.Objects.Count > 0)
+            return await SubmitObjectsAsync(formDesignId, version, request, fields, activeValues, user,
+                updateAttachedRecords, cancellationToken);
 
         var domainDefinition = await domainDefinitions.GetPublishedDefinitionAsync(version.Definition.ObjectKey);
         if (domainDefinition is null)
@@ -249,7 +266,7 @@ public sealed class FormRuntimeService(
         {
             if (!values.TryGetValue(field.Name, out var value) || value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
                 continue;
-            if (!properties.TryGetValue(field.Name, out var property) || property.Type != DomainPropertyType.Reference ||
+            if (!properties.TryGetValue(field.PropertyKey ?? field.Name, out var property) || property.Type != DomainPropertyType.Reference ||
                 property.IsCollection || property.ReferenceTargetKey != field.Reference!.ObjectKey)
             {
                 errors.Add(new(field.Name, "reference.configuration_invalid", $"{field.Label} has an invalid reference configuration."));

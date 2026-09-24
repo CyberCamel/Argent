@@ -4,8 +4,18 @@ export interface FormDefinition {
   readonly protocolVersion: string;
   readonly id: string;
   readonly objectKey: string;
+  readonly objects?: readonly FormObjectBinding[];
   readonly title?: string;
   readonly components: readonly FormComponent[];
+}
+
+export interface FormObjectBinding {
+  readonly key: string;
+  readonly objectKey: string;
+  readonly isPrimary?: boolean;
+  readonly when?: FormExpression;
+  readonly assignToBinding?: string;
+  readonly assignToProperty?: string;
 }
 
 export interface FormRuntimeMessages {
@@ -22,6 +32,8 @@ export interface FormField {
   readonly kind: 'field';
   readonly type: string;
   readonly name: string;
+  readonly objectBinding?: string;
+  readonly propertyKey?: string;
   readonly label: string;
   readonly description?: string;
   readonly placeholder?: string;
@@ -108,6 +120,45 @@ export function compileDefinition(definition: FormDefinition): FormDefinitionCom
   const fields = new Map<string, string>();
   const expressions: Array<{ path: string; expression: FormExpression }> = [];
   walk(definition.components, 'components', fields, expressions, errors);
+  const objectKeys = new Set((definition.objects ?? []).map(binding => binding.key));
+  if (definition.objects?.length) {
+    if (definition.objects.filter(binding => binding.isPrimary).length !== 1)
+      errors.push({ code: 'form.primary_object_required', path: 'objects', message: 'Exactly one primary object binding is required.' });
+    const seenKeys = new Set<string>();
+    definition.objects.forEach((binding, index) => {
+      if (!identifierPattern.test(binding.key) || !identifierPattern.test(binding.objectKey))
+        errors.push({ code: 'object.binding_invalid', path: `objects[${index}]`, message: 'Invalid object binding.' });
+      if (seenKeys.has(binding.key))
+        errors.push({ code: 'object.binding_duplicate', path: `objects[${index}].key`, message: 'Object binding keys must be unique.' });
+      seenKeys.add(binding.key);
+      if (binding.isPrimary && binding.when)
+        errors.push({ code: 'object.primary_conditional', path: `objects[${index}].when`, message: 'The primary object cannot be conditional.' });
+      if (!!binding.assignToBinding !== !!binding.assignToProperty ||
+          (binding.assignToBinding && !objectKeys.has(binding.assignToBinding)))
+        errors.push({ code: 'object.assignment_invalid', path: `objects[${index}]`, message: 'Invalid object assignment.' });
+      if (binding.when) {
+        expressions.push({ path: `objects[${index}].when`, expression: binding.when });
+        const ownFields = new Set([...allFields(definition.components)]
+          .filter(field => field.objectBinding === binding.key).map(field => field.name));
+        if ([...dependencies(binding.when)].some(field => ownFields.has(field)))
+          errors.push({ code: 'object.condition_self_reference', path: `objects[${index}].when`,
+            message: 'An object cannot be activated by one of its own fields.' });
+      }
+    });
+  }
+  const boundProperties = new Set<string>();
+  for (const field of allFields(definition.components)) {
+    if (field.objectBinding && !objectKeys.has(field.objectBinding))
+      errors.push({ code: 'field.binding_unknown', path: `fields.${field.name}.objectBinding`, message: 'Unknown object binding.' });
+    if (field.objectBinding) {
+      if (field.propertyKey && !identifierPattern.test(field.propertyKey))
+        errors.push({ code: 'field.property_invalid', path: `fields.${field.name}.propertyKey`, message: 'Invalid property key.' });
+      const key = `${field.objectBinding}\0${field.propertyKey ?? field.name}`;
+      if (boundProperties.has(key))
+        errors.push({ code: 'field.property_duplicate', path: `fields.${field.name}.propertyKey`, message: 'A domain property can be bound only once.' });
+      boundProperties.add(key);
+    }
+  }
 
   const mutableDependents = new Map<string, Set<string>>();
   for (const item of expressions) {
@@ -146,6 +197,12 @@ export function compileDefinition(definition: FormDefinition): FormDefinitionCom
     errors,
     isValid: true
   };
+}
+
+function* allFields(components: readonly FormComponent[]): Generator<FormField> {
+  for (const component of components)
+    if (component.kind === 'field') yield component;
+    else yield* allFields(component.children);
 }
 
 function walk(

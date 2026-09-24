@@ -20,6 +20,61 @@ public readonly record struct DropTarget(string? ContainerId, int Index, int Col
 public class FormDesignerService(IFormDesignerStore _store)
 {
     public FormDefinition Definition { get; private set; } = NewDefinition();
+    public string? SelectedBindingKey { get; private set; }
+    public FormObjectBinding? SelectedBinding => Definition.Objects.FirstOrDefault(binding => binding.Key == SelectedBindingKey);
+
+    public void SelectBinding(string key)
+    {
+        SelectedBindingKey = key;
+        SelectComponent(null);
+        Notify();
+    }
+
+    public FormObjectBinding AddObject(string objectKey)
+    {
+        var key = objectKey;
+        for (var suffix = 2; Definition.Objects.Any(binding => binding.Key == key); suffix++)
+            key = $"{objectKey}{suffix}";
+        var binding = new FormObjectBinding
+        {
+            Key = key,
+            ObjectKey = objectKey,
+            IsPrimary = Definition.Objects.Count == 0
+        };
+        Definition.Objects.Add(binding);
+        if (binding.IsPrimary) Definition.ObjectKey = objectKey;
+        SelectedBindingKey = key;
+        SelectedComponent = null;
+        MarkDirty();
+        return binding;
+    }
+
+    public void RemoveObject(FormObjectBinding binding)
+    {
+        Definition.Objects.Remove(binding);
+        foreach (var field in AllFields().Where(field => field.ObjectBinding == binding.Key))
+        {
+            field.ObjectBinding = null;
+            field.PropertyKey = null;
+        }
+        if (binding.IsPrimary && Definition.Objects.Count > 0)
+        {
+            Definition.Objects[0].IsPrimary = true;
+            Definition.Objects[0].When = null;
+            Definition.ObjectKey = Definition.Objects[0].ObjectKey;
+        }
+        else if (Definition.Objects.Count == 0) Definition.ObjectKey = string.Empty;
+        SelectedBindingKey = Definition.Objects.FirstOrDefault()?.Key;
+        MarkDirty();
+    }
+
+    public void SetPrimary(FormObjectBinding binding)
+    {
+        foreach (var item in Definition.Objects) item.IsPrimary = item == binding;
+        binding.When = null;
+        Definition.ObjectKey = binding.ObjectKey;
+        MarkDirty();
+    }
 
     public FormComponent? SelectedComponent { get; private set; }
     public Guid? StoredFormId { get; set; }
@@ -440,6 +495,7 @@ public class FormDesignerService(IFormDesignerStore _store)
     private void ApplyLoadResult(FormDesignerLoadResult result, bool readOnly = false)
     {
         Definition = result.Definition ?? NewDefinition();
+        SelectedBindingKey = Definition.Objects.FirstOrDefault()?.Key;
         Name = result.Name;
         Description = result.Description;
         StoredFormId = result.FormDesignId;
@@ -508,6 +564,7 @@ public class FormDesignerService(IFormDesignerStore _store)
     public void Reset()
     {
         Definition = NewDefinition();
+        SelectedBindingKey = null;
         Name = "New Form";
         Description = "";
         StoredFormId = null;

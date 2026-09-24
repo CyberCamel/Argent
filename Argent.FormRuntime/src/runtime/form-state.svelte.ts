@@ -1,6 +1,6 @@
 import type { FormDefinition, FormField } from '../protocol/definition.js';
 import { evaluate, type FormValues, type JsonValue } from '../protocol/expression.js';
-import { validateField, validateForm, type FormValueError } from '../protocol/validation.js';
+import { validateForm, type FormValueError } from '../protocol/validation.js';
 
 export class FormState {
   readonly definition: FormDefinition;
@@ -28,7 +28,8 @@ export class FormState {
 
   errors(field: FormField): readonly FormValueError[] {
     if (!this.showAllErrors && !this.touched.includes(field.name)) return [];
-    return [...validateField(field, this.values), ...this.serverErrors.filter(error => error.field === field.name)];
+    return [...validateForm(this.definition, this.values).filter(error => error.field === field.name),
+      ...this.serverErrors.filter(error => error.field === field.name)];
   }
 
   validateAll(): readonly FormValueError[] {
@@ -43,7 +44,14 @@ export class FormState {
     this.showAllErrors = true;
   }
 
-  visible(field: FormField): boolean { return !field.visibleWhen || evaluate(field.visibleWhen, this.values); }
+  visible(field: FormField): boolean {
+    const binding = this.definition.objects?.find(item => item.key === field.objectBinding);
+    if (binding?.when && !evaluate(binding.when, this.values)) return false;
+    if (this.definition.objects?.some(item => item.assignToBinding === field.objectBinding &&
+      item.assignToProperty === (field.propertyKey ?? field.name) &&
+      (!item.when || evaluate(item.when, this.values)))) return false;
+    return !field.visibleWhen || evaluate(field.visibleWhen, this.values);
+  }
   disabled(field: FormField): boolean { return !!field.disabledWhen && evaluate(field.disabledWhen, this.values); }
   readOnly(field: FormField): boolean { return !!field.readOnlyWhen && evaluate(field.readOnlyWhen, this.values); }
   required(field: FormField): boolean {

@@ -32,6 +32,8 @@ public sealed class FormSubmitRequest
     public Guid SubmissionId { get; set; }
     public Guid FormVersionId { get; set; }
     public Guid? RecordId { get; set; }
+    /// <summary>Trusted workflow record bindings, populated by the task endpoint.</summary>
+    public Dictionary<string, Guid> RecordIds { get; set; } = [];
     public string? Action { get; set; }
     public Dictionary<string, JsonElement> Values { get; set; } = [];
 }
@@ -39,6 +41,7 @@ public sealed class FormSubmitRequest
 public sealed class FormSubmitResult
 {
     public Guid RecordId { get; set; }
+    public Dictionary<string, Guid> RecordIds { get; set; } = [];
     public Guid? WorkflowInstanceId { get; set; }
     public bool IsReplay { get; set; }
 }
@@ -46,7 +49,9 @@ public sealed class FormSubmitResult
 public interface IFormRuntimeService
 {
     Task<FormBootstrap?> BootstrapAsync(Guid formDesignId, Guid? recordId = null, CancellationToken cancellationToken = default);
-    Task<FormRuntimeSubmission> SubmitAsync(Guid formDesignId, FormSubmitRequest request, string? user, CancellationToken cancellationToken = default);
+    Task<FormBootstrap?> BootstrapAsync(Guid formDesignId, IReadOnlyDictionary<string, Guid> recordIds, CancellationToken cancellationToken = default);
+    Task<FormRuntimeSubmission> SubmitAsync(Guid formDesignId, FormSubmitRequest request, string? user,
+        CancellationToken cancellationToken = default, bool updateAttachedRecords = false);
     Task CompleteWorkflowStartAsync(Guid submissionId, Guid workflowInstanceId, CancellationToken cancellationToken = default);
     Task DiscardSubmissionAsync(Guid submissionId, CancellationToken cancellationToken = default);
 }

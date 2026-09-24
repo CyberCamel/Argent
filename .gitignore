@@ -370,5 +370,6 @@ FodyWeavers.xsd
 .idea
 .claude
 *.md
+!ARCHITECTURE.md
 !HARDENING.md
 !Task-and-Reporting-Plan.md

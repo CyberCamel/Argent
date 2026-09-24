@@ -1,9 +1,8 @@
 namespace Argent.Core.Forms;
 
 /// <summary>
-/// Stores form field values that have no corresponding <c>DomainProperty</c> on the bound
-/// domain object. Keyed to the <c>DomainRecord</c> the form was submitted against and to the
-/// <c>FormDesign</c> that defined the extra fields.
+/// Stores form-only field values that have no object binding. Keyed to the form's
+/// primary domain record and the form design that defined the fields.
 /// </summary>
 public class FormCustomData
 {

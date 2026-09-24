@@ -33,6 +33,14 @@
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4), 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
+.dark argent-form {
+  --argent-text: #f3f4f6;
+  --argent-muted: #d1d5db;
+  --argent-border: #6b7280;
+  --argent-input-background: #1f2937;
+  --argent-input-text: #f9fafb;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }

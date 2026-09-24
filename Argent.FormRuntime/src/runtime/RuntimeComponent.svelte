@@ -68,6 +68,15 @@
     const file = (event.currentTarget as HTMLInputElement).files?.[0];
     if (file) onFileSelected(item, file);
   }
+  function openDatePicker(event: MouseEvent): void {
+    const input = event.currentTarget as HTMLInputElement;
+    if (input.disabled || input.readOnly) return;
+    try {
+      input.showPicker?.();
+    } catch {
+      input.focus();
+    }
+  }
   function errorId(item: FormField): string { return `argent-${item.name}-errors`; }
 </script>
 
@@ -138,6 +147,7 @@
             type={field.type === 'date' ? 'date' : field.type === 'integer' ? 'number' : 'text'}
             inputmode={field.type === 'decimal' ? 'decimal' : undefined} value={textValue(field)} placeholder={field.placeholder}
             disabled={formState.disabled(field)} readonly={formState.readOnly(field)}
+            onclick={field.type === 'date' ? openDatePicker : undefined}
             oninput={(event) => field.type === 'integer' ? setInteger(field, event) : setText(field, event)}
             onblur={() => formState.touch(field.name)} aria-invalid={errors.length > 0}
             aria-describedby={errors.length ? errorId(field) : field.description ? `argent-${field.name}-description` : undefined} />
@@ -158,7 +168,8 @@
   .argent-row { grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
   .argent-field { display: grid; gap: 0.375rem; min-width: 0; }
   label { font-weight: 600; }
-  input:not([type='checkbox']), select { box-sizing: border-box; width: 100%; min-height: 2.75rem; padding: 0.625rem 0.75rem; border: 1px solid var(--argent-border, #9ca3af); border-radius: 0.375rem; font: inherit; color: inherit; background: var(--argent-input-background, white); }
+  input:not([type='checkbox']), select { box-sizing: border-box; width: 100%; min-height: 2.75rem; padding: 0.625rem 0.75rem; border: 1px solid var(--argent-border, #9ca3af); border-radius: 0.375rem; font: inherit; color: var(--argent-input-text, #111827); background: var(--argent-input-background, white); }
+  input[type='date']:not(:disabled):not(:read-only) { cursor: pointer; }
   input:focus-visible, select:focus-visible { outline: 3px solid var(--argent-focus, #4f46e5); outline-offset: 2px; }
   [aria-invalid='true'] { border-color: var(--argent-error, #b91c1c) !important; }
   .argent-checkbox { display: flex; align-items: center; gap: 0.625rem; }

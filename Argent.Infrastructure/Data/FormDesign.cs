@@ -10,6 +10,7 @@ public class FormDesign
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    /// <summary>Indexed primary object key used when choosing a form for a workflow start.</summary>
     public string ObjectKey { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

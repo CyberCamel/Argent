@@ -64,7 +64,7 @@ public static class RuntimeDataApi
             async (Guid formDesignId, [FromBody] FormSubmitRequest request, IFormRuntimeService runtime,
                 IAntiforgery antiforgery, HttpContext context, CancellationToken cancellationToken) =>
             {
-                if (request.RecordId.HasValue)
+                if (request.RecordId.HasValue || request.RecordIds.Count > 0)
                     return Results.BadRequest(new { error = "Public form submissions cannot select an existing record." });
                 try
                 {
@@ -101,7 +101,7 @@ public static class RuntimeDataApi
                 IPolicyDecisionService policies, IDomainObjectStore domainObjects,
                 IAntiforgery antiforgery, HttpContext context, CancellationToken cancellationToken) =>
             {
-                if (request.RecordId.HasValue)
+                if (request.RecordId.HasValue || request.RecordIds.Count > 0)
                     return Results.BadRequest(new { error = "Workflow start submissions cannot select an existing record." });
                 try
                 {
@@ -138,14 +138,17 @@ public static class RuntimeDataApi
                 try
                 {
                     var instanceId = await workflows.StartAsync(
-                        workflowId, submission.Result!.RecordId, null, cancellationToken);
+                        workflowId, submission.Result!.RecordId, submission.Result.RecordIds, null, cancellationToken);
                     await runtime.CompleteWorkflowStartAsync(request.SubmissionId, instanceId, cancellationToken);
                     return Results.Ok(new { submission.Result.RecordId, instanceId });
                 }
                 catch
                 {
-                    await domainObjects.DeleteAsync(
-                        bootstrap.Definition.ObjectKey, submission.Result!.RecordId);
+                    foreach (var binding in bootstrap.Definition.Objects)
+                        if (submission.Result!.RecordIds.TryGetValue(binding.Key, out var id))
+                            await domainObjects.DeleteAsync(binding.ObjectKey, id);
+                    if (bootstrap.Definition.Objects.Count == 0)
+                        await domainObjects.DeleteAsync(bootstrap.Definition.ObjectKey, submission.Result!.RecordId);
                     await runtime.DiscardSubmissionAsync(request.SubmissionId, cancellationToken);
                     throw;
                 }
@@ -221,8 +224,9 @@ public static class RuntimeDataApi
                 if (task.FormId is null) return Results.NotFound();
 
                 var snapshot = await workflows.GetStateAsync(task.InstanceId, cancellationToken);
-                var bootstrap = await runtime.BootstrapAsync(
-                    task.FormId.Value, snapshot.RecordId, cancellationToken);
+                var bootstrap = snapshot.RecordIds.Count > 0
+                    ? await runtime.BootstrapAsync(task.FormId.Value, snapshot.RecordIds, cancellationToken)
+                    : await runtime.BootstrapAsync(task.FormId.Value, snapshot.RecordId, cancellationToken);
                 if (bootstrap is null) return Results.NotFound();
                 Localize(bootstrap, localizer);
                 var actions = await tasks.GetTaskActionDescriptorsAsync(task.InstanceId, task.NodeId);
@@ -262,10 +266,15 @@ public static class RuntimeDataApi
 
                 var snapshot = await workflows.GetStateAsync(task.InstanceId, cancellationToken);
                 request.RecordId = snapshot.RecordId;
+                request.RecordIds = new Dictionary<string, Guid>(snapshot.RecordIds);
                 var submission = await runtime.SubmitAsync(
-                    task.FormId.Value, request, context.User.Identity?.Name, cancellationToken);
+                    task.FormId.Value, request, context.User.Identity?.Name, cancellationToken,
+                    updateAttachedRecords: true);
                 if (!submission.IsValid)
                     return Results.UnprocessableEntity(new { errors = submission.Errors });
+
+                if (submission.Result!.RecordIds.Count > 0)
+                    await workflows.SaveRecordIdsAsync(task.InstanceId, submission.Result.RecordIds, cancellationToken);
 
                 await inbox.CompleteTaskAsync(taskId, userId, roles, request.Action, cancellationToken);
                 return Results.Ok(submission.Result);

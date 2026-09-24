@@ -1,4 +1,5 @@
 using Argent.Core.Authorization;
+using Argent.Core.DomainObjects;
 using Argent.Core.Forms;
 using Argent.Core.Forms.Protocol.V2;
 using Argent.Infrastructure.Data;
@@ -81,6 +82,8 @@ public class EfFormDesignerStore(
         await using var db = await _dbFactory.CreateDbContextAsync();
 
         var definitionCopy = Clone(request.Definition);
+        if (definitionCopy.Objects.Count > 0)
+            definitionCopy.ObjectKey = definitionCopy.Objects.Single(binding => binding.IsPrimary).ObjectKey;
         var now = DateTime.UtcNow;
         var updatedBy = request.UserName ?? "Unknown";
 
@@ -153,6 +156,13 @@ public class EfFormDesignerStore(
             .FirstOrDefaultAsync(d => d.FormDesignId == request.FormDesignId)
             ?? throw new InvalidOperationException("No draft found to publish.");
 
+        var compiled = FormDefinitionCompiler.Compile(draft.Definition);
+        if (!compiled.IsValid)
+            throw new InvalidOperationException("Form definition is invalid: " +
+                string.Join("; ", compiled.Errors.Select(error => error.Message)));
+        if (draft.Definition.Objects.Count > 0)
+            await ValidateObjectBindingsAsync(db, draft.Definition);
+
         var latestVersion = await db.FormDesignVersions
             .Where(v => v.FormDesignId == request.FormDesignId)
             .OrderByDescending(v => v.CreatedAt)
@@ -174,6 +184,46 @@ public class EfFormDesignerStore(
         await db.SaveChangesAsync();
 
         return version;
+    }
+
+    private static async Task ValidateObjectBindingsAsync(ArgentDbContext db, FormDefinition definition)
+    {
+        static IEnumerable<FormField> Fields(IEnumerable<FormComponent> components)
+        {
+            foreach (var component in components)
+                if (component is FormField field) yield return field;
+                else if (component is FormLayout layout)
+                    foreach (var nestedField in Fields(layout.Children)) yield return nestedField;
+        }
+
+        var fields = Fields(definition.Components).ToList();
+        foreach (var binding in definition.Objects)
+        {
+            var obj = await db.DomainObjects.AsNoTracking()
+                .FirstOrDefaultAsync(candidate => candidate.Key == binding.ObjectKey)
+                ?? throw new InvalidOperationException($"Domain object '{binding.ObjectKey}' does not exist.");
+            var versions = await db.DomainObjectVersions.AsNoTracking()
+                .Where(candidate => candidate.DomainObjectId == obj.Id && candidate.State == DomainObjectState.Published)
+                .ToListAsync();
+            var domain = versions.OrderByDescending(candidate => candidate.Version).FirstOrDefault()?.Definition
+                ?? throw new InvalidOperationException($"Domain object '{binding.ObjectKey}' has no published version.");
+            var bound = fields.Where(field => field.ObjectBinding == binding.Key).ToList();
+            foreach (var field in bound)
+                if (!domain.Properties.Any(property => property.Key == (field.PropertyKey ?? field.Name)))
+                    throw new InvalidOperationException($"Field '{field.Name}' is not a property of '{binding.ObjectKey}'.");
+            foreach (var property in domain.Properties.Where(property => property.Required))
+                if (!bound.Any(field => (field.PropertyKey ?? field.Name) == property.Key) &&
+                    !definition.Objects.Any(child => child.AssignToBinding == binding.Key &&
+                        child.AssignToProperty == property.Key && child.When is null))
+                    throw new InvalidOperationException($"'{binding.ObjectKey}' requires property '{property.Key}'.");
+            foreach (var child in definition.Objects.Where(child => child.AssignToBinding == binding.Key))
+            {
+                var property = domain.Properties.FirstOrDefault(candidate => candidate.Key == child.AssignToProperty);
+                if (property is null || property.Type != DomainPropertyType.Reference || property.IsCollection ||
+                    property.ReferenceTargetKey != child.ObjectKey)
+                    throw new InvalidOperationException($"'{binding.ObjectKey}.{child.AssignToProperty}' must reference '{child.ObjectKey}'.");
+            }
+        }
     }
 
     public async Task<FormDesignerLoadResult?> CreateDraftFromVersionAsync(Guid versionId, string? userName = null)

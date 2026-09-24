@@ -16,8 +16,15 @@ public static class FormValueValidator
     public static IReadOnlyList<FormValueError> Validate(FormDefinition definition, IReadOnlyDictionary<string, JsonElement> values)
     {
         var errors = new List<FormValueError>();
+        var activeBindings = FormObjectActivation.ActiveBindings(definition, values);
         foreach (var field in Fields(definition.Components))
+        {
+            if (field.ObjectBinding is not null && !activeBindings.Contains(field.ObjectBinding)) continue;
+            if (definition.Objects.Any(binding => activeBindings.Contains(binding.Key) &&
+                binding.AssignToBinding == field.ObjectBinding &&
+                binding.AssignToProperty == (field.PropertyKey ?? field.Name))) continue;
             errors.AddRange(Validate(field, values));
+        }
         return errors;
     }
 

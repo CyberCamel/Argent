@@ -13,7 +13,42 @@ const timestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export function validateForm(definition: FormDefinition, values: FormValues): readonly FormValueError[] {
-  return fields(definition.components).flatMap(field => validateField(field, values));
+  const active = activeObjectBindings(definition, values);
+  return fields(definition.components)
+    .filter(field => !field.objectBinding || active.has(field.objectBinding))
+    .filter(field => !(definition.objects ?? []).some(binding =>
+      active.has(binding.key) && binding.assignToBinding === field.objectBinding &&
+      binding.assignToProperty === (field.propertyKey ?? field.name)))
+    .flatMap(field => validateField(field, values));
+}
+
+export function activeObjectBindings(definition: FormDefinition, values: FormValues): Set<string> {
+  const allFields = fields(definition.components);
+  const bindings = definition.objects ?? [];
+  const active = new Set(bindings.filter(binding => binding.isPrimary ||
+    (binding.when ? evaluate(binding.when, values) : allFields.some(field =>
+      field.objectBinding === binding.key && populated(field, values))))
+    .map(binding => binding.key));
+  let changed: boolean;
+  do {
+    changed = false;
+    for (const binding of bindings) {
+      if (active.has(binding.key) && binding.assignToBinding && !active.has(binding.assignToBinding)) {
+        active.add(binding.assignToBinding);
+        changed = true;
+      }
+    }
+  } while (changed);
+  return active;
+}
+
+function populated(field: FormField, values: FormValues): boolean {
+  if (field.visibleWhen && !evaluate(field.visibleWhen, values)) return false;
+  if (field.disabledWhen && evaluate(field.disabledWhen, values)) return false;
+  const value = values[field.name];
+  return value !== undefined && value !== null && value !== false &&
+    (typeof value !== 'string' || value.trim() !== '') &&
+    (!Array.isArray(value) || value.length > 0);
 }
 
 export function validateField(field: FormField, values: FormValues): readonly FormValueError[] {
