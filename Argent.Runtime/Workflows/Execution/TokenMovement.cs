@@ -31,6 +31,17 @@ public class TokenMovement : ITokenMovement
             throw new InvalidOperationException(
                 $"Token {request.ConsumedTokenId} not found");
 
+        if (request.ProcessVariables != null)
+        {
+            var instance = await _context.WorkflowInstances
+                .FindAsync([request.InstanceId], ct);
+            if (instance == null)
+                throw new InvalidOperationException(
+                    $"Workflow instance {request.InstanceId} not found");
+
+            instance.ProcessVariablesJson = JsonSerializer.Serialize(request.ProcessVariables);
+        }
+
         token.State = TokenState.Consumed;
         token.ConsumedAt = DateTime.UtcNow;
 

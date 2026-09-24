@@ -74,7 +74,8 @@ public class WorkflowInstanceService : IWorkflowInstanceService
             State = InstanceState.Running,
             StartTime = DateTime.UtcNow,
             RecordId = recordId,
-            RecordBindingsJson = JsonSerializer.Serialize(recordIds)
+            RecordBindingsJson = JsonSerializer.Serialize(recordIds),
+            ProcessVariablesJson = payload
         };
         _context.WorkflowInstances.Add(instance);
 

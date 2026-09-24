@@ -28,4 +28,5 @@ public record WorkflowInstance
     public Guid RecordId { get; set; }
     /// <summary>JSON map from form object binding key to record ID.</summary>
     public string RecordBindingsJson { get; set; } = "{}";
+    public string ProcessVariablesJson { get; set; } = "{}";
 }

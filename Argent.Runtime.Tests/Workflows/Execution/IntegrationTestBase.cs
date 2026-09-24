@@ -105,6 +105,8 @@ public abstract class IntegrationTestBase : IDisposable
             ? System.Text.Json.JsonSerializer.Serialize(initialVariables)
             : "{}";
 
+        instance.ProcessVariablesJson = payload;
+
         db.WorkflowTokens.Add(new WorkflowToken
         {
             Id = tokenId,
@@ -145,9 +147,10 @@ public abstract class IntegrationTestBase : IDisposable
         services.AddScoped<ITokenMovement, TokenMovement>();
         services.AddScoped<IEnumerable<INodeHandler>>(_ =>
         [
-            new StartEventHandler(),
-            new EndEventHandler(),
-            new ExclusiveGatewayEvaluator(),
+             new StartEventHandler(),
+             new EndEventHandler(),
+             new JintActivityHandler(),
+             new ExclusiveGatewayEvaluator(),
             new ParallelGatewayEvaluator(),
             new InclusiveGatewayEvaluator(),
         ]);

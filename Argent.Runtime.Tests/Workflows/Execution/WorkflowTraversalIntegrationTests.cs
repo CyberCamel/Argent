@@ -2,6 +2,7 @@ using Argent.Infrastructure.Data;
 using Argent.Core.Enums;
 using Argent.Core.Workflows;
 using Argent.Core.Workflows.Activities;
+using Argent.Core.Workflows.Auditing;
 using Argent.Core.Workflows.Execution;
 using Argent.Runtime.Workflows.Execution;
 using Microsoft.EntityFrameworkCore;
@@ -80,6 +81,55 @@ public class WorkflowTraversalIntegrationTests : IntegrationTestBase
 
         var state = await GetInstanceStateAsync(seed.InstanceId);
         Assert.Equal(InstanceState.Completed, state);
+    }
+
+    [Fact]
+    public async Task Jint_computation_is_persisted_as_a_process_variable()
+    {
+        var start = new StartEvent { Id = Guid.NewGuid(), Name = "Start" };
+        var activity = new JintActivity
+        {
+            Id = Guid.NewGuid(),
+            Name = "Compute",
+            Code = "(() => { let total = 0; for (let i = 0; i < 25000; i++) { total += (i * seed) % 17; } return total; })()",
+            ReturnVariable = "computedResult"
+        };
+        var end = new EndEvent { Id = Guid.NewGuid(), Name = "End" };
+        var definition = new WorkflowDefinition
+        {
+            Metadata = new WorkflowMetadata { CreatedAt = DateTime.UtcNow, CreatedBy = "test", Version = new Version(1, 0) },
+            Nodes = [start, activity, end],
+            Connections =
+            [
+                new Connection { From = start, To = activity },
+                new Connection { From = activity, To = end },
+            ],
+        };
+
+        var seed = await SeedWorkflowAsync(definition, new Dictionary<string, object?>
+        {
+            ["seed"] = 7
+        });
+        var runner = CreateRunner();
+
+        await AdvanceAsync(runner, seed.InstanceId, seed.WorkflowId);
+        await AdvanceAsync(runner, seed.InstanceId, seed.WorkflowId);
+        await AdvanceAsync(runner, seed.InstanceId, seed.WorkflowId);
+
+        await using var db = CreateContext();
+        var instance = await db.WorkflowInstances.FindAsync(seed.InstanceId);
+        Assert.NotNull(instance);
+        using var processVariables = System.Text.Json.JsonDocument.Parse(instance!.ProcessVariablesJson);
+        var expected = Enumerable.Range(0, 25000).Sum(i => (i * 7) % 17);
+        Assert.Equal(expected, Convert.ToInt32(processVariables.RootElement.GetProperty("computedResult").GetDouble()));
+        Assert.Equal(7, Convert.ToInt32(processVariables.RootElement.GetProperty("seed").GetDouble()));
+
+        var audit = await db.WorkflowJournalEntries.SingleAsync(entry =>
+            entry.EventType == nameof(WorkflowAuditEventType.JintExecuted));
+        using var auditDetails = System.Text.Json.JsonDocument.Parse(audit.Details!);
+        Assert.Equal("Compute", auditDetails.RootElement.GetProperty("Node").GetString());
+        Assert.Equal("computedResult", auditDetails.RootElement.GetProperty("ReturnVariable").GetString());
+        Assert.True(auditDetails.RootElement.GetProperty("DurationMs").GetDouble() >= 0);
     }
 
     [Fact]

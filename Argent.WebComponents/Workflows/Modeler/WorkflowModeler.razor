@@ -586,6 +586,7 @@
                 <ModelerPropertiesPanel Node="_editingNode"
                                         State="@State"
                                         Registry="@Registry"
+                                        ReadOnly="@EffectiveReadOnly"
                                         OnClose="@ClosePropertiesPanel" />
             }
             else if (!EffectiveReadOnly && State.SelectedConnection is { } selectedConn)

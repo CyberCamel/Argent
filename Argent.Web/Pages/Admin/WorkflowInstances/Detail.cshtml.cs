@@ -272,19 +272,23 @@ public class DetailModel(
                 }
         }
 
-        // --- Instance variables from token payloads ---
-        // Exclude keys already covered by Record/Custom — old payloads may have been
-        // written with enriched data before the engine was fixed to keep them separate.
-        var relevantTokens = tokens.Where(t => t.State != TokenState.Consumed).ToList();
-        if (relevantTokens.Count == 0)
-            relevantTokens = tokens.OrderByDescending(t => t.ConsumedAt ?? t.CreatedAt).Take(1).ToList();
+        var processVariables = DeserializePayload(instance.ProcessVariablesJson);
+        if (processVariables.Count == 0)
+        {
+            var relevantTokens = tokens.Where(t => t.State != TokenState.Consumed).ToList();
+            if (relevantTokens.Count == 0)
+                relevantTokens = tokens.OrderByDescending(t => t.ConsumedAt ?? t.CreatedAt).Take(1).ToList();
+
+            foreach (var token in relevantTokens.OrderByDescending(t => t.CreatedAt))
+                foreach (var kvp in DeserializePayload(token.Payload))
+                    processVariables[kvp.Key] = kvp.Value;
+        }
 
         var seenInstanceKeys = new HashSet<string>();
-        foreach (var token in relevantTokens.OrderByDescending(t => t.CreatedAt))
+        foreach (var kvp in processVariables)
         {
-            foreach (var kvp in DeserializePayload(token.Payload))
-                if (!externalKeys.Contains(kvp.Key) && seenInstanceKeys.Add(kvp.Key))
-                    rows.Add(new VariableRow("Instance", kvp.Key, FormatValue(kvp.Value)));
+            if (!externalKeys.Contains(kvp.Key) && seenInstanceKeys.Add(kvp.Key))
+                rows.Add(new VariableRow("Instance", kvp.Key, FormatValue(kvp.Value)));
         }
 
         return rows;

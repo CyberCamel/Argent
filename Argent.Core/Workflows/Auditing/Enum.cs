@@ -25,5 +25,6 @@ public enum WorkflowAuditEventType
     WorkflowPublished = 19,
     WorkflowDeployed = 20,
     GatewayEvaluated = 21,
-    TaskReleased = 22
+    TaskReleased = 22,
+    JintExecuted = 23
 }

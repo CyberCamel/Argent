@@ -13,10 +13,8 @@ public record TokenMovementRequest(
     Guid ConsumedTokenId,
     IReadOnlyList<TokenTarget> Targets,
     WorkflowJournalEntry? JournalEntry,
-    // True only when the consuming node is a terminal (EndEvent) node. Instance completion
-    // is evaluated solely on terminal nodes so a non-end node that produces zero targets
-    // cannot silently complete the instance.
-    bool IsTerminal = false
+    bool IsTerminal = false,
+    IReadOnlyDictionary<string, object?>? ProcessVariables = null
 );
 
 public interface ITokenMovement

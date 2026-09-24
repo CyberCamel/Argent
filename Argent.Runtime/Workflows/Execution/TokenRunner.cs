@@ -10,6 +10,7 @@ using Argent.Core.Workflows.Execution;
 using Argent.Core.Workflows.Shared;
 using Argent.Runtime.Workflows;
 using Argent.Core.Workflows.Auditing;
+using Argent.Core.Workflows.Activities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -157,6 +158,7 @@ public class TokenRunner : ITokenRunner
                 .Select(c => c!)
                 .ToList();
 
+            var startEvent = definition.Nodes.OfType<StartEvent>().FirstOrDefault();
             var ctx = new TokenExecutionContext(
                 instanceId,
                 claimed.TokenId,
@@ -164,7 +166,10 @@ public class TokenRunner : ITokenRunner
                 new TokenVariableBag(enrichedVariables),
                 candidates,
                 currentToken.GroupId,
-                currentToken.TokenCount);
+                currentToken.TokenCount,
+                instance?.RecordId ?? Guid.Empty,
+                startEvent?.FormId,
+                startEvent?.ObjectKey ?? string.Empty);
 
             // Resolve handler
             var handlers = scope.ServiceProvider.GetRequiredService<IEnumerable<INodeHandler>>();
@@ -229,10 +234,11 @@ public class TokenRunner : ITokenRunner
                         TimeStamp = DateTime.UtcNow,
                         Details = JsonSerializer.Serialize(new
                         {
-                            Node = node.Name,
-                            NodeType = node.GetType().Name,
-                            Error = result.ErrorMessage
-                        })
+                             Node = node.Name,
+                             NodeType = node.GetType().Name,
+                             DurationMs = Math.Round(sw.Elapsed.TotalMilliseconds, 3),
+                             Error = result.ErrorMessage
+                         })
                     });
                     await db.SaveChangesAsync(ct);
                     await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Failed, ct);
@@ -244,6 +250,28 @@ public class TokenRunner : ITokenRunner
                 default:
                     // Completed — determine targets and commit
                     var targets = DetermineTargets(node, definition, result, engineVariables);
+                    var processVariables = TokenMovement.MergeVariables(
+                        engineVariables,
+                        result.OutputVariables);
+
+                    if (node is JintActivity jintActivity && result.Success)
+                    {
+                        db.WorkflowJournalEntries.Add(new WorkflowJournalEntry
+                        {
+                            Category = "Workflow",
+                            EventType = nameof(WorkflowAuditEventType.JintExecuted),
+                            InstanceId = instanceId,
+                            TokenId = claimed.TokenId,
+                            TimeStamp = DateTime.UtcNow,
+                            Details = JsonSerializer.Serialize(new
+                            {
+                                Node = jintActivity.Name,
+                                NodeType = nameof(JintActivity),
+                                DurationMs = Math.Round(sw.Elapsed.TotalMilliseconds, 3),
+                                ReturnVariable = jintActivity.ReturnVariable
+                            })
+                        });
+                    }
 
                     var isGateway = node is ExclusiveGateway or InclusiveGateway or ParallelGateway;
                     var targetNames = targets
@@ -281,9 +309,10 @@ public class TokenRunner : ITokenRunner
                     var request = new TokenMovementRequest(
                         instanceId,
                         claimed.TokenId,
-                        targets,
-                        journalEntry,
-                        IsTerminal: node is EndEvent);
+                         targets,
+                         journalEntry,
+                         IsTerminal: node is EndEvent,
+                         ProcessVariables: processVariables);
 
                     await movement.CommitAsync(request, ct);
                     await SetWorkItemStateCoreAsync(db, claimed.WorkItemId, WorkItemState.Completed, ct);

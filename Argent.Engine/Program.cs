@@ -1,6 +1,8 @@
 using Argent.Core.Authorization;
+using Argent.Core.Forms;
 using Argent.Runtime.Authorization;
 using Argent.Runtime.DependencyInjection;
+using Argent.Runtime.Forms.Stores;
 using Argent.Runtime.Workflows.Execution;
 using Microsoft.Extensions.Hosting;
 
@@ -14,6 +16,7 @@ builder.Services.AddArgentPersistence(connectionString);
 // fallback. Background workflow execution has no request context, so HttpContext remains null.
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IConditionEvaluator, ConditionEvaluator>();
+builder.Services.AddScoped<IFormDataStore, EfFormDataStore>();
 builder.Services.AddArgentWorkflowExecution();
 builder.Services.AddArgentDataSources();
 builder.Services.AddArgentDomainObjects();

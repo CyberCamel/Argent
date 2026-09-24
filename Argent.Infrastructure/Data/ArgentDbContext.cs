@@ -357,6 +357,12 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
         // Recovery query support on WorkflowInstance
         builder.Entity<WorkflowInstance>(entity =>
         {
+            entity.Property(e => e.RecordBindingsJson)
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(e => e.ProcessVariablesJson)
+                .HasColumnType("nvarchar(max)");
+
             entity.HasIndex(e => e.State)
                 .HasDatabaseName("IX_WorkflowInstances_State");
         });

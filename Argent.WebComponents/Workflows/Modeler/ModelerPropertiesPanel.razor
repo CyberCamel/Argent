@@ -10,6 +10,7 @@
 @using Argent.Core.Workflows.Shared
 @using Argent.Core.Forms
 @using Argent.WebComponents.Workflows.Modeler
+@using Argent.WebComponents.Forms.Designer
 @inject IDomainObjectDefinitionService DomainObjectDefinitions
 @inject IFormDesignerStore FormDesignerStore
 @inject IStringLocalizer<SharedResource> Localizer
@@ -67,10 +68,23 @@
 
                             @if (prop.DataType == PropertyDataType.Code)
                             {
-                                <textarea class="modeler-properties-input modeler-properties-code"
-                                          spellcheck="false" rows="4"
-                                          value="@propInfo.GetValue(Node.NodeData)"
-                                          @oninput="@(e => UpdateValue(propInfo, e.Value))" />
+                                @if (Node.NodeData is JintActivity jintActivity && prop.PropertyName == nameof(JintActivity.Code))
+                                {
+                                    <div class="modeler-properties-code-action">
+                                        <button type="button" class="modeler-code-editor-button" @onclick="() => OpenJintEditor(jintActivity)">
+                                            <i class="bi bi-code-square"></i>
+                                            <span>@(ReadOnly ? "View script" : "Open script editor")</span>
+                                        </button>
+                                        <span class="modeler-code-editor-status">@(string.IsNullOrWhiteSpace(jintActivity.Code) ? "No script entered" : "JavaScript script configured")</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <textarea class="modeler-properties-input modeler-properties-code"
+                                              spellcheck="false" rows="4"
+                                              value="@propInfo.GetValue(Node.NodeData)"
+                                              @oninput="@(e => UpdateValue(propInfo, e.Value))" />
+                                }
                             }
                             else if (prop.DataType == PropertyDataType.KeyValuePairs)
                             {
@@ -338,9 +352,46 @@
     </div>
 }
 
+@if (_showJintEditor && _editingJint != null)
+{
+    <div class="modeler-code-editor-backdrop" @onclick="CancelJintEditor">
+        <div class="modeler-code-editor-modal" @onclick:stopPropagation>
+            <div class="modeler-code-editor-header">
+                <div>
+                    <div class="modeler-code-editor-title"><i class="bi bi-code-square"></i> Jint script</div>
+                    <div class="modeler-code-editor-subtitle">@Node?.Title</div>
+                </div>
+                <button type="button" class="modeler-properties-close" @onclick="CancelJintEditor" title="Close">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="modeler-code-editor-body">
+                <MonacoEditor @key="_jintEditorKey"
+                              Value="@_jintDraftCode"
+                              ValueChanged="OnJintCodeChanged"
+                              Language="javascript"
+                              Height="min(55vh, 520px)"
+                              ReadOnly="@ReadOnly"
+                              EnablePlatformApi="@true" />
+            </div>
+            <div class="modeler-code-editor-footer">
+                <span class="modeler-code-editor-hint">Changes are applied when you save the script.</span>
+                <div class="modeler-code-editor-actions">
+                    <button type="button" class="modeler-code-editor-button-secondary" @onclick="CancelJintEditor">@(ReadOnly ? "Close" : "Cancel")</button>
+                    @if (!ReadOnly)
+                    {
+                        <button type="button" class="modeler-code-editor-button-primary" @onclick="SaveJintEditor">Save script</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter] public required DesignerService State { get; set; }
     [Parameter] public required IWorkflowNodeRegistry Registry { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public required DesignerNode Node { get; set; }
     [Parameter] public required EventCallback OnClose { get; set; }
 
@@ -348,6 +399,10 @@
     private IReadOnlyList<FormDesignSummary> _availableForms = [];
     private string _loadedFormsKey = string.Empty;
     private string _newActionType = string.Empty;
+    private JintActivity? _editingJint;
+    private string _jintDraftCode = string.Empty;
+    private bool _showJintEditor;
+    private int _jintEditorKey;
 
     // FormDesignSummary from Argent.Core.Forms used directly (Guid Id, string Name)
 
@@ -447,6 +502,37 @@
         if (node is CatchingTimerEvent e1) e1.Definition = next;
         else if (node is TimerBoundaryEvent e2) e2.Definition = next;
         State.MarkDirty();
+    }
+
+    private void OpenJintEditor(JintActivity activity)
+    {
+        _editingJint = activity;
+        _jintDraftCode = activity.Code;
+        _jintEditorKey++;
+        _showJintEditor = true;
+    }
+
+    private void OnJintCodeChanged(string code)
+    {
+        _jintDraftCode = code ?? string.Empty;
+    }
+
+    private void SaveJintEditor()
+    {
+        if (_editingJint == null) return;
+
+        _editingJint.Code = _jintDraftCode;
+        State.MarkDirty();
+        CloseJintEditor();
+    }
+
+    private void CancelJintEditor() => CloseJintEditor();
+
+    private void CloseJintEditor()
+    {
+        _showJintEditor = false;
+        _editingJint = null;
+        _jintDraftCode = string.Empty;
     }
 
     // ── Generic property helper ──────────────────────────────────────
