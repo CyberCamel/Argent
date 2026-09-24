@@ -1,0 +1,33 @@
+@using Argent.Web.Pages.Shared
+@model PageHeaderModel
+<header class="flex flex-wrap justify-between items-center gap-4 mb-6">
+    <div>
+        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">@Model.Title</h1>
+        @if (!string.IsNullOrEmpty(Model.Subtitle))
+        {
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">@Model.Subtitle</p>
+        }
+    </div>
+    @if (Model.ActionLink != null)
+    {
+        <a href="@Model.ActionLink.Url" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+            @if (!string.IsNullOrEmpty(Model.ActionLink.Icon))
+            {
+                <i class="@Model.ActionLink.Icon"></i>
+            }
+            @Model.ActionLink.Label
+        </a>
+    }
+    @if (Model.ActionModal != null)
+    {
+        <button type="button"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+                @@click="window.dispatchEvent(new CustomEvent('open-modal', {detail: '@Model.ActionModal.ModalId'}))">
+            @if (!string.IsNullOrEmpty(Model.ActionModal.Icon))
+            {
+                <i class="@Model.ActionModal.Icon"></i>
+            }
+            @Model.ActionModal.Label
+        </button>
+    }
+</header>

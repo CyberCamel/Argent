@@ -1,0 +1,79 @@
+@page "/Workflows/Start"
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SharedResource> Localizer
+@model Argent.Web.Pages.Workflows.StartModel
+@{
+    ViewData["Title"] = Model.WorkflowId.HasValue ? $"Start — {Model.WorkflowName}" : Localizer["Workflows.Start.PageTitle"];
+}
+
+@if (Model.WorkflowId.HasValue)
+{
+    <div class="max-w-2xl mx-auto">
+        <a href="/Workflows/Start" class="btn-action btn-action-secondary text-sm inline-flex items-center gap-1 px-3 py-1.5 rounded-lg mb-3">
+            <i class="bi bi-arrow-left"></i> @Localizer["Workflows.Start.AllWorkflows"]
+        </a>
+        <div class="card">
+            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-800">
+                <h2 class="text-base font-bold text-gray-900 dark:text-gray-100 mb-0">@Model.WorkflowName</h2>
+            </div>
+            <div class="p-5" data-argent-public-form
+                 data-bootstrap-url="/api/runtime/workflows/@Model.WorkflowId.Value/start-form/bootstrap"
+                 data-submit-url="/api/runtime/workflows/@Model.WorkflowId.Value/start-form/submit"
+                 data-success-redirect="/Tasks">
+                <div data-form-status role="status">Loading form…</div>
+                <argent-form></argent-form>
+            </div>
+        </div>
+    </div>
+}
+
+else
+{
+    <partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+        Title = Localizer["Workflows.Start.PageTitle"].Value,
+        Subtitle = Localizer["Workflows.Start.Subtitle"].Value
+    }' />
+
+    @if (Model.Workflows.Count == 0)
+    {
+        <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+            Icon = "bi-rocket-takeoff",
+            Message = Localizer["Workflows.Start.EmptyMessage"].Value
+        }' />
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>@Localizer["Common.Name"]</th>
+                        <th>@Localizer["Common.Description"]</th>
+                        <th class="text-right">@Localizer["Common.Actions"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var wf in Model.Workflows)
+                    {
+                        <tr>
+                            <td class="font-medium">@wf.Name</td>
+                            <td class="text-sm text-gray-500 dark:text-gray-400">@wf.Description</td>
+                            <td class="text-right">
+                                <a class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm inline-flex items-center gap-1" href="/Workflows/Start?workflowId=@wf.Id">
+                                    <i class="bi bi-play-fill"></i> @Localizer["Workflows.Start.StartButton"]
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@section Scripts {
+    @if (Model.WorkflowId.HasValue)
+    {
+        <script type="module" src="~/js/public-form.js" asp-append-version="true"></script>
+    }
+}

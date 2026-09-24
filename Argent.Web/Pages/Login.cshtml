@@ -1,0 +1,36 @@
+﻿@page
+@model Argent.Web.Pages.LoginModel
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SharedResource> Localizer
+
+<div class="flex justify-center py-8">
+    <div class="w-full max-w-sm">
+        <div class="card">
+            <div class="p-6">
+                <div class="text-center mb-6">
+                    <i class="bi bi-diamond-fill text-2xl text-indigo-600 dark:text-indigo-400"></i>
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100 mt-2 mb-1">@Localizer["Login.Heading"]</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-0">@Localizer["Login.Subtitle"]</p>
+                </div>
+                <form method="post">
+                    <div asp-validation-summary="All" class="text-sm text-red-600 dark:text-red-400 mb-3"></div>
+                    <div class="space-y-3">
+                        <div>
+                            <label asp-for="Input.UserName" class="form-label">@Localizer["Login.UsernameLabel"]</label>
+                            <input asp-for="Input.UserName" class="form-input" placeholder="@Localizer["Login.UsernamePlaceholder"]" autocomplete="username" />
+                        </div>
+                        <div>
+                            <label asp-for="Input.Password" class="form-label">@Localizer["Login.PasswordLabel"]</label>
+                            <input asp-for="Input.Password" class="form-input" placeholder="@Localizer["Login.PasswordPlaceholder"]" autocomplete="current-password" />
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input asp-for="Input.RememberMe" class="rounded border-gray-300 dark:border-gray-700 text-indigo-600 focus:ring-indigo-500" id="rememberMeCheck" />
+                            <label class="text-sm text-gray-600 dark:text-gray-400" for="rememberMeCheck">@Localizer["Login.RememberMe"]</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full mt-6 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm">@Localizer["Login.LogInButton"]</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

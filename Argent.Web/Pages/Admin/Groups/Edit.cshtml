@@ -1,0 +1,11 @@
+@page "/Admin/Groups/Edit/{id:guid}"
+@using Argent.WebComponents.Authorization
+@model Argent.Web.Pages.Admin.Groups.EditModel
+@{
+    ViewData["Title"] = Localizer["Admin.Groups.Edit.PageTitle"];
+}
+
+<div class="mx-auto py-4" style="max-width: 720px;">
+    <a href="/Admin/Groups" class="inline-flex items-center gap-1 px-3 py-1.5 mb-3 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors">&larr; @Localizer["Admin.Groups.Edit.BackLink"]</a>
+    <component type="typeof(GroupEditor)" render-mode="WebAssembly" param-GroupId="@Model.Id" />
+</div>

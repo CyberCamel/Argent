@@ -1,0 +1,67 @@
+@page "/Users"
+@model IndexModel
+@{
+    ViewData["Title"] = Localizer["Admin.Users.Index.PageTitle"];
+}
+
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = Localizer["Admin.Users.Index.PageTitle"].Value,
+    Subtitle = Localizer["Admin.Users.Index.Subtitle"].Value,
+    ActionModal = new Argent.Web.Pages.Shared.ModalModel(Localizer["Admin.Users.Index.AddUser"].Value, "userModalContent", "bi-plus-lg")
+}' />
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>@Localizer["Common.Name"]</th>
+                <th>@Localizer["Users.View.EmailLabel"]</th>
+                <th>@Localizer["Users.View.RolesLabel"]</th>
+                <th class="text-right">@Localizer["Common.Actions"]</th>
+            </tr>
+        </thead>
+        <tbody id="userTable"
+               hx-get="/UserAdministration/List"
+               hx-trigger="load, userActionCompleted from:body, userDeleted from:body"
+               hx-swap="innerHTML">
+            <partial name="~/Pages/Admin/Users/_UserTablePartial.cshtml" model="Model.Users" />
+        </tbody>
+    </table>
+</div>
+
+@* User modal (Alpine-based) *@
+<div id="userModal" class="fixed inset-0 z-50 flex items-center justify-center"
+     x-data="{ open: false }"
+     x-init="open = false"
+     x-show="open"
+     x-cloak
+     @@open-modal.window="if ($event.detail === 'userModalContent') open = true"
+     @@keydown.escape.window="open = false">
+    <div class="fixed inset-0 bg-black/50" @@click="open = false"></div>
+    <div class="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg mx-4" @@click.outside="open = false">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+            <h2 class="text-lg font-bold flex items-center gap-2">
+                <i class="bi bi-person text-indigo-600 dark:text-indigo-400"></i>@Localizer["Admin.Users.Index.ModalTitle"]
+            </h2>
+            <button type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" @@click="open = false">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="p-4" id="modalBody">
+            <div class="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">@Localizer["Admin.Users.Index.Loading"]</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.body.addEventListener('htmx:afterSwap', function (e) {
+        if (e.target.id === "modalBody") {
+            // Open the Alpine modal
+            Alpine.$data(document.getElementById('userModal')).open = true;
+        }
+    });
+
+    document.body.addEventListener('userActionCompleted', function () {
+        Alpine.$data(document.getElementById('userModal')).open = false;
+    });
+</script>

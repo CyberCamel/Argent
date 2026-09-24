@@ -1,0 +1,118 @@
+﻿@page
+@model IndexModel
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = Localizer["Index.PageTitle"];
+}
+
+<div class="flex items-center gap-4 mb-6">
+    <div class="bg-indigo-100 dark:bg-indigo-900/30 p-3 rounded-xl flex items-center justify-center" style="width: 52px; height: 52px;">
+        <i class="bi bi-diamond-fill text-xl text-indigo-600 dark:text-indigo-400"></i>
+    </div>
+    <div>
+        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">@Localizer["Index.Heading"]</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400">@Localizer["Index.Subtitle"]</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div class="card">
+        <div class="p-5">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg">
+                    <i class="bi bi-diagram-3 text-indigo-600 dark:text-indigo-400"></i>
+                </div>
+                <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100">@Localizer["Index.SectionWorkflows"]</h2>
+                @if (Model.WorkflowCount > 0)
+                {
+                    <span class="badge bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 ms-auto">@Model.WorkflowCount</span>
+                }
+            </div>
+
+            @if (Model.RecentWorkflows.Count == 0)
+            {
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-0">@Localizer["Index.NoWorkflows"]</p>
+            }
+            else
+            {
+                <ul class="space-y-1">
+                    @foreach (var wf in Model.RecentWorkflows)
+                    {
+                        <li class="py-2 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center last:border-0">
+                            <a href="/Workflows/View/@wf.Id" class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline">@wf.Name</a>
+                            @if (!string.IsNullOrEmpty(wf.Description))
+                            {
+                                <span class="text-xs text-gray-400">@wf.Description</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (User.Identity?.IsAuthenticated ?? false)
+            {
+                <a href="/Workflows" class="btn-action btn-action-primary text-sm mt-3 w-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-lg">
+                    @Localizer["Index.ViewAll"] <i class="bi bi-chevron-right text-xs"></i>
+                </a>
+            }
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="p-5">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg">
+                    <i class="bi bi-ui-checks text-indigo-600 dark:text-indigo-400"></i>
+                </div>
+                <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100">@Localizer["Index.SectionForms"]</h2>
+                @if (Model.FormCount > 0)
+                {
+                    <span class="badge bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 ms-auto">@Model.FormCount</span>
+                }
+            </div>
+
+            @if (Model.RecentForms.Count == 0)
+            {
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-0">@Localizer["Index.NoForms"]</p>
+            }
+            else
+            {
+                <ul class="space-y-1">
+                    @foreach (var form in Model.RecentForms)
+                    {
+                        <li class="py-2 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center last:border-0">
+                            <div>
+                                <a href="/Forms/Live/@form.Id" class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline">@form.Name</a>
+                                @if (!string.IsNullOrEmpty(form.Description))
+                                {
+                                    <span class="text-xs text-gray-400">— @form.Description</span>
+                                }
+                            </div>
+                            @if (User.Identity?.IsAuthenticated ?? false)
+                            {
+                                <a href="/Forms/Edit/@form.Id" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="@Localizer["Common.Edit"]">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (User.Identity?.IsAuthenticated ?? false)
+            {
+                <a href="/Forms" class="btn-action btn-action-primary text-sm mt-3 w-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-lg">
+                    @Localizer["Index.ViewAll"] <i class="bi bi-chevron-right text-xs"></i>
+                </a>
+            }
+        </div>
+    </div>
+</div>
+
+@if (!(User.Identity?.IsAuthenticated ?? false))
+{
+    <div class="text-center py-12">
+        <i class="bi bi-shield-lock text-3xl text-gray-300 dark:text-gray-600 mb-3 block"></i>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mb-0">@Localizer["Index.SignInPrompt"]</p>
+    </div>
+}

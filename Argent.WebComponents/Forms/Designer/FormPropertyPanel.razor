@@ -1,0 +1,229 @@
+@using Argent.Core.Forms.Protocol.V2
+@using Argent.Core.DomainObjects
+@inject IDomainObjectDefinitionService DomainObjectDefinitions
+
+@if (State.SelectedComponent is null)
+{
+    @if (_boundDefinition is not null)
+    {
+        <div class="property-section">
+            <div class="property-label">Domain property coverage</div>
+            @foreach (var property in _boundDefinition.Properties)
+            {
+                var isBound = State.AllFieldNames().Contains(property.Key);
+                <div class="flex items-center gap-2 text-sm mb-1">
+                    <i class="bi @(isBound ? "bi-check-circle-fill text-green-600" : "bi-circle text-gray-400")"></i>
+                    <span>@property.DisplayName</span>
+                    <code class="text-xs text-gray-500">@property.Key</code>
+                    <span class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300">
+                        @property.Type@(property.IsCollection ? "[]" : string.Empty)
+                    </span>
+                    @if (property.Required)
+                    {
+                        <span class="text-red-600" title="Required">*</span>
+                    }
+                    @if (isBound)
+                    {
+                        <span class="ml-auto text-xs text-green-600">Bound</span>
+                    }
+                    else if (property.Type == DomainPropertyType.Reference && property.IsCollection)
+                    {
+                        <span class="ml-auto text-xs text-amber-600">Multi-reference unsupported</span>
+                    }
+                    else
+                    {
+                        <button type="button" class="ml-auto btn-action btn-action-secondary"
+                                @onclick="() => AddDomainPropertyAsync(property)">
+                            <i class="bi bi-plus"></i> Add
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    }
+    <p class="text-sm text-gray-500 p-3">Select a component to edit its v2 properties.</p>
+}
+else if (State.SelectedComponent is FormLayout selectedLayout)
+{
+    <div class="property-section">
+        <div class="property-label">Layout</div>
+        <label class="text-sm">Type</label>
+        <select class="form-input mb-2" value="@selectedLayout.Type" @onchange="@(e => ChangeLayoutType(selectedLayout, e.Value?.ToString()))">
+            @foreach (var type in LayoutTypes)
+            {
+                <option value="@type">@type</option>
+            }
+        </select>
+        <label class="text-sm">Protocol ID</label>
+        <input class="form-input mb-2" value="@selectedLayout.Id" @onchange="@(e => Set(() => selectedLayout.Id = EmptyToNull(e.Value)))" />
+        <label class="text-sm">Title</label>
+        <input class="form-input" value="@selectedLayout.Title" @onchange="@(e => Set(() => selectedLayout.Title = EmptyToNull(e.Value)))" />
+    </div>
+}
+else if (State.SelectedComponent is FormField field)
+{
+    <div class="property-section">
+        <div class="property-label">Field</div>
+        <label class="text-sm">Type</label>
+        <select class="form-input mb-2" value="@field.Type" disabled="@(BoundProperty(field) is not null)"
+                @onchange="@(e => ChangeFieldType(field, e.Value?.ToString()))">
+            @foreach (var type in FieldTypes)
+            {
+                <option value="@type">@type</option>
+            }
+        </select>
+        @if (BoundProperty(field) is { } typeProperty)
+        {
+            var expectedType = FormDesignerService.FieldTypeFor(typeProperty.Type);
+            @if (field.Type != expectedType)
+            {
+                <div class="text-sm text-red-600 mb-2">
+                    This binding requires a <code>@expectedType</code> field.
+                    <button class="underline" @onclick="() => Set(() => field.Type = expectedType)">Fix type</button>
+                </div>
+            }
+            else
+            {
+                <div class="text-xs text-gray-500 mb-2">Type is controlled by the bound domain property.</div>
+            }
+        }
+        @if (_boundDefinition is not null)
+        {
+            <label class="text-sm">@(field.Reference is null ? "Domain property" : "Reference property")</label>
+            <select class="form-input mb-2" value="@(BoundProperty(field)?.Key ?? string.Empty)"
+                    @onchange="@(async e => await BindToDomainPropertyAsync(field, e.Value?.ToString()))">
+                <option value="">@(field.Reference is null ? "Custom field" : "— select reference property —")</option>
+                @foreach (var property in AvailableProperties(field))
+                {
+                    var alreadyBound = State.AllFieldNames().Any(name => name != field.Name && name == property.Key);
+                    var unsupportedCollectionReference = property.Type == DomainPropertyType.Reference && property.IsCollection;
+                    <option value="@property.Key" disabled="@(alreadyBound || unsupportedCollectionReference)">
+                        @property.DisplayName (@property.Key)@(property.Required ? " *" : "")@(alreadyBound ? " — bound" : "")@(unsupportedCollectionReference ? " — multi-reference not supported yet" : "")
+                    </option>
+                }
+            </select>
+        }
+        <label class="text-sm">Name</label>
+        <input class="form-input mb-2" value="@field.Name" @onchange="@(e => State.RenameField(field, e.Value?.ToString() ?? string.Empty))" />
+        <label class="text-sm">Label</label>
+        <input class="form-input mb-2" value="@field.Label" @onchange="@(e => Set(() => field.Label = e.Value?.ToString() ?? string.Empty))" />
+        <label class="text-sm">Description</label>
+        <textarea class="form-input mb-2" value="@field.Description" @onchange="@(e => Set(() => field.Description = EmptyToNull(e.Value)))"></textarea>
+        <label class="text-sm">Placeholder</label>
+        <input class="form-input mb-2" value="@field.Placeholder" @onchange="@(e => Set(() => field.Placeholder = EmptyToNull(e.Value)))" />
+        <label class="flex gap-2 items-center text-sm">
+            <input type="checkbox" checked="@field.Required" @onchange="() => Set(() => field.Required = !field.Required)" /> Required
+        </label>
+    </div>
+
+    @if (field.Type == "choice")
+    {
+        <div class="property-section">
+            <div class="property-label">Options</div>
+            @if (field.Reference is not null)
+            {
+                <p class="text-sm text-gray-600">
+                    Records from <code>@field.Reference.ObjectKey</code>, displayed by <code>@field.Reference.LabelField</code>.
+                </p>
+            }
+            else
+            {
+                @for (var i = 0; i < field.Options.Count; i++)
+                {
+                    var index = i;
+                    <div class="flex gap-1 mb-1">
+                        <input class="form-input" aria-label="Option label" value="@field.Options[index].Label"
+                               @onchange="@(e => Set(() => field.Options[index].Label = e.Value?.ToString() ?? string.Empty))" />
+                        <input class="form-input" aria-label="Option value" value="@field.Options[index].Value"
+                               @onchange="@(e => Set(() => field.Options[index].Value = e.Value?.ToString() ?? string.Empty))" />
+                        <button class="fd-action fd-action-danger" @onclick="() => RemoveOption(field, index)"><i class="bi bi-trash"></i></button>
+                    </div>
+                }
+                <button class="btn-action btn-action-secondary" @onclick="() => AddOption(field)"><i class="bi bi-plus"></i> Add option</button>
+            }
+        </div>
+    }
+
+    <ValidatorListEditor State="State" Field="field" />
+    <ConditionBuilder State="State" Field="field" />
+}
+
+@code {
+    [Parameter] public required FormDesignerService State { get; set; }
+    private static readonly string[] FieldTypes = ["text", "integer", "decimal", "date", "timestamp", "boolean", "choice", "file"];
+    private static readonly string[] LayoutTypes = ["section", "row", "column", "tabs", "accordion"];
+    private DomainObjectDefinition? _boundDefinition;
+    private string? _loadedObjectKey;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var objectKey = State.Definition.ObjectKey;
+        if (string.Equals(objectKey, _loadedObjectKey, StringComparison.Ordinal)) return;
+        _loadedObjectKey = objectKey;
+        _boundDefinition = string.IsNullOrWhiteSpace(objectKey)
+            ? null
+            : await DomainObjectDefinitions.GetPublishedDefinitionAsync(objectKey);
+    }
+
+    private void Set(Action update) { update(); State.MarkDirty(); }
+    private static string? EmptyToNull(object? value) => string.IsNullOrWhiteSpace(value?.ToString()) ? null : value.ToString();
+    private void ChangeFieldType(FormField field, string? type) { if (type is not null) Set(() => field.Type = type); }
+    private void ChangeLayoutType(FormLayout layout, string? type) { if (type is not null) Set(() => layout.Type = type); }
+    private void AddOption(FormField field) => Set(() => field.Options.Add(new() { Label = "Option", Value = $"option-{field.Options.Count + 1}" }));
+    private void RemoveOption(FormField field, int index) => Set(() => field.Options.RemoveAt(index));
+    private DomainProperty? BoundProperty(FormField field) =>
+        _boundDefinition?.Properties.FirstOrDefault(property => property.Key == field.Name);
+
+    private IEnumerable<DomainProperty> AvailableProperties(FormField field) =>
+        field.Reference is null
+            ? _boundDefinition?.Properties ?? []
+            : _boundDefinition?.Properties.Where(property => property.Type == DomainPropertyType.Reference) ?? [];
+
+    private async Task BindToDomainPropertyAsync(FormField field, string? propertyKey)
+    {
+        if (string.IsNullOrWhiteSpace(propertyKey)) return;
+        var property = _boundDefinition?.Properties.FirstOrDefault(candidate => candidate.Key == propertyKey);
+        if (property is null || property.Type == DomainPropertyType.Reference && property.IsCollection) return;
+
+        State.RenameField(field, property.Key);
+        await ConfigureForDomainPropertyAsync(field, property, preserveContent: true);
+        State.MarkDirty();
+    }
+
+    private async Task AddDomainPropertyAsync(DomainProperty property)
+    {
+        if (property.Type == DomainPropertyType.Reference && property.IsCollection) return;
+        var field = new FormField { Name = property.Key, Label = property.DisplayName };
+        await ConfigureForDomainPropertyAsync(field, property, preserveContent: false);
+        State.AddField(field);
+    }
+
+    private async Task ConfigureForDomainPropertyAsync(FormField field, DomainProperty property, bool preserveContent)
+    {
+        field.Type = FormDesignerService.FieldTypeFor(property.Type);
+        field.Required = property.Required;
+        if (!preserveContent || FormFieldLabels.IsPlaceholder(field.Label))
+            field.Label = property.DisplayName;
+        if (!preserveContent || string.IsNullOrWhiteSpace(field.Description))
+            field.Description = property.Description;
+        field.Reference = null;
+        field.Options = [];
+        if (property.Type == DomainPropertyType.Choice)
+            field.Options = property.Choices.Select(choice => new FormOption
+            {
+                Label = choice.Label,
+                Value = Convert.ToString(choice.Value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty
+            }).ToList();
+        else if (property.Type == DomainPropertyType.Reference && !string.IsNullOrWhiteSpace(property.ReferenceTargetKey))
+        {
+            var target = await DomainObjectDefinitions.GetPublishedDefinitionAsync(property.ReferenceTargetKey);
+            field.Reference = new FormReferenceSource
+            {
+                ObjectKey = property.ReferenceTargetKey,
+                LabelField = property.ReferenceDisplayProperty ?? target?.TitleProperty ??
+                    target?.Properties.FirstOrDefault()?.Key ?? "id"
+            };
+        }
+    }
+
+}

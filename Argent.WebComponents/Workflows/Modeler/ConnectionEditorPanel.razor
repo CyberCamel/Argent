@@ -1,0 +1,187 @@
+@using Argent.Core.DomainObjects
+@using Argent.Core.Forms
+@using Argent.Core.DomainObjects
+@using Argent.Core.Forms.Components.Configuration
+@using Argent.Core.Workflows
+@using Argent.Core.Workflows.Activities
+@using Argent.WebComponents.Workflows.Modeler
+@using Argent.WebComponents.Forms.Designer
+@inject IDomainObjectDefinitionService DomainObjectDefinitions
+@inject IFormDesignerStore FormDesignerStore
+@inject IStringLocalizer<SharedResource> Localizer
+
+<div class="modeler-properties">
+    <div class="modeler-properties-header">
+        <span class="modeler-properties-title">
+            <i class="bi bi-arrow-right-circle"></i> @Localizer["ConnectionEditorPanel.Connection"] —
+            <span class="modeler-properties-type">@Connection.Source.Title</span>
+            <span class="modeler-properties-sep">→</span>
+            <span class="modeler-properties-name">@Connection.Target.Title</span>
+        </span>
+        <button type="button" class="modeler-properties-close" @onclick="HandleClose" title="@Localizer["ConnectionEditorPanel.Close"]">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+    <div class="modeler-properties-body">
+        <div class="modeler-properties-section">
+            <div class="modeler-properties-field">
+                <label class="modeler-properties-label">@Localizer["ConnectionEditorPanel.Label"]</label>
+                <input class="modeler-properties-input"
+                       value="@_conn.Label"
+                       @oninput="@(e => { _conn.Label = e.Value?.ToString(); State.MarkDirty(); })" />
+            </div>
+            @if (_isGateway)
+            {
+                <div class="modeler-properties-field modeler-properties-field-inline">
+                    <label class="modeler-properties-label">@Localizer["ConnectionEditorPanel.DefaultPath"]</label>
+                    <label class="modeler-properties-switch">
+                        <input type="checkbox" checked="@_conn.IsDefault"
+                               @onchange="OnIsDefaultChanged" />
+                        <span class="modeler-properties-switch-slider"></span>
+                    </label>
+                    @if (_conn.IsDefault)
+                    {
+                        <span class="modeler-conn-default-hint">@Localizer["ConnectionEditorPanel.DefaultPathHint"]</span>
+                    }
+                </div>
+            }
+            @if (Connection.Source.NodeData is UserActivity)
+            {
+                <p class="text-sm text-gray-500">@Localizer["TaskActions.KeyHint"]</p>
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label" for="task-action-label">@Localizer["TaskActions.Label"]</label>
+                    <input id="task-action-label" class="modeler-properties-input" value="@_conn.TaskAction?.Label"
+                           placeholder="@_conn.Label" @oninput="e => UpdateAction(label: e.Value?.ToString())" />
+                </div>
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label" for="task-action-appearance">@Localizer["TaskActions.Appearance"]</label>
+                    <select id="task-action-appearance" class="modeler-properties-input" value="@(_conn.TaskAction?.Appearance ?? string.Empty)"
+                            @onchange="e => UpdateAction(appearance: e.Value?.ToString())">
+                        <option value="">@Localizer["TaskActions.Automatic"]</option>
+                        <option value="primary">@Localizer["TaskActions.Primary"]</option>
+                        <option value="secondary">@Localizer["TaskActions.Secondary"]</option>
+                        <option value="danger">@Localizer["TaskActions.Danger"]</option>
+                    </select>
+                </div>
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label" for="task-action-confirm">@Localizer["TaskActions.Confirm"]</label>
+                    <textarea id="task-action-confirm" class="modeler-properties-input"
+                              @oninput="e => UpdateAction(confirm: e.Value?.ToString())">@_conn.TaskAction?.Confirm</textarea>
+                </div>
+            }
+        </div>
+
+        @if (_isGateway && !_conn.IsDefault)
+        {
+            <div class="modeler-properties-section modeler-properties-section-dyn">
+                <div class="modeler-properties-label mb-1">@Localizer["ConnectionEditorPanel.Condition"]</div>
+                <div class="modeler-conn-condition-wrap">
+                    <ConditionBuilder Condition="@_conn.Condition"
+                                      ConditionChanged="@OnConditionChanged"
+                                      OnChanged="@OnConditionEdited"
+                                      Fields="@_fields" />
+                </div>
+                @if (_fields == null)
+                {
+                    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        <i class="bi bi-info-circle"></i> @Localizer["ConnectionEditorPanel.FieldHints"]
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public required DesignerService State { get; set; }
+    [Parameter] public required DesignerConnection Connection { get; set; }
+    [Parameter] public required EventCallback OnClose { get; set; }
+
+    private Connection _conn = null!;
+    private bool _isGateway;
+    private List<string>? _fields;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _conn = Connection.EngineConnection;
+        _isGateway = Connection.Source.NodeData is ExclusiveGateway or InclusiveGateway;
+        await LoadFieldsAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Skip the expensive DB reload on every parent re-render (pointer moves during
+        // rerouting cause continuous re-renders). Only reload when the connection changes.
+        if (ReferenceEquals(Connection.EngineConnection, _conn)) return;
+        _conn = Connection.EngineConnection;
+        _isGateway = Connection.Source.NodeData is ExclusiveGateway or InclusiveGateway;
+        await LoadFieldsAsync();
+    }
+
+    private async Task LoadFieldsAsync()
+    {
+        var startEvent = State.Nodes
+            .Select(n => n.NodeData)
+            .OfType<StartEvent>()
+            .FirstOrDefault();
+
+        var allFields = new List<string>();
+
+        // Domain object properties
+        if (startEvent != null && !string.IsNullOrEmpty(startEvent.ObjectKey))
+        {
+            var def = await DomainObjectDefinitions.GetPublishedDefinitionAsync(startEvent.ObjectKey);
+            if (def != null)
+                allFields.AddRange(def.Properties.Select(p => p.Key));
+
+            // Form field keys from latest published versions (includes FormCustomData fields not in the domain object)
+            var formFields = await FormDesignerStore.GetPublishedFieldNamesByObjectKeyAsync(startEvent.ObjectKey);
+            allFields.AddRange(formFields);
+        }
+
+        // Workflow instance variables set by script/jint nodes
+        foreach (var node in State.Nodes.Select(n => n.NodeData))
+        {
+            switch (node)
+            {
+                case ScriptActivity sa:
+                    allFields.AddRange(sa.Actions.OfType<SetVariableAction>()
+                        .Select(a => a.VariableName)
+                        .Where(v => !string.IsNullOrWhiteSpace(v)));
+                    break;
+                case JintActivity ja when !string.IsNullOrWhiteSpace(ja.ReturnVariable):
+                    allFields.Add(ja.ReturnVariable);
+                    break;
+            }
+        }
+
+        _fields = allFields.Distinct(StringComparer.OrdinalIgnoreCase).Order().ToList();
+        if (_fields.Count == 0) _fields = null;
+    }
+
+    private void OnIsDefaultChanged(ChangeEventArgs e)
+    {
+        _conn.IsDefault = (bool)(e.Value ?? false);
+        if (_conn.IsDefault) _conn.Condition = null;
+        State.MarkDirty();
+    }
+
+    private void OnConditionChanged(Condition? c)
+    {
+        _conn.Condition = c;
+        State.MarkDirty();
+    }
+
+    private void OnConditionEdited() => State.MarkDirty();
+
+    private void UpdateAction(string? label = null, string? appearance = null, string? confirm = null)
+    {
+        _conn.TaskAction ??= new TaskActionPresentation();
+        if (label is not null) _conn.TaskAction.Label = label;
+        if (appearance is not null) _conn.TaskAction.Appearance = appearance;
+        if (confirm is not null) _conn.TaskAction.Confirm = confirm;
+        State.MarkDirty();
+    }
+
+    private void HandleClose() => OnClose.InvokeAsync();
+}

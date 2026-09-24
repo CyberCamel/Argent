@@ -1,0 +1,68 @@
+{
+  "protocolVersion": "2.0",
+  "cases": [
+    {
+      "name": "field equals literal",
+      "values": { "applicantType": "company" },
+      "expression": {
+        "operator": "equals",
+        "left": { "field": "applicantType" },
+        "right": { "value": "company" }
+      },
+      "expected": true,
+      "dependencies": ["applicantType"]
+    },
+    {
+      "name": "nested boolean expression",
+      "values": { "age": 21, "country": "SE" },
+      "expression": {
+        "operator": "and",
+        "arguments": [
+          {
+            "operator": "greaterThanOrEqual",
+            "left": { "field": "age" },
+            "right": { "value": 18 }
+          },
+          {
+            "operator": "equals",
+            "left": { "field": "country" },
+            "right": { "value": "SE" }
+          }
+        ]
+      },
+      "expected": true,
+      "dependencies": ["age", "country"]
+    },
+    {
+      "name": "null is empty",
+      "values": { "middleName": null },
+      "expression": {
+        "operator": "isEmpty",
+        "operand": { "field": "middleName" }
+      },
+      "expected": true,
+      "dependencies": ["middleName"]
+    },
+    {
+      "name": "missing field is empty",
+      "values": {},
+      "expression": {
+        "operator": "isEmpty",
+        "operand": { "field": "optionalReference" }
+      },
+      "expected": true,
+      "dependencies": ["optionalReference"]
+    },
+    {
+      "name": "ordinal text comparison is case sensitive",
+      "values": { "country": "se" },
+      "expression": {
+        "operator": "equals",
+        "left": { "field": "country" },
+        "right": { "value": "SE" }
+      },
+      "expected": false,
+      "dependencies": ["country"]
+    }
+  ]
+}

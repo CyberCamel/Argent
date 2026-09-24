@@ -1,0 +1,46 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+<div id="@_containerId" style="width: 100%; height: @Height;"></div>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Language { get; set; } = "javascript";
+    [Parameter] public string Height { get; set; } = "200px";
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private string _containerId = "monaco-" + Guid.NewGuid().ToString("N");
+    private DotNetObjectReference<MonacoEditor>? _dotNetRef;
+    private bool _initialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("ArgentMonaco.init", _containerId, Value ?? "", Language, _dotNetRef, ReadOnly, Placeholder);
+            _initialized = true;
+        }
+    }
+
+    public async Task SetValue(string value)
+    {
+        if (_initialized)
+        {
+            await JS.InvokeVoidAsync("ArgentMonaco.setValue", _containerId, value);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnValueChanged(string value)
+    {
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    public void Dispose()
+    {
+        _dotNetRef?.Dispose();
+    }
+}

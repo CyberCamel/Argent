@@ -1,0 +1,74 @@
+{
+  "protocolVersion": "2.0",
+  "definition": {
+    "protocolVersion": "2.0",
+    "id": "validation-form",
+    "objectKey": "application",
+    "components": [
+      { "kind": "field", "type": "choice", "name": "applicantType", "label": "Applicant type", "required": true,
+        "options": [{ "value": "person", "label": "Person" }, { "value": "company", "label": "Company" }] },
+      { "kind": "field", "type": "text", "name": "companyName", "label": "Company name",
+        "requiredWhen": { "operator": "equals", "left": { "field": "applicantType" }, "right": { "value": "company" } },
+        "visibleWhen": { "operator": "equals", "left": { "field": "applicantType" }, "right": { "value": "company" } },
+        "validators": [{ "type": "length", "code": "company.length", "minLength": 2, "maxLength": 50 }] },
+      { "kind": "field", "type": "integer", "name": "employees", "label": "Employees",
+        "validators": [{ "type": "range", "code": "employees.range", "min": 1, "max": 100000 }] },
+      { "kind": "field", "type": "decimal", "name": "requestedAmount", "label": "Requested amount",
+        "validators": [{ "type": "range", "code": "amount.range", "min": "0.01", "max": "1000000.00" }] },
+      { "kind": "field", "type": "text", "name": "email", "label": "Email",
+        "validators": [{ "type": "email", "code": "email.invalid" }] },
+      { "kind": "field", "type": "text", "name": "emailConfirmation", "label": "Confirm email",
+        "validators": [{ "type": "compare", "code": "email.mismatch", "otherField": "email", "operator": "equals" }] },
+      { "kind": "field", "type": "date", "name": "applicationDate", "label": "Application date" },
+      { "kind": "field", "type": "file", "name": "attachment", "label": "Attachment" }
+    ]
+  },
+  "cases": [
+    {
+      "name": "valid canonical values",
+      "values": {
+        "applicantType": "company", "companyName": "Argent AB", "employees": 12,
+        "requestedAmount": "1250.50", "email": "hello@example.se", "emailConfirmation": "hello@example.se",
+        "applicationDate": "2026-09-01",
+        "attachment": { "id": "file-1", "fileName": "permit.pdf", "contentType": "application/pdf", "size": 1234 }
+      },
+      "errors": []
+    },
+    {
+      "name": "conditional field is ignored while hidden",
+      "values": { "applicantType": "person" },
+      "errors": []
+    },
+    {
+      "name": "required and conditional required errors",
+      "values": { "applicantType": "company" },
+      "errors": [
+        { "field": "companyName", "code": "field.required" }
+      ]
+    },
+    {
+      "name": "canonical type and choice errors",
+      "values": { "applicantType": "unknown", "employees": 1.5, "requestedAmount": "01.20", "applicationDate": "2026-02-30" },
+      "errors": [
+        { "field": "applicantType", "code": "choice.invalid" },
+        { "field": "applicationDate", "code": "type.date" },
+        { "field": "employees", "code": "type.integer" },
+        { "field": "requestedAmount", "code": "type.decimal" }
+      ]
+    },
+    {
+      "name": "configured validators return stable codes",
+      "values": {
+        "applicantType": "company", "companyName": "A", "employees": 0,
+        "requestedAmount": "1000000.01", "email": "invalid", "emailConfirmation": "different"
+      },
+      "errors": [
+        { "field": "companyName", "code": "company.length" },
+        { "field": "email", "code": "email.invalid" },
+        { "field": "emailConfirmation", "code": "email.mismatch" },
+        { "field": "employees", "code": "employees.range" },
+        { "field": "requestedAmount", "code": "amount.range" }
+      ]
+    }
+  ]
+}

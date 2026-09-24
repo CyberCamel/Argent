@@ -1,0 +1,316 @@
+@*
+    Reusable subject/member picker: shows the selected items and adds new ones.
+
+    When Searchable=false (default): shows selected items as a flat removable list with
+    a dropdown + plus button to add. Suitable for text-sm option sets.
+
+    When Searchable=true: shows selected items in a paginated removable list with a page
+    size selector, plus a search box to find and add items (results only appear when a
+    search term is entered, paginated with page size selector).
+
+    When ItemUrl is set, each selected item becomes a link (e.g. "/Users/View/{id}").
+    Return null from ItemUrl to skip the link for a specific ID.
+*@
+
+@inject IStringLocalizer<SharedResource> Localizer
+
+<div class="mb-3">
+    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">@Label</label>
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+
+        @* === SELECTED ITEMS === *@
+        @if (Selected.Count == 0)
+        {
+            <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">@EmptyText</div>
+        }
+        else if (!Searchable)
+        {
+            <div class="mb-2 divide-y divide-gray-100 dark:divide-gray-700">
+                @foreach (var id in Selected.ToList())
+                {
+                    var opt = Options.FirstOrDefault(o => o.Id == id);
+                    <div class="flex justify-between items-center py-1 px-2">
+                        <span class="text-sm">
+                            @if (!string.IsNullOrEmpty(opt?.Icon))
+                            {
+                                <i class="bi @opt!.Icon mr-2"></i>
+                            }
+                            @if (ItemUrl != null)
+                            {
+                                var url = ItemUrl(id);
+                                if (url != null)
+                                {
+                                    <a href="@url" class="text-indigo-600 dark:text-indigo-400 hover:underline">@(opt?.Label ?? id)</a>
+                                }
+                                else
+                                {
+                                    @(opt?.Label ?? id)
+                                }
+                            }
+                            else
+                            {
+                                @(opt?.Label ?? id)
+                            }
+                        </span>
+                        <button type="button" class="text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded p-1 transition-colors" title="@Localizer["MemberSelector.Remove"]"
+                                @onclick="() => Remove(id)">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="mb-2 divide-y divide-gray-100 dark:divide-gray-700">
+                @foreach (var id in SelectedPageItems)
+                {
+                    var opt = Options.FirstOrDefault(o => o.Id == id);
+                    <div class="flex justify-between items-center py-1 px-2">
+                        <span class="text-sm">
+                            @if (!string.IsNullOrEmpty(opt?.Icon))
+                            {
+                                <i class="bi @opt!.Icon mr-2"></i>
+                            }
+                            @if (ItemUrl != null)
+                            {
+                                var url = ItemUrl(id);
+                                if (url != null)
+                                {
+                                    <a href="@url" class="text-indigo-600 dark:text-indigo-400 hover:underline">@(opt?.Label ?? id)</a>
+                                }
+                                else
+                                {
+                                    @(opt?.Label ?? id)
+                                }
+                            }
+                            else
+                            {
+                                @(opt?.Label ?? id)
+                            }
+                        </span>
+                        <button type="button" class="text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded p-1 transition-colors" title="@Localizer["MemberSelector.Remove"]"
+                                @onclick="() => Remove(id)">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                }
+            </div>
+            <div class="flex justify-between items-center mb-2">
+                <div class="flex items-center gap-2">
+                    <small class="text-gray-500 dark:text-gray-400">@string.Format(Localizer["MemberSelector.MembersCount"], Selected.Count)</small>
+                    <select class="form-input text-sm"
+                            @bind="_selectedPageSize" @bind:after="ResetSelectedPage">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                @if (_selectedTotalPages > 1)
+                {
+                    <div class="flex items-center gap-1">
+                        <button type="button" class="px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                @onclick="PrevSelectedPage"
+                                disabled="@(_selectedPage <= 1)">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <small class="text-gray-500 dark:text-gray-400 px-1">@_selectedPage / @_selectedTotalPages</small>
+                        <button type="button" class="px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                @onclick="NextSelectedPage"
+                                disabled="@(_selectedPage >= _selectedTotalPages)">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                }
+            </div>
+        }
+
+        @* === ADD SECTION === *@
+        @if (!Searchable)
+        {
+            <div class="flex gap-2">
+                <select class="form-input text-sm" @bind="_toAdd">
+                    <option value="">@string.Format(Localizer["MemberSelector.AddFormat"], Label.ToLowerInvariant())</option>
+                    @foreach (var o in Available)
+                    {
+                        <option value="@o.Id">@o.Label</option>
+                    }
+                </select>
+                <button type="button" class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" @onclick="Add"
+                        disabled="@string.IsNullOrEmpty(_toAdd)">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </div>
+        }
+        else
+        {
+            <hr class="my-2 border-gray-200 dark:border-gray-700" />
+            <div class="mb-2">
+                <input type="text" class="form-input text-sm"
+                       placeholder="@string.Format(Localizer["MemberSelector.SearchFormat"], Label.ToLowerInvariant())"
+                       @bind="_searchTerm" @bind:event="oninput" @bind:after="OnSearchAfter" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(_searchTerm) && SearchResults.Any())
+            {
+                <div class="mb-2 divide-y divide-gray-100 dark:divide-gray-700" style="max-height: 240px; overflow-y: auto;">
+                    @foreach (var o in SearchResults)
+                    {
+                        <div class="flex justify-between items-center py-1 px-2">
+                            <span class="text-sm">
+                                @if (!string.IsNullOrEmpty(o.Icon))
+                                {
+                                    <i class="bi @o.Icon mr-2"></i>
+                                }
+                                @o.Label
+                            </span>
+                            @if (Selected.Contains(o.Id))
+                            {
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">@Localizer["MemberSelector.Added"]</span>
+                            }
+                            else
+                            {
+                                <button type="button" class="text-xs px-2 py-1 font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors"
+                                        @onclick="() => AddSearchResult(o.Id)">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <small class="text-gray-500 dark:text-gray-400">@string.Format(Localizer["MemberSelector.FoundCount"], _totalItems)</small>
+                        <select class="form-input text-sm"
+                                @bind="_pageSize" @bind:after="RefreshSearch">
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                    @if (_totalPages > 1)
+                    {
+                        <div class="flex items-center gap-1">
+                            <button type="button" class="px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" @onclick="PrevPage"
+                                    disabled="@(_currentPage <= 1)">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <small class="text-gray-500 dark:text-gray-400 px-1">@_currentPage / @_totalPages</small>
+                            <button type="button" class="px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" @onclick="NextPage"
+                                    disabled="@(_currentPage >= _totalPages)">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(_searchTerm))
+            {
+                <div class="text-sm text-gray-500 dark:text-gray-400">@Localizer["MemberSelector.NoMatches"]</div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = default!;
+    [Parameter] public string EmptyText { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        Label ??= Localizer["Common.Name"];
+        EmptyText ??= Localizer["MemberSelector.NoMatches"];
+    }
+    [Parameter] public List<MemberOption> Options { get; set; } = [];
+    [Parameter] public HashSet<string> Selected { get; set; } = [];
+    [Parameter] public bool Searchable { get; set; }
+    [Parameter] public Func<string, string?>? ItemUrl { get; set; }
+
+    private string _toAdd = "";
+    private string _searchTerm = "";
+    private int _currentPage = 1;
+    private int _pageSize = 10;
+    private int _selectedPage = 1;
+    private int _selectedPageSize = 10;
+
+    private IEnumerable<MemberOption> Available => Options.Where(o => !Selected.Contains(o.Id));
+    private IEnumerable<MemberOption> Filtered =>
+        string.IsNullOrWhiteSpace(_searchTerm)
+            ? Available
+            : Available.Where(o => o.Label.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase));
+    private IEnumerable<MemberOption> SearchResults =>
+        Filtered.Skip((_currentPage - 1) * _pageSize).Take(_pageSize);
+    private int _totalItems => Filtered.Count();
+    private int _totalPages => Math.Max(1, (int)Math.Ceiling((double)_totalItems / _pageSize));
+
+    private List<string> SelectedPageItems =>
+        Selected.ToList()
+            .Skip((_selectedPage - 1) * _selectedPageSize)
+            .Take(_selectedPageSize)
+            .ToList();
+    private int _selectedTotalPages =>
+        Math.Max(1, (int)Math.Ceiling((double)Selected.Count / _selectedPageSize));
+
+    private void Add()
+    {
+        if (!string.IsNullOrEmpty(_toAdd))
+        {
+            Selected.Add(_toAdd);
+            _toAdd = "";
+        }
+    }
+
+    private void Remove(string id)
+    {
+        Selected.Remove(id);
+        if (_selectedPage > _selectedTotalPages && _selectedPage > 1)
+            _selectedPage = _selectedTotalPages;
+    }
+
+    private void AddSearchResult(string id)
+    {
+        Selected.Add(id);
+        _searchTerm = "";
+        _currentPage = 1;
+    }
+
+    private void ResetSelectedPage()
+    {
+        _selectedPage = 1;
+    }
+
+    private void PrevSelectedPage()
+    {
+        if (_selectedPage > 1) _selectedPage--;
+    }
+
+    private void NextSelectedPage()
+    {
+        if (_selectedPage < _selectedTotalPages) _selectedPage++;
+    }
+
+    private void OnSearchAfter()
+    {
+        _currentPage = 1;
+    }
+
+    private void RefreshSearch()
+    {
+        _currentPage = 1;
+    }
+
+    private void PrevPage()
+    {
+        if (_currentPage > 1) _currentPage--;
+    }
+
+    private void NextPage()
+    {
+        if (_currentPage < _totalPages) _currentPage++;
+    }
+
+    public record MemberOption(string Id, string Label, string? Icon = null);
+}

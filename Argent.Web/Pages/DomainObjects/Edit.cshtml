@@ -1,0 +1,12 @@
+@page "/DomainObjects/Edit/{id:guid}"
+@using Microsoft.Extensions.Localization
+@using Argent.WebComponents.DomainObjects.Designer
+@inject IStringLocalizer<SharedResource> Localizer
+@model Argent.Web.Pages.DomainObjects.EditModel
+@{
+    ViewData["Title"] = Localizer["DomainObjects.Edit.PageTitle"];
+    ViewData["IsFullWidth"] = true;
+}
+
+<component type="typeof(DomainObjectDesigner)" render-mode="ServerPrerendered"
+           param-ObjectId="@Model.ObjectId" />

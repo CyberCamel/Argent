@@ -1,0 +1,93 @@
+{
+  "definitions": {
+    "FormComponent": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "Id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Xtype": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "CssClass": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Style": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ColumnIndex": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "Id",
+        "Xtype",
+        "Description",
+        "CssClass",
+        "Style",
+        "ColumnIndex"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "FormId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ObjectKey": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "Version": {
+      "type": "integer"
+    },
+    "Title": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "Components": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/definitions/FormComponent"
+      }
+    }
+  },
+  "required": [
+    "FormId",
+    "ObjectKey",
+    "Version",
+    "Title",
+    "Components"
+  ]
+}

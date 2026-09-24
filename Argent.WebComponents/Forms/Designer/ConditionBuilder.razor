@@ -1,0 +1,87 @@
+@using System.Text.Json
+@using Argent.Core.Forms.Protocol.V2
+
+<div class="property-section">
+    <div class="property-label">Conditional behavior</div>
+    <select class="form-input mb-2" @bind="_target">
+        <option value="visible">Visible when</option>
+        <option value="required">Required when</option>
+        <option value="disabled">Disabled when</option>
+        <option value="readonly">Read-only when</option>
+    </select>
+
+    @if (Current is null)
+    {
+        <button class="btn-action btn-action-secondary" @onclick="Add" disabled="@(!AvailableFields.Any())"><i class="bi bi-plus"></i> Add condition</button>
+        @if (!AvailableFields.Any())
+        {
+            <p class="text-xs text-amber-600 mt-1">Add another field before creating a condition.</p>
+        }
+    }
+    else
+    {
+        <div class="grid gap-2">
+            <select class="form-input" value="@Current.Left?.Field" @onchange="ChangeField">
+                <option value="">Select field</option>
+                @foreach (var name in AvailableFields)
+                {
+                    <option value="@name">@name</option>
+                }
+            </select>
+            <select class="form-input" value="@Current.Operator" @onchange="ChangeOperator">
+                @foreach (var op in Operators)
+                {
+                    <option value="@op">@op</option>
+                }
+            </select>
+            @if (Current.Operator is not ("isEmpty" or "isNotEmpty"))
+            {
+                <input class="form-input font-mono" value="@Literal" @onchange="ChangeLiteral" placeholder='JSON literal, e.g. true or "yes"' />
+            }
+            <button class="fd-action fd-action-danger" @onclick="Remove"><i class="bi bi-trash"></i> Remove</button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public required FormDesignerService State { get; set; }
+    [Parameter] public required FormField Field { get; set; }
+    private string _target = "visible";
+    private static readonly string[] Operators = ["equals", "notEquals", "greaterThan", "greaterThanOrEqual", "lessThan", "lessThanOrEqual", "contains", "startsWith", "endsWith", "isEmpty", "isNotEmpty"];
+    private IEnumerable<string> AvailableFields => State.FieldNames().Where(name => name != Field.Name);
+    private FormExpression? Current => _target switch { "required" => Field.RequiredWhen, "disabled" => Field.DisabledWhen, "readonly" => Field.ReadOnlyWhen, _ => Field.VisibleWhen };
+    private string Literal => Current?.Right?.Value.ValueKind is { } kind && kind != JsonValueKind.Undefined ? Current.Right.Value.GetRawText() : "null";
+
+    private void Assign(FormExpression? expression)
+    {
+        if (_target == "required") Field.RequiredWhen = expression;
+        else if (_target == "disabled") Field.DisabledWhen = expression;
+        else if (_target == "readonly") Field.ReadOnlyWhen = expression;
+        else Field.VisibleWhen = expression;
+        State.MarkDirty();
+    }
+    private void Add()
+    {
+        var fieldName = AvailableFields.FirstOrDefault();
+        if (fieldName is null) return;
+        Assign(new() { Operator = "equals", Left = new() { Field = fieldName }, Right = new() { Value = JsonSerializer.SerializeToElement(true) } });
+    }
+    private void Remove() => Assign(null);
+    private void ChangeField(ChangeEventArgs e) { if (Current?.Left is { } left) { left.Field = e.Value?.ToString(); State.MarkDirty(); } }
+    private void ChangeOperator(ChangeEventArgs e)
+    {
+        if (Current is null) return;
+        Current.Operator = e.Value?.ToString() ?? "equals";
+        if (Current.Operator is "isEmpty" or "isNotEmpty") { Current.Operand = Current.Left; Current.Left = null; Current.Right = null; }
+        else if (Current.Left is null) { Current.Left = Current.Operand; Current.Operand = null; Current.Right = new() { Value = JsonSerializer.SerializeToElement(true) }; }
+        State.MarkDirty();
+    }
+    private void ChangeLiteral(ChangeEventArgs e)
+    {
+        if (Current?.Right is null) return;
+        var raw = e.Value?.ToString() ?? "null";
+        try { Current.Right.Value = JsonDocument.Parse(raw).RootElement.Clone(); }
+        catch (JsonException) { Current.Right.Value = JsonSerializer.SerializeToElement(raw); }
+        State.MarkDirty();
+    }
+}

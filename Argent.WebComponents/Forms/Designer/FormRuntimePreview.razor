@@ -1,0 +1,87 @@
+@using Argent.Core.Forms.Protocol.V2
+@using Argent.Core.DomainObjects
+@using Microsoft.JSInterop
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@inject IJSRuntime Js
+@inject IDomainObjectStore DomainObjects
+
+@if (_isLoading)
+{
+    <div class="p-3 text-sm text-gray-500" role="status">Rendering preview…</div>
+}
+@if (_error is not null)
+{
+    <div class="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded" role="alert">
+        Preview failed: @_error
+    </div>
+}
+<argent-form @ref="_element" style="@(_error is null ? null : "display:none")"></argent-form>
+
+@code {
+    [Parameter, EditorRequired] public FormDefinition? Definition { get; set; }
+
+    private ElementReference _element;
+    private bool _renderPending;
+    private bool _isLoading;
+    private string? _error;
+    private static readonly JsonSerializerOptions ProtocolJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    protected override void OnParametersSet()
+    {
+        _renderPending = true;
+        _isLoading = Definition is not null;
+        _error = null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_renderPending || Definition is null) return;
+        _renderPending = false;
+        try
+        {
+            var previewDefinition = JsonSerializer.Deserialize<FormDefinition>(
+                JsonSerializer.Serialize(Definition, ProtocolJson), ProtocolJson)!;
+            await HydrateReferencesAsync(previewDefinition.Components);
+            var json = JsonSerializer.Serialize(previewDefinition, ProtocolJson);
+            await Js.InvokeVoidAsync("argentFormPreview.render", _element, json);
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HydrateReferencesAsync(IEnumerable<FormComponent> components)
+    {
+        foreach (var component in components)
+        {
+            if (component is FormLayout layout)
+            {
+                await HydrateReferencesAsync(layout.Children);
+                continue;
+            }
+            if (component is not FormField { Reference: { } source } field ||
+                string.IsNullOrWhiteSpace(source.ObjectKey) || string.IsNullOrWhiteSpace(source.LabelField))
+                continue;
+
+            var options = await DomainObjects.GetOptionsAsync(source.ObjectKey, "id", source.LabelField);
+            field.Options = options.Select(option => new FormOption
+            {
+                Value = option.Value is JsonElement element
+                    ? element.ToString()
+                    : Convert.ToString(option.Value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                Label = option.Label
+            }).ToList();
+        }
+    }
+}

@@ -1,0 +1,713 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Admin.Audit.AllFilter" xml:space="preserve"><value>Alla</value></data>
+  <data name="Admin.Audit.CategoryLabel" xml:space="preserve"><value>Kategori</value></data>
+  <data name="Admin.Audit.ClearButton" xml:space="preserve"><value>Rensa</value></data>
+  <data name="Admin.Audit.EmptyMessage" xml:space="preserve"><value>Inga revisionsposter matchar dina kriterier.</value></data>
+  <data name="Admin.Audit.EntryCount" xml:space="preserve"><value>{0} poster</value></data>
+  <data name="Admin.Audit.EventTypeLabel" xml:space="preserve"><value>Händelsetyp</value></data>
+  <data name="Admin.Audit.FilterButton" xml:space="preserve"><value>Filter</value></data>
+  <data name="Admin.Audit.InstanceIdLabel" xml:space="preserve"><value>Instans-ID</value></data>
+  <data name="Admin.Audit.InstanceIdPlaceholder" xml:space="preserve"><value>Guid...</value></data>
+  <data name="Admin.Audit.PageTitle" xml:space="preserve"><value>Revisionslogg</value></data>
+  <data name="Admin.Audit.Subtitle" xml:space="preserve"><value>Revisionsspår för arbetsflödeskörning</value></data>
+  <data name="Admin.Audit.TableActor" xml:space="preserve"><value>Aktör</value></data>
+  <data name="Admin.Audit.TableDetails" xml:space="preserve"><value>Detaljer</value></data>
+  <data name="Admin.Audit.TableEvent" xml:space="preserve"><value>Händelse</value></data>
+  <data name="Admin.Audit.TableInstance" xml:space="preserve"><value>Instans</value></data>
+  <data name="Admin.Audit.TableTime" xml:space="preserve"><value>Tid</value></data>
+  <data name="Admin.Audit.TableToken" xml:space="preserve"><value>Token</value></data>
+  <data name="Admin.Capabilities.Description" xml:space="preserve"><value>Kontrollera vilka användare, roller och grupper som kan utföra åtgärder över alla resurser av varje typ. Resursspecifik åtkomst hanteras inifrån varje arbetsflöde eller formulär.</value></data>
+  <data name="Admin.Capabilities.Heading" xml:space="preserve"><value>Plattformsbehörigheter</value></data>
+  <data name="Admin.Groups.Create.BackLink" xml:space="preserve"><value>Tillbaka till grupper</value></data>
+  <data name="Admin.Groups.Create.PageTitle" xml:space="preserve"><value>Skapa grupp</value></data>
+  <data name="Admin.Groups.Edit.BackLink" xml:space="preserve"><value>Tillbaka till grupper</value></data>
+  <data name="Admin.Groups.Edit.PageTitle" xml:space="preserve"><value>Redigera grupp</value></data>
+  <data name="Admin.Groups.Index.EmptyMessage" xml:space="preserve"><value>Inga grupper än. Skapa en för att gruppera användare.</value></data>
+  <data name="Admin.Groups.Index.NewGroup" xml:space="preserve"><value>Ny grupp</value></data>
+  <data name="Admin.Groups.Index.PageTitle" xml:space="preserve"><value>Grupper</value></data>
+  <data name="Admin.Groups.Index.Subtitle" xml:space="preserve"><value>Gruppera användare så att policyer kan riktas direkt mot dem</value></data>
+  <data name="Admin.Groups.Index.SystemBadge" xml:space="preserve"><value>System</value></data>
+  <data name="Admin.Groups.Index.TableMembers" xml:space="preserve"><value>Medlemmar</value></data>
+  <data name="Admin.Users.CreatePartial.CreateButton" xml:space="preserve"><value>Skapa</value></data>
+  <data name="Admin.Users.EditPartial.SaveButton" xml:space="preserve"><value>Spara</value></data>
+  <data name="Admin.Users.Index.AddUser" xml:space="preserve"><value>Lägg till användare</value></data>
+  <data name="Admin.Users.Index.Loading" xml:space="preserve"><value>Laddar...</value></data>
+  <data name="Admin.Users.Index.ModalTitle" xml:space="preserve"><value>Hantera användare</value></data>
+  <data name="Admin.Users.Index.PageTitle" xml:space="preserve"><value>Användarhantering</value></data>
+  <data name="Admin.Users.Index.Subtitle" xml:space="preserve"><value>Hantera användare och deras roller</value></data>
+  <data name="Admin.Users.TablePartial.DeleteConfirm" xml:space="preserve"><value>Är du säker?</value></data>
+  <data name="Admin.WorkItems.Detail.AuditEmpty" xml:space="preserve"><value>Inga revisionsposter för denna token.</value></data>
+  <data name="Admin.WorkItems.Detail.AuditTrailHeading" xml:space="preserve"><value>Revisionsspår</value></data>
+  <data name="Admin.WorkItems.Detail.BackToInstance" xml:space="preserve"><value>Tillbaka till instans</value></data>
+  <data name="Admin.WorkItems.Detail.CreatedLabel" xml:space="preserve"><value>Skapad</value></data>
+  <data name="Admin.WorkItems.Detail.LockedByLabel" xml:space="preserve"><value>Låst av</value></data>
+  <data name="Admin.WorkItems.Detail.NodeIdLabel" xml:space="preserve"><value>Nod-ID</value></data>
+  <data name="Admin.WorkItems.Detail.NodeTypeLabel" xml:space="preserve"><value>Nodtyp</value></data>
+  <data name="Admin.WorkItems.Detail.PageTitle" xml:space="preserve"><value>Arbetsobjekt: {0}</value></data>
+  <data name="Admin.WorkItems.Detail.PriorityLabel" xml:space="preserve"><value>Prioritet</value></data>
+  <data name="Admin.WorkItems.Detail.RetriesLabel" xml:space="preserve"><value>Försök</value></data>
+  <data name="Admin.WorkItems.Detail.RetryButton" xml:space="preserve"><value>Försök igen</value></data>
+  <data name="Admin.WorkItems.Detail.TokenIdLabel" xml:space="preserve"><value>Token-ID</value></data>
+  <data name="Admin.WorkflowInstances.Detail.ActiveTokensLabel" xml:space="preserve"><value>Aktiva tokens</value></data>
+  <data name="Admin.WorkflowInstances.Detail.AuditEmpty" xml:space="preserve"><value>Inga revisionsposter.</value></data>
+  <data name="Admin.WorkflowInstances.Detail.CancelButton" xml:space="preserve"><value>Avbryt</value></data>
+  <data name="Admin.WorkflowInstances.Detail.CancelConfirm" xml:space="preserve"><value>Avbryt denna instans? Aktiva tokens kommer att förbrukas.</value></data>
+  <data name="Admin.WorkflowInstances.Detail.EndedLabel" xml:space="preserve"><value>Avslutad</value></data>
+  <data name="Admin.WorkflowInstances.Detail.PageTitle" xml:space="preserve"><value>Instans: {0}</value></data>
+  <data name="Admin.WorkflowInstances.Detail.ResumeButton" xml:space="preserve"><value>Återuppta</value></data>
+  <data name="Admin.WorkflowInstances.Detail.StartedLabel" xml:space="preserve"><value>Startad</value></data>
+  <data name="Admin.WorkflowInstances.Detail.StateLabel" xml:space="preserve"><value>Status</value></data>
+  <data name="Admin.WorkflowInstances.Detail.SuspendButton" xml:space="preserve"><value>Pausa</value></data>
+  <data name="Admin.WorkflowInstances.Detail.TabAudit" xml:space="preserve"><value>Revisionslogg</value></data>
+  <data name="Admin.WorkflowInstances.Detail.TabDiagram" xml:space="preserve"><value>Diagram</value></data>
+  <data name="Admin.WorkflowInstances.Detail.TabTokens" xml:space="preserve"><value>Tokens</value></data>
+  <data name="Admin.WorkflowInstances.Detail.TabUserTasks" xml:space="preserve"><value>Användaruppgifter</value></data>
+  <data name="Admin.WorkflowInstances.Detail.TabVariables" xml:space="preserve"><value>Variabler</value></data>
+  <data name="Admin.WorkflowInstances.Detail.TabWorkItems" xml:space="preserve"><value>Arbetsobjekt</value></data>
+  <data name="Admin.WorkflowInstances.Detail.TokensEmpty" xml:space="preserve"><value>Inga tokens.</value></data>
+  <data name="Admin.WorkflowInstances.Detail.TokensTableConsumed" xml:space="preserve"><value>Förbrukad</value></data>
+  <data name="Admin.WorkflowInstances.Detail.TokensTableCreated" xml:space="preserve"><value>Skapad</value></data>
+  <data name="Admin.WorkflowInstances.Detail.TokensTableGroup" xml:space="preserve"><value>Grupp</value></data>
+  <data name="Admin.WorkflowInstances.Detail.TokensTableNode" xml:space="preserve"><value>Nod</value></data>
+  <data name="Admin.WorkflowInstances.Detail.UserTasksEmpty" xml:space="preserve"><value>Inga användaruppgifter.</value></data>
+  <data name="Admin.WorkflowInstances.Detail.UserTasksTableAssignedTo" xml:space="preserve"><value>Tilldelad</value></data>
+  <data name="Admin.WorkflowInstances.Detail.UserTasksTableCompleted" xml:space="preserve"><value>Slutförd</value></data>
+  <data name="Admin.WorkflowInstances.Detail.UserTasksTableTitle" xml:space="preserve"><value>Titel</value></data>
+  <data name="Admin.WorkflowInstances.Detail.VariablesEmpty" xml:space="preserve"><value>Inga variabler.</value></data>
+  <data name="Admin.WorkflowInstances.Detail.VariablesTableKey" xml:space="preserve"><value>Nyckel</value></data>
+  <data name="Admin.WorkflowInstances.Detail.VariablesTableSource" xml:space="preserve"><value>Källa</value></data>
+  <data name="Admin.WorkflowInstances.Detail.VariablesTableValue" xml:space="preserve"><value>Värde</value></data>
+  <data name="Admin.WorkflowInstances.Detail.WorkItemsEmpty" xml:space="preserve"><value>Inga arbetsobjekt.</value></data>
+  <data name="Admin.WorkflowInstances.Detail.WorkItemsTableLockedBy" xml:space="preserve"><value>Låst av</value></data>
+  <data name="Admin.WorkflowInstances.Detail.WorkItemsTableNodeType" xml:space="preserve"><value>Nodtyp</value></data>
+  <data name="Admin.WorkflowInstances.Detail.WorkItemsTablePriority" xml:space="preserve"><value>Prioritet</value></data>
+  <data name="Admin.WorkflowInstances.Detail.WorkItemsTableRetries" xml:space="preserve"><value>Försök</value></data>
+  <data name="Admin.WorkflowInstances.Index.EmptyMessage" xml:space="preserve"><value>Inga arbetsflödesinstanser än.</value></data>
+  <data name="Admin.WorkflowInstances.Index.PageTitle" xml:space="preserve"><value>Arbetsflödesinstanser</value></data>
+  <data name="Admin.WorkflowInstances.Index.Subtitle" xml:space="preserve"><value>Övervaka aktiva och slutförda arbetsflödeskörningar</value></data>
+  <data name="Admin.WorkflowInstances.Index.TableActiveTokens" xml:space="preserve"><value>Aktiva tokens</value></data>
+  <data name="Admin.WorkflowInstances.Index.TableEnded" xml:space="preserve"><value>Avslutad</value></data>
+  <data name="Admin.WorkflowInstances.Index.TableStarted" xml:space="preserve"><value>Startad</value></data>
+  <data name="Admin.WorkflowInstances.Index.TableWorkflow" xml:space="preserve"><value>Arbetsflöde</value></data>
+  <data name="ArgentAccordion.SectionFallback" xml:space="preserve"><value>Sektion</value></data>
+  <data name="ArgentTabs.TabFallback" xml:space="preserve"><value>Flik</value></data>
+  <data name="Branding.Colors" xml:space="preserve"><value>Färger</value></data>
+  <data name="Branding.CustomCss" xml:space="preserve"><value>Anpassad CSS</value></data>
+  <data name="Branding.CustomCssHint" xml:space="preserve"><value>Injiceras på varje sida. Använd för att åsidosätta standardstilar.</value></data>
+  <data name="Branding.EnableBranding" xml:space="preserve"><value>Aktivera anpassad profilering</value></data>
+  <data name="Branding.FaviconUrl" xml:space="preserve"><value>Favicon-URL</value></data>
+  <data name="Branding.FooterText" xml:space="preserve"><value>Sidfotstext</value></data>
+  <data name="Branding.General" xml:space="preserve"><value>Allmänt</value></data>
+  <data name="Branding.LogoFavicon" xml:space="preserve"><value>Logotyp &amp;amp; favicon</value></data>
+  <data name="Branding.LogoPreview" xml:space="preserve"><value>Logotypförhandsvisning</value></data>
+  <data name="Branding.LogoUrl" xml:space="preserve"><value>Logotyp-URL</value></data>
+  <data name="Branding.LogoUrlHint" xml:space="preserve"><value>Visas i navigeringsfältet. Rekommenderad storlek: 32x32px.</value></data>
+  <data name="Branding.PreviewLabel" xml:space="preserve"><value>Förhandsvisning</value></data>
+  <data name="Branding.PrimaryColor" xml:space="preserve"><value>Primärfärg</value></data>
+  <data name="Branding.PrimaryHoverColor" xml:space="preserve"><value>Primär hover-färg</value></data>
+  <data name="Branding.Reset" xml:space="preserve"><value>Återställ</value></data>
+  <data name="Branding.SaveSettings" xml:space="preserve"><value>Spara inställningar</value></data>
+  <data name="Branding.SavedMessage" xml:space="preserve"><value>Profilinställningarna har sparats.</value></data>
+  <data name="Branding.SiteName" xml:space="preserve"><value>Webbplatsnamn</value></data>
+  <data name="Branding.Subtitle" xml:space="preserve"><value>Anpassa utseendet på applikationen</value></data>
+  <data name="Branding.Title" xml:space="preserve"><value>Profilering &amp;amp; stil</value></data>
+  <data name="CapabilitiesPanel.ActionHeader" xml:space="preserve"><value>Åtgärd</value></data>
+  <data name="CapabilitiesPanel.Loading" xml:space="preserve"><value>Laddar...</value></data>
+  <data name="CapabilitiesPanel.NoResults" xml:space="preserve"><value>Inga resultat.</value></data>
+  <data name="CapabilitiesPanel.SearchPlaceholder" xml:space="preserve"><value>Sök...</value></data>
+  <data name="CapabilitiesPanel.SectionForms" xml:space="preserve"><value>Formulär</value></data>
+  <data name="CapabilitiesPanel.SectionWorkflows" xml:space="preserve"><value>Arbetsflöden</value></data>
+  <data name="CapabilitiesPanel.WhoHeader" xml:space="preserve"><value>Vem kan utföra detta globalt</value></data>
+  <data name="Common.Actions" xml:space="preserve"><value>Åtgärder</value></data>
+  <data name="Common.Back" xml:space="preserve"><value>Tillbaka</value></data>
+  <data name="Common.Cancel" xml:space="preserve"><value>Avbryt</value></data>
+  <data name="Common.Clear" xml:space="preserve"><value>Rensa</value></data>
+  <data name="Common.Delete" xml:space="preserve"><value>Ta bort</value></data>
+  <data name="Common.Description" xml:space="preserve"><value>Beskrivning</value></data>
+  <data name="Common.Edit" xml:space="preserve"><value>Redigera</value></data>
+  <data name="Common.Error" xml:space="preserve"><value>Fel</value></data>
+  <data name="Common.Filter" xml:space="preserve"><value>Filter</value></data>
+  <data name="Common.Loading" xml:space="preserve"><value>Laddar...</value></data>
+  <data name="Common.Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="Common.New" xml:space="preserve"><value>Ny</value></data>
+  <data name="Common.NoItems" xml:space="preserve"><value>Inga objekt hittades.</value></data>
+  <data name="Common.Preview" xml:space="preserve"><value>Förhandsvisning</value></data>
+  <data name="Common.Reset" xml:space="preserve"><value>Återställ</value></data>
+  <data name="Common.Save" xml:space="preserve"><value>Spara</value></data>
+  <data name="Common.Search" xml:space="preserve"><value>Sök</value></data>
+  <data name="Common.State" xml:space="preserve"><value>Status</value></data>
+  <data name="Common.Subtitle" xml:space="preserve"><value>Undertitel</value></data>
+  <data name="Common.Title" xml:space="preserve"><value>Titel</value></data>
+  <data name="Common.Type" xml:space="preserve"><value>Typ</value></data>
+  <data name="Common.View" xml:space="preserve"><value>Visa</value></data>
+  <data name="ConditionBuilder.AddCondition" xml:space="preserve"><value>Lägg till villkor</value></data>
+  <data name="ConditionBuilder.AllOf" xml:space="preserve"><value>ALLA:</value></data>
+  <data name="ConditionBuilder.And" xml:space="preserve"><value>Och</value></data>
+  <data name="ConditionBuilder.AnyOf" xml:space="preserve"><value>NÅGOT AV:</value></data>
+  <data name="ConditionBuilder.CommaSeparated" xml:space="preserve"><value>komma,separerade</value></data>
+  <data name="ConditionBuilder.Compare" xml:space="preserve"><value>Jämför</value></data>
+  <data name="ConditionBuilder.Expression" xml:space="preserve"><value>Uttryck</value></data>
+  <data name="ConditionBuilder.ExpressionPlaceholder" xml:space="preserve"><value>t.ex. fält_x == 'ja'</value></data>
+  <data name="ConditionBuilder.Not" xml:space="preserve"><value>Inte</value></data>
+  <data name="ConditionBuilder.Or" xml:space="preserve"><value>Eller</value></data>
+  <data name="ConditionBuilder.SelectField" xml:space="preserve"><value>-- fält --</value></data>
+  <data name="ConnectionEditorPanel.Close" xml:space="preserve"><value>Stäng</value></data>
+  <data name="ConnectionEditorPanel.Condition" xml:space="preserve"><value>Villkor</value></data>
+  <data name="ConnectionEditorPanel.Connection" xml:space="preserve"><value>Anslutning</value></data>
+  <data name="ConnectionEditorPanel.DefaultPath" xml:space="preserve"><value>Standardväg</value></data>
+  <data name="ConnectionEditorPanel.DefaultPathHint" xml:space="preserve"><value>Används när ingen annan väg matchar</value></data>
+  <data name="ConnectionEditorPanel.FieldHints" xml:space="preserve"><value>Lägg till ett domänobjekt i StartEvent för att få fälthjälp.</value></data>
+  <data name="ConnectionEditorPanel.Label" xml:space="preserve"><value>Etikett</value></data>
+  <data name="CronExpressionEditor.Any" xml:space="preserve"><value>Alla</value></data>
+  <data name="CronExpressionEditor.At" xml:space="preserve"><value>Kl</value></data>
+  <data name="CronExpressionEditor.Day" xml:space="preserve"><value>Dag</value></data>
+  <data name="CronExpressionEditor.DayOfMonth" xml:space="preserve"><value>Dag i månaden</value></data>
+  <data name="CronExpressionEditor.Every" xml:space="preserve"><value>Varje</value></data>
+  <data name="CronExpressionEditor.Hour" xml:space="preserve"><value>Timme</value></data>
+  <data name="CronExpressionEditor.Hr" xml:space="preserve"><value>tim</value></data>
+  <data name="CronExpressionEditor.Min" xml:space="preserve"><value>min</value></data>
+  <data name="CronExpressionEditor.Minute" xml:space="preserve"><value>Minut</value></data>
+  <data name="CronExpressionEditor.Month" xml:space="preserve"><value>Månad</value></data>
+  <data name="CronExpressionEditor.Next" xml:space="preserve"><value>Nästa</value></data>
+  <data name="CronExpressionEditor.NoFutureOccurrence" xml:space="preserve"><value>Ingen framtida händelse</value></data>
+  <data name="CronExpressionEditor.Raw" xml:space="preserve"><value>Rå</value></data>
+  <data name="CronExpressionEditor.Sec" xml:space="preserve"><value>sek</value></data>
+  <data name="CronExpressionEditor.Second" xml:space="preserve"><value>Sekund</value></data>
+  <data name="CronExpressionEditor.Specific" xml:space="preserve"><value>Specifik</value></data>
+  <data name="CronExpressionEditor.TooComplex" xml:space="preserve"><value>För komplex</value></data>
+  <data name="CronExpressionEditor.Visual" xml:space="preserve"><value>Visuell</value></data>
+  <data name="CronExpressionEditor.Weekdays" xml:space="preserve"><value>Veckodagar</value></data>
+  <data name="DataSourceEditor.AddEndpoint" xml:space="preserve"><value>Lägg till slutpunkt</value></data>
+  <data name="DataSourceEditor.ApiKey" xml:space="preserve"><value>API-nyckel</value></data>
+  <data name="DataSourceEditor.AuthType" xml:space="preserve"><value>Autentiseringstyp</value></data>
+  <data name="DataSourceEditor.BaseUrl" xml:space="preserve"><value>Bas-URL</value></data>
+  <data name="DataSourceEditor.BaseUrlPlaceholder" xml:space="preserve"><value>https://api.example.com</value></data>
+  <data name="DataSourceEditor.ClientId" xml:space="preserve"><value>Klient-ID</value></data>
+  <data name="DataSourceEditor.ClientSecret" xml:space="preserve"><value>Klienthemlighet</value></data>
+  <data name="DataSourceEditor.Connection" xml:space="preserve"><value>Anslutning</value></data>
+  <data name="DataSourceEditor.EndpointMethod" xml:space="preserve"><value>Metod</value></data>
+  <data name="DataSourceEditor.EndpointName" xml:space="preserve"><value>Namn</value></data>
+  <data name="DataSourceEditor.EndpointNamePlaceholder" xml:space="preserve"><value>t.ex. Hämta användare</value></data>
+  <data name="DataSourceEditor.EndpointPath" xml:space="preserve"><value>Sökväg</value></data>
+  <data name="DataSourceEditor.EndpointPathPlaceholder" xml:space="preserve"><value>/api/users</value></data>
+  <data name="DataSourceEditor.Endpoints" xml:space="preserve"><value>Slutpunkter</value></data>
+  <data name="DataSourceEditor.HeaderName" xml:space="preserve"><value>Rubriknamn</value></data>
+  <data name="DataSourceEditor.HeaderNamePlaceholder" xml:space="preserve"><value>t.ex. X-API-Key</value></data>
+  <data name="DataSourceEditor.Loading" xml:space="preserve"><value>Laddar...</value></data>
+  <data name="DataSourceEditor.NamePlaceholder" xml:space="preserve"><value>t.ex. Mitt API</value></data>
+  <data name="DataSourceEditor.Password" xml:space="preserve"><value>Lösenord</value></data>
+  <data name="DataSourceEditor.RequiresAuth" xml:space="preserve"><value>Kräver autentisering</value></data>
+  <data name="DataSourceEditor.Saving" xml:space="preserve"><value>Sparar...</value></data>
+  <data name="DataSourceEditor.Title" xml:space="preserve"><value>Datakälleredigerare</value></data>
+  <data name="DataSourceEditor.TokenUrl" xml:space="preserve"><value>Token-URL</value></data>
+  <data name="DataSourceEditor.Type" xml:space="preserve"><value>Typ</value></data>
+  <data name="DataSourceEditor.Username" xml:space="preserve"><value>Användarnamn</value></data>
+  <data name="DataSources.Create.PageTitle" xml:space="preserve"><value>Skapa datakälla</value></data>
+  <data name="DataSources.Edit.PageTitle" xml:space="preserve"><value>Redigera datakälla</value></data>
+  <data name="DataSources.Index.DeleteConfirm" xml:space="preserve"><value>Ta bort denna datakälla?</value></data>
+  <data name="DataSources.Index.EmptyLink" xml:space="preserve"><value>Skapa din första</value></data>
+  <data name="DataSources.Index.EmptyMessage" xml:space="preserve"><value>Inga datakällor än. Skapa din första!</value></data>
+  <data name="DataSources.Index.NewDataSource" xml:space="preserve"><value>Ny datakälla</value></data>
+  <data name="DataSources.Index.PageTitle" xml:space="preserve"><value>Datakällor</value></data>
+  <data name="DataSources.Index.Subtitle" xml:space="preserve"><value>Återanvändbara SQL-, REST- och SOAP-anslutningar för formulär och arbetsflöden</value></data>
+  <data name="DataSources.Index.TableKey" xml:space="preserve"><value>Nyckel</value></data>
+  <data name="DataSources.Index.TableKind" xml:space="preserve"><value>Typ</value></data>
+  <data name="DesignerNode.ChildHint" xml:space="preserve"><value>varje underordnad blir en</value></data>
+  <data name="DesignerNode.Column" xml:space="preserve"><value>Kolumn</value></data>
+  <data name="DesignerNode.Delete" xml:space="preserve"><value>Ta bort</value></data>
+  <data name="DesignerNode.DragToMove" xml:space="preserve"><value>Dra för att flytta</value></data>
+  <data name="DesignerNode.DropHere" xml:space="preserve"><value>Släpp här</value></data>
+  <data name="DesignerNode.DropInto" xml:space="preserve"><value>Släpp i</value></data>
+  <data name="DesignerNode.Duplicate" xml:space="preserve"><value>Duplicera</value></data>
+  <data name="DesignerNode.MoveDown" xml:space="preserve"><value>Flytta ner</value></data>
+  <data name="DesignerNode.MoveUp" xml:space="preserve"><value>Flytta upp</value></data>
+  <data name="DomainObjectDesigner.AddProperty" xml:space="preserve"><value>Lägg till egenskap</value></data>
+  <data name="DomainObjectDesigner.AllowMultiple" xml:space="preserve"><value>Tillåt flera</value></data>
+  <data name="DomainObjectDesigner.Back" xml:space="preserve"><value>Tillbaka</value></data>
+  <data name="DomainObjectDesigner.Choices" xml:space="preserve"><value>Alternativ</value></data>
+  <data name="DomainObjectDesigner.Constraints" xml:space="preserve"><value>Begränsningar</value></data>
+  <data name="DomainObjectDesigner.DataType" xml:space="preserve"><value>Datatyp</value></data>
+  <data name="DomainObjectDesigner.DecimalPlaces" xml:space="preserve"><value>Decimaler</value></data>
+  <data name="DomainObjectDesigner.DefaultValue" xml:space="preserve"><value>Standardvärde</value></data>
+  <data name="DomainObjectDesigner.DisplayName" xml:space="preserve"><value>Visningsnamn</value></data>
+  <data name="DomainObjectDesigner.DisplayNamePlaceholder" xml:space="preserve"><value>t.ex. Förnamn</value></data>
+  <data name="DomainObjectDesigner.Indexed" xml:space="preserve"><value>Indexerad</value></data>
+  <data name="DomainObjectDesigner.KeyColumn" xml:space="preserve"><value>Nyckel</value></data>
+  <data name="DomainObjectDesigner.MaxLength" xml:space="preserve"><value>Maximilängd</value></data>
+  <data name="DomainObjectDesigner.MaxValue" xml:space="preserve"><value>Maximivärde</value></data>
+  <data name="DomainObjectDesigner.MinLength" xml:space="preserve"><value>Minimilängd</value></data>
+  <data name="DomainObjectDesigner.MinValue" xml:space="preserve"><value>Minimivärde</value></data>
+  <data name="DomainObjectDesigner.NameColumn" xml:space="preserve"><value>Namn</value></data>
+  <data name="DomainObjectDesigner.NoProperties" xml:space="preserve"><value>Inga egenskaper än.</value></data>
+  <data name="DomainObjectDesigner.ObjectKeyPlaceholder" xml:space="preserve"><value>t.ex. kund</value></data>
+  <data name="DomainObjectDesigner.ObjectNamePlaceholder" xml:space="preserve"><value>t.ex. Kund</value></data>
+  <data name="DomainObjectDesigner.Pattern" xml:space="preserve"><value>Mönster</value></data>
+  <data name="DomainObjectDesigner.PatternPlaceholder" xml:space="preserve"><value>t.ex. ^[a-zA-Z]+$</value></data>
+  <data name="DomainObjectDesigner.Properties" xml:space="preserve"><value>Egenskaper</value></data>
+  <data name="DomainObjectDesigner.Property" xml:space="preserve"><value>Egenskap</value></data>
+  <data name="DomainObjectDesigner.PropertyKey" xml:space="preserve"><value>Egenskapsnyckel</value></data>
+  <data name="DomainObjectDesigner.PropertyKeyPlaceholder" xml:space="preserve"><value>t.ex. fornamn</value></data>
+  <data name="DomainObjectDesigner.References" xml:space="preserve"><value>Referenser</value></data>
+  <data name="DomainObjectDesigner.Required" xml:space="preserve"><value>Obligatorisk</value></data>
+  <data name="DomainObjectDesigner.SaveDraft" xml:space="preserve"><value>Spara utkast</value></data>
+  <data name="DomainObjectDesigner.Saved" xml:space="preserve"><value>Sparat</value></data>
+  <data name="DomainObjectDesigner.Saving" xml:space="preserve"><value>Sparar...</value></data>
+  <data name="DomainObjectDesigner.SelectProperty" xml:space="preserve"><value>Välj en egenskap för att redigera dess inställningar</value></data>
+  <data name="DomainObjectDesigner.SetTitleProperty" xml:space="preserve"><value>Ange som titelegenskap</value></data>
+  <data name="DomainObjectDesigner.TitleProperty" xml:space="preserve"><value>Titelegenskap</value></data>
+  <data name="DomainObjectDesigner.TypeColumn" xml:space="preserve"><value>Typ</value></data>
+  <data name="DomainObjectDesigner.Unique" xml:space="preserve"><value>Unik</value></data>
+  <data name="DomainObjectDesigner.UnsavedChanges" xml:space="preserve"><value>Osparade ändringar</value></data>
+  <data name="DomainObjectDesigner.Versions" xml:space="preserve"><value>Versioner</value></data>
+  <data name="DomainObjectVersioningPanel.BadgeDraft" xml:space="preserve"><value>Utkast</value></data>
+  <data name="DomainObjectVersioningPanel.BadgePublished" xml:space="preserve"><value>Publicerad</value></data>
+  <data name="DomainObjectVersioningPanel.Confirm" xml:space="preserve"><value>Bekräfta</value></data>
+  <data name="DomainObjectVersioningPanel.ConfirmLoadVersion" xml:space="preserve"><value>Du har osparade ändringar. Ladda denna version och förkasta ändringarna?</value></data>
+  <data name="DomainObjectVersioningPanel.ConfirmReturnToDraft" xml:space="preserve"><value>Du har osparade ändringar. Förkasta och återgå till utkast?</value></data>
+  <data name="DomainObjectVersioningPanel.CreateDraft" xml:space="preserve"><value>Skapa nytt utkast</value></data>
+  <data name="DomainObjectVersioningPanel.Loading" xml:space="preserve"><value>Laddar...</value></data>
+  <data name="DomainObjectVersioningPanel.NoVersions" xml:space="preserve"><value>Inga versioner än. Spara ett utkast och publicera för att skapa den första versionen.</value></data>
+  <data name="DomainObjectVersioningPanel.Publish" xml:space="preserve"><value>Publicera...</value></data>
+  <data name="DomainObjectVersioningPanel.PublishAs" xml:space="preserve"><value>Publicera som v</value></data>
+  <data name="DomainObjectVersioningPanel.ReturnToDraft" xml:space="preserve"><value>Återgå till utkast</value></data>
+  <data name="DomainObjectVersioningPanel.Versions" xml:space="preserve"><value>Versioner</value></data>
+  <data name="DomainObjectVersioningPanel.ViewVersion" xml:space="preserve"><value>Visa denna version</value></data>
+  <data name="DomainObjects.Create.PageTitle" xml:space="preserve"><value>Skapa domänobjekt</value></data>
+  <data name="DomainObjects.Edit.PageTitle" xml:space="preserve"><value>Redigera domänobjekt</value></data>
+  <data name="DomainObjects.Index.DeleteConfirm" xml:space="preserve"><value>Ta bort detta domänobjekt och alla dess poster?</value></data>
+  <data name="DomainObjects.Index.DraftBadge" xml:space="preserve"><value>Utkast</value></data>
+  <data name="DomainObjects.Index.EmptyLink" xml:space="preserve"><value>Skapa ditt första</value></data>
+  <data name="DomainObjects.Index.EmptyMessage" xml:space="preserve"><value>Inga domänobjekt än. Skapa ditt första!</value></data>
+  <data name="DomainObjects.Index.NewDomainObject" xml:space="preserve"><value>Nytt domänobjekt</value></data>
+  <data name="DomainObjects.Index.PageTitle" xml:space="preserve"><value>Domänobjekt</value></data>
+  <data name="DomainObjects.Index.PublishedBadge" xml:space="preserve"><value>Publicerad v</value></data>
+  <data name="DomainObjects.Index.RecordsTooltip" xml:space="preserve"><value>Poster</value></data>
+  <data name="DomainObjects.Index.Subtitle" xml:space="preserve"><value>Modellera de datarentiteter som dina formulär och arbetsflöden använder</value></data>
+  <data name="DomainObjects.Index.TableKey" xml:space="preserve"><value>Nyckel</value></data>
+  <data name="DomainObjects.Index.TableStatus" xml:space="preserve"><value>Status</value></data>
+  <data name="DomainObjects.Index.UnpublishedBadge" xml:space="preserve"><value>Opublicerad</value></data>
+  <data name="DomainObjects.Records.DeleteConfirm" xml:space="preserve"><value>Ta bort denna post?</value></data>
+  <data name="DomainObjects.Records.EmptyMessage" xml:space="preserve"><value>Inga poster än.</value></data>
+  <data name="DomainObjects.Records.Form.SelectPlaceholder" xml:space="preserve"><value>— välj —</value></data>
+  <data name="DomainObjects.Records.Form.SubmitCreate" xml:space="preserve"><value>Skapa post</value></data>
+  <data name="DomainObjects.Records.Form.SubmitEdit" xml:space="preserve"><value>Spara ändringar</value></data>
+  <data name="DomainObjects.Records.NewRecord" xml:space="preserve"><value>Ny post</value></data>
+  <data name="DomainObjects.Records.PageTitle" xml:space="preserve"><value> — Poster</value></data>
+  <data name="DomainObjects.Records.RecordCount" xml:space="preserve"><value>{0} post(er)</value></data>
+  <data name="Error.Heading" xml:space="preserve"><value>Fel</value></data>
+  <data name="Error.Message" xml:space="preserve"><value>Ett fel uppstod vid behandlingen av din begäran.</value></data>
+  <data name="Error.PageTitle" xml:space="preserve"><value>Fel</value></data>
+  <data name="Error.RequestId" xml:space="preserve"><value>Begäran-ID:</value></data>
+  <data name="ErrorViewer.Errors" xml:space="preserve"><value>Fel</value></data>
+  <data name="ErrorViewer.NoErrors" xml:space="preserve"><value>Inga fel upptäckta.</value></data>
+  <data name="ErrorViewer.NoWarnings" xml:space="preserve"><value>Inga varningar upptäckta.</value></data>
+  <data name="ErrorViewer.Warnings" xml:space="preserve"><value>Varningar</value></data>
+  <data name="ErrorViewer.WorkflowHealth" xml:space="preserve"><value>Arbetsflödeshälsa</value></data>
+  <data name="FormDesigner.Back" xml:space="preserve"><value>Tillbaka</value></data>
+  <data name="FormDesigner.Canvas" xml:space="preserve"><value>Rityta</value></data>
+  <data name="FormDesigner.ClosePreview" xml:space="preserve"><value>Stäng förhandsvisning</value></data>
+  <data name="FormDesigner.DescriptionPlaceholder" xml:space="preserve"><value>t.ex. Samla kundinformation</value></data>
+  <data name="FormDesigner.DragHere" xml:space="preserve"><value>Dra komponenter hit</value></data>
+  <data name="FormDesigner.FormNamePlaceholder" xml:space="preserve"><value>t.ex. Kontaktformulär</value></data>
+  <data name="FormDesigner.ObjectKeyHint" xml:space="preserve"><value>Objektsnyckel - länkar detta formulär till ett domänobjektschema</value></data>
+  <data name="FormDesigner.Preview" xml:space="preserve"><value>Förhandsvisning</value></data>
+  <data name="FormDesigner.PreviewTitle" xml:space="preserve"><value>Förhandsvisning</value></data>
+  <data name="FormDesigner.Properties" xml:space="preserve"><value>Egenskaper</value></data>
+  <data name="FormDesigner.Publish" xml:space="preserve"><value>Publicera</value></data>
+  <data name="FormDesigner.ReadOnlyView" xml:space="preserve"><value>Skrivskyddad vy</value></data>
+  <data name="FormDesigner.SaveDraft" xml:space="preserve"><value>Spara utkast</value></data>
+  <data name="FormDesigner.Saved" xml:space="preserve"><value>Sparat</value></data>
+  <data name="FormDesigner.Saving" xml:space="preserve"><value>Sparar...</value></data>
+  <data name="FormDesigner.SelectDomainObject" xml:space="preserve"><value>Välj ett domänobjekt</value></data>
+  <data name="FormDesigner.Title" xml:space="preserve"><value>Formulärdesigner</value></data>
+  <data name="FormDesigner.ToolboxHint" xml:space="preserve"><value>Dra komponenter från verktygslådan</value></data>
+  <data name="FormDesigner.UnsavedChanges" xml:space="preserve"><value>Osparade ändringar</value></data>
+  <data name="FormDesigner.Versions" xml:space="preserve"><value>Versioner</value></data>
+  <data name="FormPropertyPanel.AddValidator" xml:space="preserve"><value>Lägg till validator</value></data>
+  <data name="FormPropertyPanel.Alignment" xml:space="preserve"><value>Justering</value></data>
+  <data name="FormPropertyPanel.Columns" xml:space="preserve"><value>Kolumner</value></data>
+  <data name="FormPropertyPanel.CssClass" xml:space="preserve"><value>CSS-klass</value></data>
+  <data name="FormPropertyPanel.CustomErrorMessage" xml:space="preserve"><value>Anpassat felmeddelande</value></data>
+  <data name="FormPropertyPanel.CustomStyles" xml:space="preserve"><value>Anpassade stilar</value></data>
+  <data name="FormPropertyPanel.DataSource" xml:space="preserve"><value>Datakälla</value></data>
+  <data name="FormPropertyPanel.DefaultOpen" xml:space="preserve"><value>Öppen som standard</value></data>
+  <data name="FormPropertyPanel.DependsOn" xml:space="preserve"><value>Beror på</value></data>
+  <data name="FormPropertyPanel.Direction" xml:space="preserve"><value>Riktning</value></data>
+  <data name="FormPropertyPanel.Disabled" xml:space="preserve"><value>Inaktiverad</value></data>
+  <data name="FormPropertyPanel.Endpoint" xml:space="preserve"><value>Slutpunkt</value></data>
+  <data name="FormPropertyPanel.FormSettings" xml:space="preserve"><value>Formulärinställningar</value></data>
+  <data name="FormPropertyPanel.Gap" xml:space="preserve"><value>Mellanrum</value></data>
+  <data name="FormPropertyPanel.Height" xml:space="preserve"><value>Höjd</value></data>
+  <data name="FormPropertyPanel.Justify" xml:space="preserve"><value>Horisontell justering</value></data>
+  <data name="FormPropertyPanel.Label" xml:space="preserve"><value>Etikett</value></data>
+  <data name="FormPropertyPanel.LabelField" xml:space="preserve"><value>Etikettfält</value></data>
+  <data name="FormPropertyPanel.LabelPlaceholder" xml:space="preserve"><value>t.ex. Ange ditt namn...</value></data>
+  <data name="FormPropertyPanel.Layout" xml:space="preserve"><value>Layout</value></data>
+  <data name="FormPropertyPanel.Max" xml:space="preserve"><value>Max</value></data>
+  <data name="FormPropertyPanel.MaxLength" xml:space="preserve"><value>Maximilängd</value></data>
+  <data name="FormPropertyPanel.MaxWidth" xml:space="preserve"><value>Max. bredd</value></data>
+  <data name="FormPropertyPanel.Min" xml:space="preserve"><value>Min</value></data>
+  <data name="FormPropertyPanel.MinLength" xml:space="preserve"><value>Minimilängd</value></data>
+  <data name="FormPropertyPanel.MinWidth" xml:space="preserve"><value>Min. bredd</value></data>
+  <data name="FormPropertyPanel.MultiExpand" xml:space="preserve"><value>Flera expandera</value></data>
+  <data name="FormPropertyPanel.NameChangeWarning" xml:space="preserve"><value>OBS: ändringar av fältnamn kan påverka arbetsflödesbindningar.</value></data>
+  <data name="FormPropertyPanel.NamePlaceholder" xml:space="preserve"><value>t.ex. fornamn</value></data>
+  <data name="FormPropertyPanel.Pattern" xml:space="preserve"><value>Mönster</value></data>
+  <data name="FormPropertyPanel.Placeholder" xml:space="preserve"><value>Platshållare</value></data>
+  <data name="FormPropertyPanel.Properties" xml:space="preserve"><value>Egenskaper</value></data>
+  <data name="FormPropertyPanel.ReadOnly" xml:space="preserve"><value>Skrivskyddad</value></data>
+  <data name="FormPropertyPanel.Remove" xml:space="preserve"><value>Ta bort</value></data>
+  <data name="FormPropertyPanel.Required" xml:space="preserve"><value>Obligatorisk</value></data>
+  <data name="FormPropertyPanel.SuccessMessage" xml:space="preserve"><value>Framgångsmeddelande</value></data>
+  <data name="FormPropertyPanel.Validation" xml:space="preserve"><value>Validering</value></data>
+  <data name="FormPropertyPanel.Validators" xml:space="preserve"><value>Validatorer</value></data>
+  <data name="FormPropertyPanel.ValueField" xml:space="preserve"><value>Värdefält</value></data>
+  <data name="FormPropertyPanel.VisibilityCondition" xml:space="preserve"><value>Synlighetsvillkor</value></data>
+  <data name="FormPropertyPanel.Visible" xml:space="preserve"><value>Synlig</value></data>
+  <data name="FormPropertyPanel.Width" xml:space="preserve"><value>Bredd</value></data>
+  <data name="FormPropertyPanel.Wrap" xml:space="preserve"><value>Radbryt</value></data>
+  <data name="FormVersioningPanel.BadgeDraft" xml:space="preserve"><value>Utkast</value></data>
+  <data name="FormVersioningPanel.BadgePublished" xml:space="preserve"><value>Publicerad</value></data>
+  <data name="FormVersioningPanel.Confirm" xml:space="preserve"><value>Bekräfta</value></data>
+  <data name="FormVersioningPanel.ConfirmLoadVersion" xml:space="preserve"><value>Du har osparade ändringar. Ladda denna version och förkasta ändringarna?</value></data>
+  <data name="FormVersioningPanel.ConfirmReturnToDraft" xml:space="preserve"><value>Du har osparade ändringar. Förkasta och återgå till utkast?</value></data>
+  <data name="FormVersioningPanel.CreateDraft" xml:space="preserve"><value>Skapa nytt utkast</value></data>
+  <data name="FormVersioningPanel.Loading" xml:space="preserve"><value>Laddar...</value></data>
+  <data name="FormVersioningPanel.NoVersions" xml:space="preserve"><value>Inga versioner än. Spara ett utkast och publicera för att skapa den första versionen.</value></data>
+  <data name="FormVersioningPanel.Publish" xml:space="preserve"><value>Publicera...</value></data>
+  <data name="FormVersioningPanel.PublishAs" xml:space="preserve"><value>Publicera som v</value></data>
+  <data name="FormVersioningPanel.ReturnToDraft" xml:space="preserve"><value>Återgå till utkast</value></data>
+  <data name="FormVersioningPanel.Versions" xml:space="preserve"><value>Versioner</value></data>
+  <data name="FormVersioningPanel.ViewVersion" xml:space="preserve"><value>Visa denna version</value></data>
+  <data name="FormVersioningPanel.Viewing" xml:space="preserve"><value>Visar</value></data>
+  <data name="Forms.Create.PageTitle" xml:space="preserve"><value>Skapa formulär</value></data>
+  <data name="Forms.Edit.PageTitle" xml:space="preserve"><value>Redigera formulär</value></data>
+  <data name="Forms.Index.DeleteConfirm" xml:space="preserve"><value>Ta bort detta formulär?</value></data>
+  <data name="Forms.Index.EmptyLink" xml:space="preserve"><value>Skapa ditt första</value></data>
+  <data name="Forms.Index.EmptyMessage" xml:space="preserve"><value>Inga formulär än. Skapa ditt första!</value></data>
+  <data name="Forms.Index.NewForm" xml:space="preserve"><value>Nytt formulär</value></data>
+  <data name="Forms.Index.PageTitle" xml:space="preserve"><value>Formulär</value></data>
+  <data name="Forms.Index.Subtitle" xml:space="preserve"><value>Hantera dina formulärdefinitioner</value></data>
+  <data name="Forms.Index.TableUpdated" xml:space="preserve"><value>Uppdaterad</value></data>
+  <data name="GroupEditor.GroupNotFound" xml:space="preserve"><value>Gruppen finns inte längre.</value></data>
+  <data name="GroupEditor.MemberGroups" xml:space="preserve"><value>Medlemsgrupper</value></data>
+  <data name="GroupEditor.Members" xml:space="preserve"><value>Medlemmar</value></data>
+  <data name="GroupEditor.NamePlaceholder" xml:space="preserve"><value>t.ex. Ekonomi</value></data>
+  <data name="GroupEditor.NameRequired" xml:space="preserve"><value>Namn krävs.</value></data>
+  <data name="GroupEditor.NoMembers" xml:space="preserve"><value>Inga medlemmar än.</value></data>
+  <data name="GroupEditor.NoNestedGroups" xml:space="preserve"><value>Inga undergrupper.</value></data>
+  <data name="GroupEditor.SaveGroup" xml:space="preserve"><value>Spara grupp</value></data>
+  <data name="GroupEditor.Saving" xml:space="preserve"><value>Sparar...</value></data>
+  <data name="GroupEditor.SystemGroupMessage" xml:space="preserve"><value>Detta är en systemgrupp och kan inte ändras.</value></data>
+  <data name="GroupEditor.TitleEdit" xml:space="preserve"><value>Redigera grupp</value></data>
+  <data name="GroupEditor.TitleNew" xml:space="preserve"><value>Ny grupp</value></data>
+  <data name="Index.Heading" xml:space="preserve"><value>Argent</value></data>
+  <data name="Index.NoForms" xml:space="preserve"><value>Inga formulär än.</value></data>
+  <data name="Index.NoWorkflows" xml:space="preserve"><value>Inga arbetsflöden än.</value></data>
+  <data name="Index.PageTitle" xml:space="preserve"><value>Hem</value></data>
+  <data name="Index.SectionForms" xml:space="preserve"><value>Formulär</value></data>
+  <data name="Index.SectionWorkflows" xml:space="preserve"><value>Arbetsflöden</value></data>
+  <data name="Index.SignInPrompt" xml:space="preserve"><value>Logga in för att designa arbetsflöden och formulär.</value></data>
+  <data name="Index.Subtitle" xml:space="preserve"><value>Arbetsflödes- och formulärhantering</value></data>
+  <data name="Index.ViewAll" xml:space="preserve"><value>Visa alla</value></data>
+  <data name="InstanceModeler.Active" xml:space="preserve"><value>Aktiv</value></data>
+  <data name="InstanceModeler.FitToScreen" xml:space="preserve"><value>Anpassa till skärm</value></data>
+  <data name="InstanceModeler.Loading" xml:space="preserve"><value>Laddar diagram...</value></data>
+  <data name="InstanceModeler.NoDiagram" xml:space="preserve"><value>Inget arbetsflödesdiagram tillgängligt för denna instans.</value></data>
+  <data name="InstanceModeler.NodeFallback" xml:space="preserve"><value>Okänd</value></data>
+  <data name="InstanceModeler.Unvisited" xml:space="preserve"><value>Obesökt</value></data>
+  <data name="InstanceModeler.Visited" xml:space="preserve"><value>Besökt</value></data>
+  <data name="InstanceModeler.WorkflowDiagram" xml:space="preserve"><value>Arbetsflödesdiagram</value></data>
+  <data name="Layout.Footer" xml:space="preserve"><value>&amp;copy; 2026 Argent</value></data>
+  <data name="Login.Heading" xml:space="preserve"><value>Logga in</value></data>
+  <data name="Login.InvalidAttempt" xml:space="preserve"><value>Ogiltigt inloggningsförsök.</value></data>
+  <data name="Login.LockedOut" xml:space="preserve"><value>Detta konto är låst. Försök igen senare.</value></data>
+  <data name="Login.LogInButton" xml:space="preserve"><value>Logga in</value></data>
+  <data name="Login.PasswordLabel" xml:space="preserve"><value>Lösenord</value></data>
+  <data name="Login.PasswordPlaceholder" xml:space="preserve"><value>Ange ditt lösenord</value></data>
+  <data name="Login.RememberMe" xml:space="preserve"><value>Kom ihåg mig</value></data>
+  <data name="Login.Subtitle" xml:space="preserve"><value>Välkommen tillbaka till Argent</value></data>
+  <data name="Login.UsernameLabel" xml:space="preserve"><value>Användarnamn</value></data>
+  <data name="Login.UsernamePlaceholder" xml:space="preserve"><value>Ange ditt användarnamn</value></data>
+  <data name="MemberSelector.AddFormat" xml:space="preserve"><value>Lägg till {0}...</value></data>
+  <data name="MemberSelector.Added" xml:space="preserve"><value>Tillagd</value></data>
+  <data name="MemberSelector.FoundCount" xml:space="preserve"><value>{0} hittades</value></data>
+  <data name="MemberSelector.MembersCount" xml:space="preserve"><value>{0} medlemmar</value></data>
+  <data name="MemberSelector.NoMatches" xml:space="preserve"><value>Inga matchningar hittades.</value></data>
+  <data name="MemberSelector.Remove" xml:space="preserve"><value>Ta bort</value></data>
+  <data name="MemberSelector.SearchFormat" xml:space="preserve"><value>Sök {0}...</value></data>
+  <data name="ModelerPropertiesPanel.AddActionPlaceholder" xml:space="preserve"><value>-- lägg till åtgärd --</value></data>
+  <data name="ModelerPropertiesPanel.AfterArriving" xml:space="preserve"><value>Efter ankomst</value></data>
+  <data name="ModelerPropertiesPanel.AfterFieldDate" xml:space="preserve"><value>Efter fältdatum</value></data>
+  <data name="ModelerPropertiesPanel.Anchor" xml:space="preserve"><value>Förankring</value></data>
+  <data name="ModelerPropertiesPanel.Close" xml:space="preserve"><value>Stäng</value></data>
+  <data name="ModelerPropertiesPanel.Delay" xml:space="preserve"><value>Fördröjning</value></data>
+  <data name="ModelerPropertiesPanel.DictionaryComingSoon" xml:space="preserve"><value>Ordboksredigerare kommer snart</value></data>
+  <data name="ModelerPropertiesPanel.DomainObject" xml:space="preserve"><value>Domänobjekt</value></data>
+  <data name="ModelerPropertiesPanel.FieldKey" xml:space="preserve"><value>Fältnyckel</value></data>
+  <data name="ModelerPropertiesPanel.FieldKeyPlaceholder" xml:space="preserve"><value>t.ex. skickatDatum</value></data>
+  <data name="ModelerPropertiesPanel.Form" xml:space="preserve"><value>Formulär</value></data>
+  <data name="ModelerPropertiesPanel.Interrupting" xml:space="preserve"><value>Avbrytande</value></data>
+  <data name="ModelerPropertiesPanel.NeedsDomainObject" xml:space="preserve"><value>Arbetsflödet behöver ett domänobjekt på StartEvent</value></data>
+  <data name="ModelerPropertiesPanel.NoFormsBound" xml:space="preserve"><value>Inga formulär bundna till {0}</value></data>
+  <data name="ModelerPropertiesPanel.NodeFallback" xml:space="preserve"><value>Nod</value></data>
+  <data name="ModelerPropertiesPanel.None" xml:space="preserve"><value>-- ingen --</value></data>
+  <data name="ModelerPropertiesPanel.Properties" xml:space="preserve"><value>Egenskaper</value></data>
+  <data name="ModelerPropertiesPanel.Relative" xml:space="preserve"><value>Relativ</value></data>
+  <data name="ModelerPropertiesPanel.Schedule" xml:space="preserve"><value>Schema</value></data>
+  <data name="ModelerPropertiesPanel.SelectDomainFirst" xml:space="preserve"><value>Välj ett domänobjekt först</value></data>
+  <data name="ModelerPropertiesPanel.SelectObject" xml:space="preserve"><value>-- välj objekt --</value></data>
+  <data name="ModelerPropertiesPanel.SetFormField" xml:space="preserve"><value>Ställ in formulärfält</value></data>
+  <data name="ModelerPropertiesPanel.SetInstanceVariable" xml:space="preserve"><value>Ställ in instansvariabel</value></data>
+  <data name="ModelerPropertiesPanel.StartForm" xml:space="preserve"><value>Startformulär</value></data>
+  <data name="ModelerPropertiesPanel.TimerSchedule" xml:space="preserve"><value>Timerschema</value></data>
+  <data name="ModelerPropertiesPanel.TimerType" xml:space="preserve"><value>Typ</value></data>
+  <data name="ModelerPropertiesPanel.Timezone" xml:space="preserve"><value>Tidszon</value></data>
+  <data name="ModelerPropertiesPanel.UnknownAction" xml:space="preserve"><value>Okänd</value></data>
+  <data name="ModelerPropertiesPanel.Value" xml:space="preserve"><value>Värde</value></data>
+  <data name="ModelerPropertiesPanel.VariableName" xml:space="preserve"><value>Variabelnamn</value></data>
+  <data name="ModelerSidebar.Access" xml:space="preserve"><value>Åtkomst</value></data>
+  <data name="ModelerSidebar.Errors" xml:space="preserve"><value>Fel</value></data>
+  <data name="ModelerSidebar.Json" xml:space="preserve"><value>JSON</value></data>
+  <data name="ModelerSidebar.Roles" xml:space="preserve"><value>Roller</value></data>
+  <data name="ModelerSidebar.SaveFirstAccess" xml:space="preserve"><value>Spara arbetsflödet först för att hantera åtkomst.</value></data>
+  <data name="ModelerSidebar.Versions" xml:space="preserve"><value>Versioner</value></data>
+  <data name="Nav.Admin" xml:space="preserve"><value>Admin</value></data>
+  <data name="Nav.Audit" xml:space="preserve"><value>Revisionslogg</value></data>
+  <data name="Nav.Branding" xml:space="preserve"><value>Profilering</value></data>
+  <data name="Nav.Capabilities" xml:space="preserve"><value>Behörigheter</value></data>
+  <data name="Nav.DataSources" xml:space="preserve"><value>Datakällor</value></data>
+  <data name="Nav.DomainObjects" xml:space="preserve"><value>Domänobjekt</value></data>
+  <data name="Nav.Forms" xml:space="preserve"><value>Formulär</value></data>
+  <data name="Nav.Groups" xml:space="preserve"><value>Grupper</value></data>
+  <data name="Nav.Home" xml:space="preserve"><value>Hem</value></data>
+  <data name="Nav.Instances" xml:space="preserve"><value>Instanser</value></data>
+  <data name="Nav.Language" xml:space="preserve"><value>Språk</value></data>
+  <data name="Nav.Login" xml:space="preserve"><value>Logga in</value></data>
+  <data name="Nav.Logout" xml:space="preserve"><value>Logga ut</value></data>
+  <data name="Nav.MyProfile" xml:space="preserve"><value>Min profil</value></data>
+  <data name="Nav.MyTasks" xml:space="preserve"><value>Mina uppgifter</value></data>
+  <data name="Nav.Privacy" xml:space="preserve"><value>Integritet</value></data>
+  <data name="Nav.ToggleDarkMode" xml:space="preserve"><value>Växla mörkt läge</value></data>
+  <data name="Nav.Workflows" xml:space="preserve"><value>Arbetsflöden</value></data>
+  <data name="PermissionEditor.Allow" xml:space="preserve"><value>Tillåt</value></data>
+  <data name="PermissionEditor.Deny" xml:space="preserve"><value>Neka</value></data>
+  <data name="PermissionEditor.PolicyLabelGroup" xml:space="preserve"><value>grupp</value></data>
+  <data name="PermissionEditor.PolicyLabelRole" xml:space="preserve"><value>roll</value></data>
+  <data name="PermissionEditor.PolicyLabelUser" xml:space="preserve"><value>användare</value></data>
+  <data name="PermissionEditor.Title" xml:space="preserve"><value>Behörigheter</value></data>
+  <data name="PoolLanePropertiesPanel.AddLane" xml:space="preserve"><value>Lägg till fil</value></data>
+  <data name="PoolLanePropertiesPanel.Close" xml:space="preserve"><value>Stäng</value></data>
+  <data name="PoolLanePropertiesPanel.DefineRolesFirst" xml:space="preserve"><value>Definiera roller i rollpanelen först.</value></data>
+  <data name="PoolLanePropertiesPanel.DeleteLane" xml:space="preserve"><value>Ta bort fil</value></data>
+  <data name="PoolLanePropertiesPanel.DeletePool" xml:space="preserve"><value>Ta bort pool</value></data>
+  <data name="PoolLanePropertiesPanel.Label" xml:space="preserve"><value>Etikett</value></data>
+  <data name="PoolLanePropertiesPanel.NoRole" xml:space="preserve"><value>-- Ingen roll --</value></data>
+  <data name="PoolLanePropertiesPanel.Properties" xml:space="preserve"><value>Egenskaper</value></data>
+  <data name="PoolLanePropertiesPanel.Role" xml:space="preserve"><value>Roll</value></data>
+  <data name="PoolLanePropertiesPanel.Unlabeled" xml:space="preserve"><value>(omärkt)</value></data>
+  <data name="Privacy.Description" xml:space="preserve"><value>Använd denna sida för att beskriva webbplatsens integritetspolicy.</value></data>
+  <data name="Privacy.PageTitle" xml:space="preserve"><value>Integritetspolicy</value></data>
+  <data name="Profile.PageTitle" xml:space="preserve"><value>Min profil</value></data>
+  <data name="QuickLogin.InvalidCredentials" xml:space="preserve"><value>Ogiltig e-postadress eller lösenord.</value></data>
+  <data name="ResourceSharingPanel.ActionDelete" xml:space="preserve"><value>Ta bort</value></data>
+  <data name="ResourceSharingPanel.ActionDesign" xml:space="preserve"><value>Designa</value></data>
+  <data name="ResourceSharingPanel.ActionModel" xml:space="preserve"><value>Modellera</value></data>
+  <data name="ResourceSharingPanel.ActionRun" xml:space="preserve"><value>Kör</value></data>
+  <data name="ResourceSharingPanel.ActionView" xml:space="preserve"><value>Visa</value></data>
+  <data name="ResourceSharingPanel.DropHere" xml:space="preserve"><value>Dra en användare eller grupp hit</value></data>
+  <data name="ResourceSharingPanel.Loading" xml:space="preserve"><value>Laddar...</value></data>
+  <data name="ResourceSharingPanel.ManageAccess" xml:space="preserve"><value>Hantera åtkomst</value></data>
+  <data name="ResourceSharingPanel.NoResults" xml:space="preserve"><value>Inga resultat.</value></data>
+  <data name="ResourceSharingPanel.SearchPlaceholder" xml:space="preserve"><value>Sök användare &amp;amp; grupper...</value></data>
+  <data name="ResourceSharingPanel.ShareAccess" xml:space="preserve"><value>Dela åtkomst</value></data>
+  <data name="ResourceSharingPanel.CapHint" xml:space="preserve"><value>Visar första {0} av {1}. Skriv för att söka efter en specifik användare eller grupp.</value></data>
+  <data name="RoleEditor.NamePlaceholder" xml:space="preserve"><value>t.ex. Administratör</value></data>
+  <data name="RoleEditor.NameRequired" xml:space="preserve"><value>Namn krävs.</value></data>
+  <data name="RoleEditor.RoleName" xml:space="preserve"><value>Rollnamn</value></data>
+  <data name="RoleEditor.SaveRole" xml:space="preserve"><value>Spara roll</value></data>
+  <data name="RoleEditor.Saving" xml:space="preserve"><value>Sparar...</value></data>
+  <data name="RoleEditor.TitleEdit" xml:space="preserve"><value>Redigera roll</value></data>
+  <data name="RoleEditor.TitleNew" xml:space="preserve"><value>Ny roll</value></data>
+  <data name="TaskDetail.CompleteTask" xml:space="preserve"><value>Slutför uppgift</value></data>
+  <data name="TaskDetail.Completed" xml:space="preserve"><value>Uppgiften slutfördes.</value></data>
+  <data name="TaskDetail.Due" xml:space="preserve"><value>Förfaller:</value></data>
+  <data name="TaskDetail.Priority" xml:space="preserve"><value>Prioritet:</value></data>
+  <data name="TaskDetail.SelectAction" xml:space="preserve"><value>Välj en åtgärd för att slutföra denna uppgift:</value></data>
+  <data name="TaskDetail.State" xml:space="preserve"><value>Status:</value></data>
+  <data name="TaskDetail.TaskFallback" xml:space="preserve"><value>Uppgift</value></data>
+  <data name="TaskDetail.TaskNotFound" xml:space="preserve"><value>Uppgiften hittades inte.</value></data>
+  <data name="Tasks.Detail.BackToInbox" xml:space="preserve"><value>Tillbaka till inkorgen</value></data>
+  <data name="Tasks.Detail.PageTitle" xml:space="preserve"><value>Uppgift</value></data>
+  <data name="Tasks.Index.EmptyMessage" xml:space="preserve"><value>Inga väntande uppgifter. Allt klart!</value></data>
+  <data name="Tasks.Index.EmptyHint" xml:space="preserve"><value>Uppgifter som tilldelats specifika användare eller roller som du inte är medlem i visas inte här.</value></data>
+  <data name="Tasks.Index.PageTitle" xml:space="preserve"><value>Mina uppgifter</value></data>
+  <data name="Tasks.Index.StatePending" xml:space="preserve"><value>Väntande</value></data>
+  <data name="Tasks.Index.Subtitle" xml:space="preserve"><value>Arbetsflödesuppgifter tilldelade dig eller dina roller</value></data>
+  <data name="Tasks.Index.TableDue" xml:space="preserve"><value>Förfaller</value></data>
+  <data name="Tasks.Index.TablePriority" xml:space="preserve"><value>Prioritet</value></data>
+  <data name="Tasks.Index.TableTitle" xml:space="preserve"><value>Titel</value></data>
+  <data name="Tasks.Index.UntitledFallback" xml:space="preserve"><value>Namnlös</value></data>
+  <data name="UserGroupEditor.NoData" xml:space="preserve"><value>Inga användare eller grupper tillgängliga.</value></data>
+  <data name="UserGroupEditor.NoResults" xml:space="preserve"><value>Inga resultat.</value></data>
+  <data name="UserGroupEditor.SearchPlaceholder" xml:space="preserve"><value>Sök användare &amp;amp; grupper...</value></data>
+  <data name="UserGroupEditor.Title" xml:space="preserve"><value>Användar-/gruppväljare</value></data>
+  <data name="Users.View.DepartmentLabel" xml:space="preserve"><value>Avdelning</value></data>
+  <data name="Users.View.EmailLabel" xml:space="preserve"><value>E-post</value></data>
+  <data name="Users.View.GroupsLabel" xml:space="preserve"><value>Grupper</value></data>
+  <data name="Users.View.ManagerLabel" xml:space="preserve"><value>Chef</value></data>
+  <data name="Users.View.NoGroups" xml:space="preserve"><value>Inte medlem i någon grupp</value></data>
+  <data name="Users.View.NoRoles" xml:space="preserve"><value>Inga</value></data>
+  <data name="Users.View.PageTitle" xml:space="preserve"><value>Användarinformation</value></data>
+  <data name="Users.View.RolesLabel" xml:space="preserve"><value>Roller</value></data>
+  <data name="Validation.InvalidEmail" xml:space="preserve"><value>{0} är inte en giltig e-postadress.</value></data>
+  <data name="Validation.InvalidFormat" xml:space="preserve"><value>{0} har ett ogiltigt format.</value></data>
+  <data name="Validation.MaxLength" xml:space="preserve"><value>{0} måste vara högst {1} tecken.</value></data>
+  <data name="Validation.MinLength" xml:space="preserve"><value>{0} måste vara minst {1} tecken.</value></data>
+  <data name="Validation.PasswordsDoNotMatch" xml:space="preserve"><value>Lösenorden stämmer inte överens.</value></data>
+  <data name="Validation.RequiredField" xml:space="preserve"><value>{0} är obligatoriskt.</value></data>
+  <data name="ValidatorListEditor.AddRule" xml:space="preserve"><value>Lägg till regel</value></data>
+  <data name="ValidatorListEditor.BadgeCompare" xml:space="preserve"><value>Jämför</value></data>
+  <data name="ValidatorListEditor.BadgeEmail" xml:space="preserve"><value>E-post</value></data>
+  <data name="ValidatorListEditor.BadgeExpression" xml:space="preserve"><value>Uttryck</value></data>
+  <data name="ValidatorListEditor.BadgeLength" xml:space="preserve"><value>Längd</value></data>
+  <data name="ValidatorListEditor.BadgePattern" xml:space="preserve"><value>Mönster</value></data>
+  <data name="ValidatorListEditor.BadgeRange" xml:space="preserve"><value>Intervall</value></data>
+  <data name="ValidatorListEditor.BadgeRule" xml:space="preserve"><value>Regel</value></data>
+  <data name="ValidatorListEditor.BadgeUrl" xml:space="preserve"><value>URL</value></data>
+  <data name="ValidatorListEditor.CustomMessage" xml:space="preserve"><value>Anpassat felmeddelande (valfritt)</value></data>
+  <data name="ValidatorListEditor.ExpressionHint" xml:space="preserve"><value>NCalc-uttryck; fältets värde binds till 'value'.</value></data>
+  <data name="ValidatorListEditor.ExpressionPlaceholder" xml:space="preserve"><value>t.ex. värde > annat_fält</value></data>
+  <data name="ValidatorListEditor.Max" xml:space="preserve"><value>Max</value></data>
+  <data name="ValidatorListEditor.Min" xml:space="preserve"><value>Min</value></data>
+  <data name="ValidatorListEditor.PatternPlaceholder" xml:space="preserve"><value>^mönster$</value></data>
+  <data name="ValidatorListEditor.RemoveRule" xml:space="preserve"><value>Ta bort regel</value></data>
+  <data name="ValidatorListEditor.SelectOtherField" xml:space="preserve"><value>-- annat fält --</value></data>
+  <data name="ValidatorListEditor.TypeCompare" xml:space="preserve"><value>Jämför med fält</value></data>
+  <data name="ValidatorListEditor.TypeEmail" xml:space="preserve"><value>E-post</value></data>
+  <data name="ValidatorListEditor.TypeExpression" xml:space="preserve"><value>Uttryck</value></data>
+  <data name="ValidatorListEditor.TypeLength" xml:space="preserve"><value>Längd</value></data>
+  <data name="ValidatorListEditor.TypeNumericRange" xml:space="preserve"><value>Numeriskt intervall</value></data>
+  <data name="ValidatorListEditor.TypePattern" xml:space="preserve"><value>Mönster (regex)</value></data>
+  <data name="ValidatorListEditor.TypeUrl" xml:space="preserve"><value>URL</value></data>
+  <data name="WorkflowModeler.Loading" xml:space="preserve"><value>Laddar...</value></data>
+  <data name="WorkflowModeler.NewWorkflow" xml:space="preserve"><value>Nytt arbetsflöde</value></data>
+  <data name="WorkflowModeler.NoWorkflow" xml:space="preserve"><value>Inget arbetsflöde laddat.</value></data>
+  <data name="WorkflowModeler.SaveDraft" xml:space="preserve"><value>Spara utkast</value></data>
+  <data name="WorkflowModeler.SelectWorkflow" xml:space="preserve"><value>Välj ett arbetsflöde att redigera</value></data>
+  <data name="WorkflowModeler.Title" xml:space="preserve"><value>Arbetsflödesmodellerare</value></data>
+  <data name="WorkflowModeler.Workflow" xml:space="preserve"><value>Arbetsflöde</value></data>
+  <data name="WorkflowRolesPanel.AddRole" xml:space="preserve"><value>Lägg till roll</value></data>
+  <data name="WorkflowRolesPanel.Delete" xml:space="preserve"><value>Ta bort</value></data>
+  <data name="WorkflowRolesPanel.NoRoles" xml:space="preserve"><value>Inga roller definierade. Roller länkar swimlane-uppgifter till specifika målgrupper som konfigureras vid publicering.</value></data>
+  <data name="WorkflowRolesPanel.ProcessRoles" xml:space="preserve"><value>Processroller</value></data>
+  <data name="WorkflowRolesPanel.Rename" xml:space="preserve"><value>Byt namn</value></data>
+  <data name="WorkflowRolesPanel.Unnamed" xml:space="preserve"><value>(namnlös)</value></data>
+  <data name="WorkflowStarter.FailedToStart" xml:space="preserve"><value>Misslyckades med att starta arbetsflöde:</value></data>
+  <data name="WorkflowStarter.Loading" xml:space="preserve"><value>Laddar arbetsflöde...</value></data>
+  <data name="WorkflowStarter.NoDeployedVersion" xml:space="preserve"><value>Ingen publicerad version hittades för detta arbetsflöde.</value></data>
+  <data name="WorkflowStarter.NoStartForm" xml:space="preserve"><value>Detta arbetsflöde har inget startformulär konfigurerat.</value></data>
+  <data name="WorkflowStarter.StartEventNoForm" xml:space="preserve"><value>Detta arbetsflödes start-händelse har inget formulär konfigurerat.</value></data>
+  <data name="WorkflowVersioningPanel.BadgeDeployed" xml:space="preserve"><value>Driftsatt</value></data>
+  <data name="WorkflowVersioningPanel.BadgeDraft" xml:space="preserve"><value>Utkast</value></data>
+  <data name="WorkflowVersioningPanel.BadgePublished" xml:space="preserve"><value>Publicerad</value></data>
+  <data name="WorkflowVersioningPanel.Confirm" xml:space="preserve"><value>Bekräfta</value></data>
+  <data name="WorkflowVersioningPanel.ConfirmDiscardChanges" xml:space="preserve"><value>Du har osparade ändringar. Vill du förkasta dem?</value></data>
+  <data name="WorkflowVersioningPanel.ConfirmDiscardDraft" xml:space="preserve"><value>Förkasta detta utkast?</value></data>
+  <data name="WorkflowVersioningPanel.ConfirmLoadVersion" xml:space="preserve"><value>Du har osparade ändringar. Ladda denna version och förkasta ändringarna?</value></data>
+  <data name="WorkflowVersioningPanel.ConfirmReturnToDraft" xml:space="preserve"><value>Du har osparade ändringar. Förkasta och återgå till utkast?</value></data>
+  <data name="WorkflowVersioningPanel.CreateDraft" xml:space="preserve"><value>Skapa nytt utkast</value></data>
+  <data name="WorkflowVersioningPanel.Loading" xml:space="preserve"><value>Laddar...</value></data>
+  <data name="WorkflowVersioningPanel.NoVersions" xml:space="preserve"><value>Inga versioner än. Spara ett utkast och publicera för att skapa den första versionen.</value></data>
+  <data name="WorkflowVersioningPanel.Publish" xml:space="preserve"><value>Publicera...</value></data>
+  <data name="WorkflowVersioningPanel.PublishAs" xml:space="preserve"><value>Publicera som v</value></data>
+  <data name="WorkflowVersioningPanel.ReturnToDraft" xml:space="preserve"><value>Återgå till utkast</value></data>
+  <data name="WorkflowVersioningPanel.Versions" xml:space="preserve"><value>Versioner</value></data>
+  <data name="WorkflowVersioningPanel.ViewVersion" xml:space="preserve"><value>Visa denna version</value></data>
+  <data name="WorkflowVersioningPanel.Viewing" xml:space="preserve"><value>Visar</value></data>
+  <data name="Workflows.Edit.PageTitle" xml:space="preserve"><value>Redigera - </value></data>
+  <data name="Workflows.Index.DeleteConfirm" xml:space="preserve"><value>Ta bort detta arbetsflöde?</value></data>
+  <data name="Workflows.Index.EmptyMessage" xml:space="preserve"><value>Inga arbetsflöden än. Skapa ditt första!</value></data>
+  <data name="Workflows.Index.ModalCreate" xml:space="preserve"><value>Skapa</value></data>
+  <data name="Workflows.Index.ModalDescriptionPlaceholder" xml:space="preserve"><value>Vad gör detta arbetsflöde?</value></data>
+  <data name="Workflows.Index.ModalNamePlaceholder" xml:space="preserve"><value>Mitt arbetsflöde</value></data>
+  <data name="Workflows.Index.ModalTitle" xml:space="preserve"><value>Nytt arbetsflöde</value></data>
+  <data name="Workflows.Index.NameRequired" xml:space="preserve"><value>Namn krävs.</value></data>
+  <data name="Workflows.Index.NewWorkflow" xml:space="preserve"><value>Nytt arbetsflöde</value></data>
+  <data name="Workflows.Index.PageTitle" xml:space="preserve"><value>Arbetsflöden</value></data>
+  <data name="Workflows.Index.StartTooltip" xml:space="preserve"><value>Starta</value></data>
+  <data name="Workflows.Index.Subtitle" xml:space="preserve"><value>Hantera dina arbetsflödesdefinitioner</value></data>
+  <data name="Workflows.Modeler.PageTitle" xml:space="preserve"><value>Arbetsflödesmodellerare</value></data>
+  <data name="Workflows.Start.AllWorkflows" xml:space="preserve"><value>Alla arbetsflöden</value></data>
+  <data name="Workflows.Start.EmptyMessage" xml:space="preserve"><value>Inga arbetsflöden tillgängliga att starta.</value></data>
+  <data name="Workflows.Start.PageTitle" xml:space="preserve"><value>Starta ett arbetsflöde</value></data>
+  <data name="Workflows.Start.StartButton" xml:space="preserve"><value>Starta</value></data>
+  <data name="Workflows.Start.Subtitle" xml:space="preserve"><value>Välj ett arbetsflöde att starta</value></data>
+  <data name="Workflows.View.Badge" xml:space="preserve"><value>Visar</value></data>
+  <data name="FormRuntime.Loading" xml:space="preserve"><value>Läser in formulär…</value></data>
+  <data name="FormRuntime.InvalidDefinition" xml:space="preserve"><value>Formuläret kan inte visas eftersom definitionen är ogiltig.</value></data>
+  <data name="FormRuntime.SelectPlaceholder" xml:space="preserve"><value>Välj…</value></data>
+  <data name="FormRuntime.ErrorSummary" xml:space="preserve"><value>Rätta de markerade fälten.</value></data>
+  <data name="FormRuntime.Submit" xml:space="preserve"><value>Skicka</value></data>
+  <data name="FormRuntime.Submitting" xml:space="preserve"><value>Skickar…</value></data>
+  <data name="FormRuntime.Submitted" xml:space="preserve"><value>Formuläret har skickats.</value></data>
+  <data name="FormRuntime.LoadFailed" xml:space="preserve"><value>Formuläret kunde inte läsas in.</value></data>
+  <data name="FormRuntime.SubmissionFailed" xml:space="preserve"><value>Formuläret kunde inte skickas.</value></data>
+  <data name="FormRuntime.SecurityFailed" xml:space="preserve"><value>En säker formulärsession kunde inte skapas.</value></data>
+  <data name="FormRuntime.NotPublished" xml:space="preserve"><value>Formuläret är inte publicerat.</value></data>
+  <data name="Common.Previous" xml:space="preserve"><value>Föregående</value></data>
+  <data name="Common.Next" xml:space="preserve"><value>Nästa</value></data>
+  <data name="Tasks.Action.Claim" xml:space="preserve"><value>Ta uppgift</value></data>
+  <data name="Tasks.Action.Release" xml:space="preserve"><value>Släpp uppgift</value></data>
+  <data name="Tasks.Action.Open" xml:space="preserve"><value>Öppna</value></data>
+  <data name="Tasks.Index.SearchLabel" xml:space="preserve"><value>Sök uppgifter</value></data>
+  <data name="Tasks.Index.SearchPlaceholder" xml:space="preserve"><value>Titel eller beskrivning</value></data>
+  <data name="Tasks.Index.ScopeLabel" xml:space="preserve"><value>Visa</value></data>
+  <data name="Tasks.Index.ScopeActive" xml:space="preserve"><value>Aktiva</value></data>
+  <data name="Tasks.Index.ScopeCompleted" xml:space="preserve"><value>Slutförda</value></data>
+  <data name="Tasks.Index.SortLabel" xml:space="preserve"><value>Sortera efter</value></data>
+  <data name="Tasks.Index.SortDue" xml:space="preserve"><value>Förfallodatum</value></data>
+  <data name="Tasks.Index.SortNewest" xml:space="preserve"><value>Nyaste</value></data>
+  <data name="Tasks.Index.SortOldest" xml:space="preserve"><value>Äldsta</value></data>
+  <data name="Tasks.Index.SortPriority" xml:space="preserve"><value>Prioritet</value></data>
+  <data name="Tasks.Index.Apply" xml:space="preserve"><value>Tillämpa</value></data>
+  <data name="Tasks.Index.NoMatches" xml:space="preserve"><value>Inga uppgifter matchar de aktuella filtren.</value></data>
+  <data name="Tasks.Index.ListLabel" xml:space="preserve"><value>Uppgiftslista</value></data>
+  <data name="Tasks.Index.Priority" xml:space="preserve"><value>Prioritet {0}</value></data>
+  <data name="Tasks.Index.Available" xml:space="preserve"><value>Tillgänglig</value></data>
+  <data name="Tasks.Index.AssignedToYou" xml:space="preserve"><value>Tilldelad till dig</value></data>
+  <data name="Tasks.Index.Created" xml:space="preserve"><value>Skapad {0}</value></data>
+  <data name="Tasks.Index.Due" xml:space="preserve"><value>Förfaller</value></data>
+  <data name="Tasks.Index.Overdue" xml:space="preserve"><value>Försenad</value></data>
+  <data name="Tasks.Index.PagesLabel" xml:space="preserve"><value>Uppgiftssidor</value></data>
+  <data name="Tasks.Index.PageSummary" xml:space="preserve"><value>Sida {0} av {1} · {2} uppgifter</value></data>
+  <data name="Tasks.Detail.AvailableToClaim" xml:space="preserve"><value>Tillgänglig att ta</value></data>
+  <data name="Tasks.Detail.Created" xml:space="preserve"><value>Skapad</value></data>
+  <data name="Tasks.Detail.NoDueDate" xml:space="preserve"><value>Inget förfallodatum</value></data>
+  <data name="Tasks.Detail.Unavailable" xml:space="preserve"><value>Uppgiften är inte längre tillgänglig. Gå tillbaka till inkorgen för att uppdatera listan.</value></data>
+  <data name="Tasks.Detail.AccessLost" xml:space="preserve"><value>Du har inte längre behörighet att utföra åtgärden.</value></data>
+  <data name="Tasks.Detail.Conflict" xml:space="preserve"><value>Uppgiften ändrades medan den var öppen. Uppdatera sidan och försök igen.</value></data>
+  <data name="Tasks.Detail.AvailableActions" xml:space="preserve"><value>Tillgängliga åtgärder</value></data>
+  <data name="Tasks.Detail.Complete" xml:space="preserve"><value>Slutför uppgift</value></data>
+  <data name="TaskActions.KeyHint" xml:space="preserve"><value>Anslutningens etikett används för vägval. Ange en knapptext nedan för att ändra visningstexten.</value></data>
+  <data name="TaskActions.Label" xml:space="preserve"><value>Knapptext</value></data>
+  <data name="TaskActions.Appearance" xml:space="preserve"><value>Knappens utseende</value></data>
+  <data name="TaskActions.Automatic" xml:space="preserve"><value>Automatiskt</value></data>
+  <data name="TaskActions.Primary" xml:space="preserve"><value>Primär</value></data>
+  <data name="TaskActions.Secondary" xml:space="preserve"><value>Sekundär</value></data>
+  <data name="TaskActions.Danger" xml:space="preserve"><value>Varning</value></data>
+  <data name="TaskActions.Confirm" xml:space="preserve"><value>Bekräftelsetext (valfri)</value></data>
+</root>

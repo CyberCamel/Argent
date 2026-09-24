@@ -1,0 +1,83 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Argent.Core\Argent.Core.csproj" />
+    <ProjectReference Include="..\Argent.Infrastructure\Argent.Infrastructure.csproj" />
+    <ProjectReference Include="..\Argent.Runtime\Argent.Runtime.csproj" />
+    <ProjectReference Include="..\Argent.WebComponents\Argent.WebComponents.csproj" />
+    <ProjectReference Include="..\Argent.Web.Client\Argent.Web.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json.Schema" Version="4.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.5">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Security\" />
+    <!-- Generated before build; owned by the HTTP host so UseStaticFiles serves
+         a real file instead of a dangling cross-project static-asset entry. -->
+    <Content Remove="wwwroot\js\argent-form.js" />
+    <Content Include="wwwroot\js\argent-form.js"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="BuildArgentFormRuntime" BeforeTargets="PrepareForBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec WorkingDirectory="..\Argent.FormRuntime" Command="npm run build" />
+    <Copy SourceFiles="..\Argent.FormRuntime\dist\argent-form.js"
+          DestinationFiles="wwwroot\js\argent-form.js" />
+  </Target>
+
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="Pages\DomainObjects\Create.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\DomainObjects\Edit.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\DomainObjects\Index.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\DomainObjects\_DataSourcesContainer.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\DomainObjects\_PropertiesTable.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\Workflows\Model2\Create.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\Workflows\Model2\Edit.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\Create.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\Delete.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\Edit.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\Index.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\List.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\_CreateUserPartial.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\_EditUserPartial.cshtml" />
+    <_ContentIncludedByDefault Remove="Pages\UserAdministration\_UserTablePartial.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="Pages\Admin\Users\Create.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\Delete.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\Edit.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\Index.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\List.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\_CreateUserPartial.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\_EditUserPartial.cshtml" />
+    <AdditionalFiles Include="Pages\Admin\Users\_UserTablePartial.cshtml" />
+  </ItemGroup>
+
+  <Target Name="TailwindBuild" BeforeTargets="Build" Condition="Exists('$(MSBuildProjectDirectory)\node_modules\.bin\tailwindcss')">
+    <Exec Command="npx @tailwindcss/cli -i Styles/app.css -o wwwroot/css/app.css" />
+  </Target>
+
+</Project>

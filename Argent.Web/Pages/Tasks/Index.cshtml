@@ -1,0 +1,109 @@
+@page "/Tasks"
+@model Argent.Web.Pages.Tasks.IndexModel
+@using Argent.Core.Workflows.Execution
+@{
+    ViewData["Title"] = Localizer["Tasks.Index.PageTitle"];
+}
+
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = Localizer["Tasks.Index.PageTitle"].Value,
+    Subtitle = Localizer["Tasks.Index.Subtitle"].Value
+}' />
+
+@if (!string.IsNullOrWhiteSpace(Model.TaskError))
+{
+    <div role="alert" class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">@Model.TaskError</div>
+}
+
+<form method="get" class="card p-4 mb-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-3 items-end">
+    <div>
+        <label asp-for="Search" class="block text-sm font-medium mb-1">@Localizer["Tasks.Index.SearchLabel"]</label>
+        <input asp-for="Search" class="form-input" type="search" placeholder="@Localizer["Tasks.Index.SearchPlaceholder"]" />
+    </div>
+    <div>
+        <label asp-for="Scope" class="block text-sm font-medium mb-1">@Localizer["Tasks.Index.ScopeLabel"]</label>
+        <select asp-for="Scope" class="form-input"><option value="Active">@Localizer["Tasks.Index.ScopeActive"]</option><option value="Completed">@Localizer["Tasks.Index.ScopeCompleted"]</option></select>
+    </div>
+    <div>
+        <label asp-for="Sort" class="block text-sm font-medium mb-1">@Localizer["Tasks.Index.SortLabel"]</label>
+        <select asp-for="Sort" class="form-input"><option value="DueDate">@Localizer["Tasks.Index.SortDue"]</option><option value="Newest">@Localizer["Tasks.Index.SortNewest"]</option><option value="Oldest">@Localizer["Tasks.Index.SortOldest"]</option><option value="Priority">@Localizer["Tasks.Index.SortPriority"]</option></select>
+    </div>
+    <button type="submit" class="btn-action btn-action-primary min-h-11 px-4">@Localizer["Tasks.Index.Apply"]</button>
+</form>
+
+@if (Model.Result.Items.Count == 0)
+{
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = Model.Search is null ? "bi-check2-circle" : "bi-search",
+        Message = Model.Search is null ? Localizer["Tasks.Index.EmptyMessage"].Value : Localizer["Tasks.Index.NoMatches"].Value,
+        Hint = Model.Search is null ? Localizer["Tasks.Index.EmptyHint"].Value : null
+    }' />
+}
+else
+{
+    <div class="space-y-3" aria-label="@Localizer["Tasks.Index.ListLabel"]">
+        @foreach (var task in Model.Result.Items)
+        {
+            var overdue = task.DueDate.HasValue && task.DueDate.Value < DateTime.UtcNow && task.State == UserTaskState.Pending;
+            <article class="card p-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-4 items-center">
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                        <a href="/Tasks/Detail/@task.Id" class="font-semibold text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400">
+                            @(task.Title ?? Localizer["Tasks.Index.UntitledFallback"])
+                        </a>
+                        @if (task.Priority != 0)
+                        {
+                            <span class="badge @(task.Priority > 0 ? "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300")">
+                                @Localizer["Tasks.Index.Priority", task.Priority]
+                            </span>
+                        }
+                        <span class="badge @(task.AssignedTo is null ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200" : "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200")">
+                            @(task.AssignedTo is null ? Localizer["Tasks.Index.Available"] : Localizer["Tasks.Index.AssignedToYou"])
+                        </span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(task.Description))
+                    {
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mb-2 line-clamp-2">@task.Description</p>
+                    }
+                    <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                        <span><i class="bi bi-clock mr-1"></i>@Localizer["Tasks.Index.Created", task.CreatedAt.ToLocalTime().ToString("g")]</span>
+                        @if (task.DueDate.HasValue)
+                        {
+                            <span class="@(overdue ? "text-red-700 dark:text-red-300 font-semibold" : "")">
+                                <i class="bi bi-calendar-event mr-1"></i>@(overdue ? Localizer["Tasks.Index.Overdue"] : Localizer["Tasks.Index.Due"]) @task.DueDate.Value.ToLocalTime().ToString("g")
+                            </span>
+                        }
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2 md:justify-end">
+                    @if (task.CanClaim)
+                    {
+                        <form method="post" asp-page-handler="Claim"><input type="hidden" name="id" value="@task.Id" /><button type="submit" class="btn-action btn-action-secondary px-3 py-2"><i class="bi bi-person-check mr-1"></i>@Localizer["Tasks.Action.Claim"]</button></form>
+                    }
+                    @if (task.CanRelease)
+                    {
+                        <form method="post" asp-page-handler="Release"><input type="hidden" name="id" value="@task.Id" /><button type="submit" class="btn-action btn-action-secondary px-3 py-2"><i class="bi bi-person-dash mr-1"></i>@Localizer["Tasks.Action.Release"]</button></form>
+                    }
+                    <a class="btn-action btn-action-primary px-3 py-2" href="/Tasks/Detail/@task.Id">@Localizer["Tasks.Action.Open"] <i class="bi bi-arrow-right ml-1"></i></a>
+                </div>
+            </article>
+        }
+    </div>
+
+    @if (Model.Result.TotalPages > 1)
+    {
+        <nav class="flex justify-between items-center mt-5" aria-label="@Localizer["Tasks.Index.PagesLabel"]">
+            <span class="text-sm text-gray-500">@Localizer["Tasks.Index.PageSummary", Model.Result.Page, Model.Result.TotalPages, Model.Result.TotalCount]</span>
+            <div class="flex gap-2">
+                @if (Model.Result.Page > 1)
+                {
+                    <a class="btn-action btn-action-secondary px-3 py-2" asp-route-Search="@Model.Search" asp-route-Scope="@Model.Scope" asp-route-Sort="@Model.Sort" asp-route-p="@(Model.Result.Page - 1)">@Localizer["Common.Previous"]</a>
+                }
+                @if (Model.Result.Page < Model.Result.TotalPages)
+                {
+                    <a class="btn-action btn-action-secondary px-3 py-2" asp-route-Search="@Model.Search" asp-route-Scope="@Model.Scope" asp-route-Sort="@Model.Sort" asp-route-p="@(Model.Result.Page + 1)">@Localizer["Common.Next"]</a>
+                }
+            </div>
+        </nav>
+    }
+}

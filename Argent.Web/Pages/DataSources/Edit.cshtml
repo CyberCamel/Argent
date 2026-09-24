@@ -1,0 +1,10 @@
+@page "/DataSources/Edit/{id:guid}"
+@using Microsoft.Extensions.Localization
+@using Argent.WebComponents.DataSources
+@model Argent.Web.Pages.DataSources.EditModel
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = Localizer["DataSources.Edit.PageTitle"];
+}
+
+<component type="typeof(DataSourceEditor)" render-mode="ServerPrerendered" param-Id="@Model.Id" />

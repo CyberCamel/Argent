@@ -1,0 +1,89 @@
+{
+  "protocolVersion": "2.0",
+  "cases": [
+    {
+      "name": "valid conditional form builds dependency index",
+      "definition": {
+        "protocolVersion": "2.0",
+        "id": "application",
+        "objectKey": "application",
+        "components": [
+          { "kind": "field", "type": "choice", "name": "applicantType", "label": "Applicant type" },
+          {
+            "kind": "field",
+            "type": "text",
+            "name": "companyName",
+            "label": "Company name",
+            "visibleWhen": {
+              "operator": "equals",
+              "left": { "field": "applicantType" },
+              "right": { "value": "company" }
+            }
+          }
+        ]
+      },
+      "valid": true,
+      "errorCodes": [],
+      "dependents": { "applicantType": ["components[1]"] }
+    },
+    {
+      "name": "duplicate and unknown field references fail",
+      "definition": {
+        "protocolVersion": "2.0",
+        "id": "invalid-application",
+        "objectKey": "application",
+        "components": [
+          { "kind": "field", "type": "text", "name": "name", "label": "Name" },
+          {
+            "kind": "field",
+            "type": "text",
+            "name": "name",
+            "label": "Duplicate",
+            "requiredWhen": {
+              "operator": "isNotEmpty",
+              "operand": { "field": "missing" }
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "errorCodes": ["expression.field_unknown", "field.name_duplicate"],
+      "dependents": {}
+    },
+    {
+      "name": "unsupported protocol and component types fail",
+      "definition": {
+        "protocolVersion": "3.0",
+        "id": "future-form",
+        "objectKey": "application",
+        "components": [
+          { "kind": "field", "type": "quantum", "name": "answer", "label": "Answer" },
+          { "kind": "layout", "type": "carousel", "children": [] }
+        ]
+      },
+      "valid": false,
+      "errorCodes": ["field.type_unknown", "layout.type_unknown", "protocol.unsupported"],
+      "dependents": {}
+    },
+    {
+      "name": "malformed expression fails explicitly",
+      "definition": {
+        "protocolVersion": "2.0",
+        "id": "malformed-form",
+        "objectKey": "application",
+        "components": [
+          {
+            "kind": "field",
+            "type": "text",
+            "name": "name",
+            "label": "Name",
+            "visibleWhen": { "operator": "and", "arguments": [] }
+          }
+        ]
+      },
+      "valid": false,
+      "errorCodes": ["expression.invalid"],
+      "dependents": {}
+    }
+  ]
+}

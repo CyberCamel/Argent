@@ -1,0 +1,218 @@
+@using Argent.Core.Forms
+@using Argent.WebComponents.Forms.Designer
+@using Microsoft.JSInterop
+
+@inject IJSRuntime Js
+@inject IStringLocalizer<SharedResource> Localizer
+
+@implements IDisposable
+
+<div class="modeler-version-panel">
+    <h3 class="modeler-version-title">
+        <i class="bi bi-ui-checks"></i> @State.Name
+    </h3>
+
+    <div class="modeler-version-subtitle">@Localizer["FormVersioningPanel.Versions"]</div>
+
+    @{
+        var timeline = BuildTimeline();
+    }
+
+    @if (timeline.Count == 0)
+    {
+        <p class="modeler-version-empty">@Localizer["FormVersioningPanel.NoVersions"]</p>
+    }
+    else
+    {
+        <div class="modeler-version-timeline">
+            @for (var i = 0; i < timeline.Count; i++)
+            {
+                var entry = timeline[i];
+                var isLast = i == timeline.Count - 1;
+
+                <div class="modeler-version-node @(entry.IsLoaded ? "modeler-version-node-active" : "") @(entry.IsDraft ? "modeler-version-node-draft" : "")">
+                    <div class="modeler-version-dot @(entry.IsLoaded ? "modeler-version-dot-active" : "modeler-version-dot-inactive")"></div>
+                    <div class="modeler-version-node-body">
+                        <div class="modeler-version-node-top">
+                            <span class="modeler-version-node-number">@entry.Label</span>
+                            <span class="modeler-version-badge @entry.BadgeCss">@entry.BadgeText</span>
+                        </div>
+                        <div class="modeler-version-node-meta">
+                            @entry.CreatedBy · @entry.CreatedAt.ToString("g")
+                        </div>
+
+                        @if (entry.IsDraft && entry.IsLoaded)
+                        {
+                            if (_confirming)
+                            {
+                                <div class="modeler-version-publish-inline">
+                                    <span class="modeler-version-publish-label">@Localizer["FormVersioningPanel.PublishAs"] v@(_nextVersion)?</span>
+                                    <button class="modeler-version-action-btn modeler-version-action-btn-primary" @onclick="ConfirmPublish" @onclick:stopPropagation>
+                                        <i class="bi bi-check-lg"></i> @Localizer["FormVersioningPanel.Confirm"]
+                                    </button>
+                                    <button class="modeler-version-action-btn" @onclick="() => _confirming = false" @onclick:stopPropagation>
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <button class="modeler-version-action-btn modeler-version-action-btn-primary"
+                                        @onclick="StartPublish" @onclick:stopPropagation>
+                                    <i class="bi bi-send-fill"></i> @Localizer["FormVersioningPanel.Publish"]
+                                </button>
+                            }
+
+                            @if (!string.IsNullOrEmpty(_publishError))
+                            {
+                                <div class="modeler-version-publish-error">
+                                    <i class="bi bi-exclamation-triangle-fill"></i> @_publishError
+                                </div>
+                            }
+                        }
+
+                        @if (!entry.IsDraft && !entry.IsLoaded)
+                        {
+                            <button class="modeler-version-action-btn" @onclick="() => LoadVersion(entry.Id)" @onclick:stopPropagation>
+                                <i class="bi bi-eye-fill"></i> @Localizer["FormVersioningPanel.ViewVersion"]
+                            </button>
+                        }
+
+                        @if (!entry.IsDraft && entry.IsLoaded)
+                        {
+                            <button class="modeler-version-action-btn" @onclick="SwitchToDraft" @onclick:stopPropagation>
+                                <i class="bi bi-pencil-fill"></i> @Localizer["FormVersioningPanel.ReturnToDraft"]
+                            </button>
+                        }
+
+                        @if (!entry.IsDraft && !State.HasDraft)
+                        {
+                            <button class="modeler-version-action-btn" @onclick="() => CreateDraftFromVersion(entry.Id)" @onclick:stopPropagation>
+                                <i class="bi bi-copy"></i> @Localizer["FormVersioningPanel.CreateDraft"]
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                @if (!isLast)
+                {
+                    <div class="modeler-version-line"></div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public required FormDesignerService State { get; set; }
+    [Parameter] public EventCallback OnVersionLoaded { get; set; }
+
+    private bool _confirming;
+    private string _nextVersion = "1.0";
+    private string? _publishError;
+    private Guid? _loadedVersionId;
+
+    private record TimelineEntry(
+        Guid Id, string Label, string BadgeText, string BadgeCss,
+        string CreatedBy, DateTime CreatedAt,
+        bool IsDraft, bool IsLoaded);
+
+    protected override void OnInitialized()
+    {
+        State.OnChange += StateHasChanged;
+        ComputeNextVersion();
+    }
+
+    public void Dispose() => State.OnChange -= StateHasChanged;
+
+    private List<TimelineEntry> BuildTimeline()
+    {
+        var list = new List<TimelineEntry>();
+        if (State.StoredFormId == null) return list;
+
+        if (State.HasDraft)
+        {
+            var badgeDraft = Localizer["FormVersioningPanel.BadgeDraft"].ToString();
+            list.Add(new TimelineEntry(
+                State.StoredFormId!.Value,
+                badgeDraft, badgeDraft, "modeler-version-badge-draft",
+                State.UserName, DateTime.UtcNow,
+                IsDraft: true, IsLoaded: !State.IsReadOnly));
+        }
+
+        foreach (var v in State.Versions)
+        {
+            list.Add(new TimelineEntry(
+                v.Id, $"v{v.Version}", Localizer["FormVersioningPanel.BadgePublished"], "modeler-version-badge-published",
+                v.CreatedBy, v.CreatedAt,
+                IsDraft: false, IsLoaded: _loadedVersionId == v.Id));
+        }
+
+        return list;
+    }
+
+    private void ComputeNextVersion()
+    {
+        var latest = State.Versions.FirstOrDefault();
+        _nextVersion = latest == null
+            ? "1.0"
+            : $"{latest.Version.Major}.{latest.Version.Minor + 1}";
+    }
+
+    private void StartPublish()
+    {
+        _publishError = null;
+        _confirming = true;
+    }
+
+    private async Task ConfirmPublish()
+    {
+        _confirming = false;
+        try
+        {
+            await State.PublishAsync();
+            _loadedVersionId = null;
+            ComputeNextVersion();
+            await OnVersionLoaded.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            _publishError = ex.Message;
+        }
+    }
+
+    private async Task LoadVersion(Guid versionId)
+    {
+        if (State.HasUnsavedChanges)
+        {
+            var confirmed = await Js.InvokeAsync<bool>("confirm", Localizer["FormVersioningPanel.ConfirmLoadVersion"]);
+            if (!confirmed) return;
+        }
+        await State.LoadVersionAsync(versionId);
+        _loadedVersionId = versionId;
+        ComputeNextVersion();
+        await OnVersionLoaded.InvokeAsync();
+    }
+
+    private async Task SwitchToDraft()
+    {
+        if (State.HasUnsavedChanges)
+        {
+            var confirmed = await Js.InvokeAsync<bool>("confirm", Localizer["FormVersioningPanel.ConfirmReturnToDraft"]);
+            if (!confirmed) return;
+        }
+        if (State.StoredFormId.HasValue)
+            await State.LoadAsync(State.StoredFormId.Value);
+        _loadedVersionId = null;
+        ComputeNextVersion();
+        await OnVersionLoaded.InvokeAsync();
+    }
+
+    private async Task CreateDraftFromVersion(Guid versionId)
+    {
+        await State.CreateDraftFromVersionAsync(versionId);
+        _loadedVersionId = null;
+        ComputeNextVersion();
+        await OnVersionLoaded.InvokeAsync();
+    }
+}

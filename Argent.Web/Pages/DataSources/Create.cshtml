@@ -1,0 +1,10 @@
+@page "/DataSources/Create"
+@using Microsoft.Extensions.Localization
+@using Argent.WebComponents.DataSources
+@model Argent.Web.Pages.DataSources.CreateModel
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = Localizer["DataSources.Create.PageTitle"];
+}
+
+<component type="typeof(DataSourceEditor)" render-mode="ServerPrerendered" />

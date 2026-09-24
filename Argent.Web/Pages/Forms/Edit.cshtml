@@ -1,0 +1,12 @@
+@page "/Forms/Edit/{id:guid}"
+@using Microsoft.Extensions.Localization
+@using Argent.WebComponents.Forms.Designer
+@model Argent.Web.Pages.Forms.EditModel
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = Localizer["Forms.Edit.PageTitle"];
+    ViewData["IsFullWidth"] = true;
+}
+
+<component type="typeof(FormDesigner)" render-mode="WebAssembly"
+           param-FormId="@Model.FormId" />

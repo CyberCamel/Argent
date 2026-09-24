@@ -1,0 +1,11 @@
+@page "/DomainObjects/Create"
+@using Microsoft.Extensions.Localization
+@using Argent.WebComponents.DomainObjects.Designer
+@inject IStringLocalizer<SharedResource> Localizer
+@model Argent.Web.Pages.DomainObjects.CreateModel
+@{
+    ViewData["Title"] = Localizer["DomainObjects.Create.PageTitle"];
+    ViewData["IsFullWidth"] = true;
+}
+
+<component type="typeof(DomainObjectDesigner)" render-mode="ServerPrerendered" />

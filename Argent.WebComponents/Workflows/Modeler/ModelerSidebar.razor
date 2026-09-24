@@ -1,0 +1,69 @@
+@using Argent.WebComponents.Workflows.Modeler
+@using Argent.Core.Workflows
+@using Argent.WebComponents.Workflows.Modeler
+@using Argent.WebComponents.Authorization
+
+<div class="modeler-sidebar">
+    <div class="modeler-sidebar-tabs">
+        <button class="@(_activeTab == TabType.Versions ? "modeler-sidebar-tab-active" : "")"
+                @onclick="() => SetTab(TabType.Versions)">
+            <i class="bi bi-diagram-3"></i> Versions
+        </button>
+        <button class="@(_activeTab == TabType.Json ? "modeler-sidebar-tab-active" : "")"
+                @onclick="() => SetTab(TabType.Json)">
+            <i class="bi bi-code-slash"></i> JSON
+        </button>
+        <button class="@(_activeTab == TabType.Errors ? "modeler-sidebar-tab-active" : "")"
+                @onclick="() => SetTab(TabType.Errors)">
+            <i class="bi bi-exclamation-triangle"></i> Errors
+        </button>
+        <button class="@(_activeTab == TabType.Access ? "modeler-sidebar-tab-active" : "")"
+                @onclick="() => SetTab(TabType.Access)">
+            <i class="bi bi-shield-lock"></i> Access
+        </button>
+        <button class="@(_activeTab == TabType.Roles ? "modeler-sidebar-tab-active" : "")"
+                @onclick="() => SetTab(TabType.Roles)">
+            <i class="bi bi-people-fill"></i> Roles
+        </button>
+    </div>
+    <div class="modeler-sidebar-content" @onmouseleave="() => OnHoverNode.InvokeAsync(null)">
+        @switch (_activeTab)
+        {
+            case TabType.Versions:
+                <WorkflowVersioningPanel State="@State" OnVersionLoaded="OnVersionLoaded" />
+                break;
+            case TabType.Json:
+                <JsonViewer State="@State" />
+                break;
+            case TabType.Errors:
+                <ErrorViewer State="@State" OnHoverNode="OnHoverNode" />
+                break;
+            case TabType.Access:
+                <div class="p-3">
+                    @if (State.CurrentWorkflowId.HasValue)
+                    {
+                        <ResourceSharingPanel ResourceType="Workflow" ResourceId="@State.CurrentWorkflowId.Value" />
+                    }
+                    else
+                    {
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">Save the workflow first to manage access.</p>
+                    }
+                </div>
+                break;
+            case TabType.Roles:
+                <WorkflowRolesPanel State="@State" />
+                break;
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public required DesignerService State { get; set; }
+    [Parameter] public EventCallback<NodeBase?> OnHoverNode { get; set; }
+    [Parameter] public EventCallback OnVersionLoaded { get; set; }
+
+    private enum TabType { Versions, Json, Errors, Access, Roles }
+    private TabType _activeTab = TabType.Versions;
+
+    private void SetTab(TabType tab) => _activeTab = tab;
+}

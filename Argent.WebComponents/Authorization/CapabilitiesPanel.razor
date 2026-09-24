@@ -1,0 +1,279 @@
+@using System.Text.Json
+@using Argent.Core.Authorization
+@inject ICapabilityService CapabilityService
+@inject ISubjectDirectory SubjectDirectory
+@inject IStringLocalizer<SharedResource> Localizer
+
+@if (_loading)
+{
+    <div class="text-gray-500 dark:text-gray-400">@Localizer["CapabilitiesPanel.Loading"]</div>
+}
+else
+{
+    foreach (var section in Sections)
+    {
+        <div class="cap-section mb-4">
+            <h6 class="cap-section-title">@section.Label</h6>
+            <table class="cap-table w-full text-sm">
+                <thead>
+                    <tr>
+                        <th class="text-left font-semibold text-gray-500 dark:text-gray-400 pb-2" style="width:140px">@Localizer["CapabilitiesPanel.ActionHeader"]</th>
+                        <th class="text-left font-semibold text-gray-500 dark:text-gray-400 pb-2">@Localizer["CapabilitiesPanel.WhoHeader"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var action in section.Actions)
+                    {
+                        <tr>
+                            <td class="cap-action-cell">
+                                <i class="bi @ActionIcon(action) mr-1 text-gray-500 dark:text-gray-400"></i>
+                                @ActionLabel(action)
+                            </td>
+                            <td>
+                                <div class="flex flex-wrap items-center gap-1">
+                                    @foreach (var entry in EntriesFor(section.ResourceType, action))
+                                    {
+                                        <span class="cap-chip">
+                                            <i class="bi @entry.Icon mr-1"></i>
+                                            @entry.Label
+                                            <button class="cap-chip-remove"
+                                                    @onclick="() => Revoke(entry.PolicyId, action)"
+                                                    @onclick:stopPropagation
+                                                    title="@Localizer["MemberSelector.Remove"]">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </span>
+                                    }
+
+                                    @* Add button / inline picker *@
+                                    @if (_addTarget?.ResourceType == section.ResourceType && _addTarget?.Action == action)
+                                    {
+                                        <div class="cap-add-popup" @onclick:stopPropagation>
+                                            <input class="form-input text-sm"
+                                                   type="search" placeholder="@Localizer["CapabilitiesPanel.SearchPlaceholder"]"
+                                                   @bind="_addSearch" @bind:event="oninput"
+                                                   @ref="_searchInput" />
+                                            <div class="cap-add-list">
+                                                @foreach (var s in FilteredSubjects)
+                                                {
+                                                    var captured = s;
+                                                    <button class="cap-add-item"
+                                                            @onclick="() => Grant(captured)">
+                                                        <i class="bi @captured.Icon mr-1"></i>
+                                                        @captured.Label
+                                                    </button>
+                                                }
+                                                @if (!FilteredSubjects.Any())
+                                                {
+                                                    <span class="text-gray-500 dark:text-gray-400 text-sm px-2">@Localizer["CapabilitiesPanel.NoResults"]</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <button class="cap-add-btn text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors px-2 py-0.5"
+                                                @onclick="() => OpenAdd(section.ResourceType, action)">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+<div class="@(_addTarget != null ? "cap-dismiss" : "hidden")" @onclick="CloseAdd"></div>
+
+<style>
+    .cap-section-title {
+        font-weight: 600; font-size: .9rem; text-transform: uppercase;
+        letter-spacing: .05em; color: #374151; margin-bottom: .5rem;
+    }
+    :where(.dark) .cap-section-title { color: #d1d5db; }
+    .cap-table { border: 1px solid #e5e7eb; }
+    :where(.dark) .cap-table { border-color: #374151; }
+    .cap-action-cell { vertical-align: middle; white-space: nowrap; font-size: .875rem; }
+    .cap-chip {
+        display: inline-flex; align-items: center; gap: .2rem;
+        background: #f3f4f6; border-radius: 20px;
+        padding: .18rem .5rem .18rem .45rem; font-size: .82rem;
+        color: #374151;
+    }
+    :where(.dark) .cap-chip { background: #374151; color: #d1d5db; }
+    .cap-chip-remove {
+        background: none; border: none; padding: 0; line-height: 1;
+        color: #6b7280; cursor: pointer; display: flex; align-items: center;
+    }
+    .cap-chip-remove:hover { color: #ef4444; }
+    .cap-add-popup {
+        position: relative; background: #fff; border: 1px solid #e5e7eb;
+        border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.12);
+        padding: .5rem; min-width: 220px; z-index: 200;
+    }
+    :where(.dark) .cap-add-popup { background: #1f2937; border-color: #374151; }
+    .cap-add-list {
+        max-height: 180px; overflow-y: auto; margin-top: .35rem;
+        display: flex; flex-direction: column;
+    }
+    .cap-add-item {
+        background: none; border: none; text-align: left; padding: .3rem .4rem;
+        font-size: .85rem; border-radius: 4px; cursor: pointer;
+        color: #374151;
+    }
+    :where(.dark) .cap-add-item { color: #d1d5db; }
+    .cap-add-item:hover { background: #eef2ff; }
+    :where(.dark) .cap-add-item:hover { background: #374151; }
+    .cap-dismiss {
+        position: fixed; inset: 0; z-index: 199;
+    }
+</style>
+
+@code {
+    record Section(string Label, string ResourceType, string[] Actions);
+    record SubjectItem(string Id, string Label, string Icon, bool IsGroup, bool IsRole);
+    record PermissionEntry(string SubjectId, string Label, string Icon, Guid PolicyId);
+
+    private Section[] Sections = [];
+
+    private bool _loading = true;
+    private readonly Dictionary<string, List<Argent.Core.Authorization.PolicyDocument>> _policies = new();
+
+    private List<SubjectItem> _allSubjects = [];
+    private string _addSearch = "";
+    private (string ResourceType, string Action)? _addTarget;
+    private ElementReference _searchInput;
+
+    private IEnumerable<SubjectItem> FilteredSubjects => string.IsNullOrWhiteSpace(_addSearch)
+        ? _allSubjects
+        : _allSubjects.Where(s => s.Label.Contains(_addSearch, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sections =
+        [
+            new Section(Localizer["CapabilitiesPanel.SectionWorkflows"], "Workflow", ResourceActions.Workflow.Owner),
+            new Section(Localizer["CapabilitiesPanel.SectionForms"],     "Form",     ResourceActions.Form.Owner),
+        ];
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var entries = await SubjectDirectory.GetSubjectsAsync();
+        _allSubjects = entries
+            .Select(e => new SubjectItem(e.Id, e.Label, e.Icon, e.IsGroup, e.IsRole))
+            .ToList();
+
+        foreach (var s in Sections)
+            _policies[s.ResourceType] = await CapabilityService.GetCapabilitiesAsync(s.ResourceType);
+
+        _loading = false;
+    }
+
+    private IEnumerable<PermissionEntry> EntriesFor(string resourceType, string action)
+    {
+        if (!_policies.TryGetValue(resourceType, out var policies))
+            yield break;
+
+        foreach (var p in policies)
+        {
+            var actions = ParseList(p.ActionsJson);
+            if (!actions.Contains(action, StringComparer.OrdinalIgnoreCase)) continue;
+
+            foreach (var subjectId in ExtractSubjectIds(p.SubjectJson))
+            {
+                var subject = _allSubjects.FirstOrDefault(s => s.Id == subjectId.Id);
+                var label   = subject?.Label ?? subjectId.Id;
+                var icon    = subject?.Icon  ?? (subjectId.IsGroup ? "bi-people" : subjectId.IsRole ? "bi-shield" : "bi-person");
+                yield return new PermissionEntry(subjectId.Id, label, icon, p.Id);
+            }
+        }
+    }
+
+    private async Task OpenAdd(string resourceType, string action)
+    {
+        _addTarget = (resourceType, action);
+        _addSearch = "";
+        await Task.Yield();
+        try { await _searchInput.FocusAsync(); } catch { }
+    }
+
+    private void CloseAdd()
+    {
+        _addTarget = null;
+        _addSearch = "";
+    }
+
+    private async Task Grant(SubjectItem subject)
+    {
+        if (_addTarget is not { } target) return;
+        CloseAdd();
+
+        var subjectJson = subject.IsRole
+            ? JsonSerializer.Serialize(new { roles  = new[] { subject.Id } })
+            : subject.IsGroup
+                ? JsonSerializer.Serialize(new { groups = new[] { subject.Id } })
+                : JsonSerializer.Serialize(new { users  = new[] { subject.Id } });
+
+        await CapabilityService.GrantAsync(target.ResourceType, subjectJson, target.Action);
+        await LoadAsync();
+    }
+
+    private async Task Revoke(Guid policyId, string action)
+    {
+        await CapabilityService.RevokeActionAsync(policyId, action);
+        await LoadAsync();
+    }
+
+    private string ActionLabel(string a) => a switch
+    {
+        "view"   => Localizer["Common.View"],
+        "model"  => Localizer["ResourceSharingPanel.ActionModel"],
+        "design" => Localizer["ResourceSharingPanel.ActionDesign"],
+        "run"    => Localizer["ResourceSharingPanel.ActionRun"],
+        "delete" => Localizer["Common.Delete"],
+        _        => a
+    };
+
+    private static string ActionIcon(string a) => a switch
+    {
+        "view"   => "bi-eye",
+        "model"  => "bi-pencil-square",
+        "design" => "bi-pencil-square",
+        "run"    => "bi-play-circle",
+        "delete" => "bi-trash",
+        _        => "bi-key"
+    };
+
+    private static List<string> ParseList(string json)
+    {
+        try { return JsonSerializer.Deserialize<List<string>>(json) ?? []; }
+        catch { return []; }
+    }
+
+    private record SubjectRef(string Id, bool IsGroup, bool IsRole);
+
+    private static List<SubjectRef> ExtractSubjectIds(string subjectJson)
+    {
+        var result = new List<SubjectRef>();
+        if (string.IsNullOrWhiteSpace(subjectJson) || subjectJson == "{}") return result;
+        try
+        {
+            var doc = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(subjectJson);
+            if (doc == null) return result;
+            if (doc.TryGetValue("users",  out var u)) result.AddRange((JsonSerializer.Deserialize<List<string>>(u.GetRawText()) ?? []).Select(id => new SubjectRef(id, false, false)));
+            if (doc.TryGetValue("roles",  out var r)) result.AddRange((JsonSerializer.Deserialize<List<string>>(r.GetRawText()) ?? []).Select(id => new SubjectRef(id, false, true)));
+            if (doc.TryGetValue("groups", out var g)) result.AddRange((JsonSerializer.Deserialize<List<string>>(g.GetRawText()) ?? []).Select(id => new SubjectRef(id, true,  false)));
+        }
+        catch { }
+        return result;
+    }
+}

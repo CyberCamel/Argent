@@ -1,0 +1,73 @@
+@using Argent.Core.Forms.Protocol.V2
+@using Argent.WebComponents.Forms.Designer
+@inject IStringLocalizer<SharedResource> Localizer
+
+@{
+    var isSelected = State.SelectedComponent == Component;
+    var container = Component as FormLayout;
+    var toolbox = FormDesignerService.ToolboxItems.FirstOrDefault(t => t.TypeName == ComponentType);
+}
+
+<div class="fd-node @(isSelected ? "selected" : "") @(container != null ? "fd-node-container" : "")"
+     @onclick:stopPropagation @onclick="() => State.SelectComponent(Component)">
+    <div class="fd-node-header" draggable="true"
+         @ondragstart="() => State.BeginDragMove(Component.EditorId)" @ondragend="State.EndDrag">
+        <i class="bi bi-grip-vertical fd-grip"></i>
+        <i class="bi @(toolbox?.Icon ?? "bi-question-square") fd-type-icon"></i>
+        <span class="fd-node-title">@HeaderText</span>
+        <span class="fd-node-meta">@(Component is FormField metaField ? metaField.Name : ComponentType)</span>
+        <span class="fd-node-actions" @onclick:stopPropagation>
+            <button class="fd-action" title="@Localizer["DesignerNode.MoveUp"]" @onclick="() => State.MoveUp(Component)"><i class="bi bi-chevron-up"></i></button>
+            <button class="fd-action" title="@Localizer["DesignerNode.MoveDown"]" @onclick="() => State.MoveDown(Component)"><i class="bi bi-chevron-down"></i></button>
+            <button class="fd-action" title="@Localizer["DesignerNode.Duplicate"]" @onclick="() => State.Duplicate(Component)"><i class="bi bi-copy"></i></button>
+            <button class="fd-action fd-action-danger" title="@Localizer["DesignerNode.Delete"]" @onclick="() => State.Remove(Component)"><i class="bi bi-trash"></i></button>
+        </span>
+    </div>
+
+    @if (container != null)
+    {
+        <div class="fd-container-body">
+            @for (var i = 0; i < container.Children.Count; i++)
+            {
+                <DropZone State="State" Target="@(new DropTarget(container.EditorId, i))" />
+                <DesignerNode State="State" Component="container.Children[i]" />
+            }
+            <DropZone State="State" Inside="true"
+                      Label="@(container.Children.Count == 0 ? $"{Localizer["DesignerNode.DropInto"]} {container.Type}" : null)"
+                      Target="@(new DropTarget(container.EditorId, container.Children.Count))" />
+        </div>
+    }
+    else if (Component is FormField previewField)
+    {
+        <div class="fd-node-preview">
+            <label class="text-sm font-medium">@previewField.Label @(previewField.Required ? "*" : "")</label>
+            @if (previewField.Type == "boolean")
+            {
+                <input type="checkbox" disabled />
+            }
+            else if (previewField.Type == "choice")
+            {
+                <select class="form-input" disabled><option>@(previewField.Placeholder ?? "Select…")</option></select>
+            }
+            else
+            {
+                <input class="form-input" type="@(previewField.Type == "date" ? "date" : previewField.Type == "integer" ? "number" : "text")"
+                       placeholder="@previewField.Placeholder" disabled />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public required FormDesignerService State { get; set; }
+    [Parameter] public required FormComponent Component { get; set; }
+
+    private string ComponentType => Component is FormField item ? item.Type : ((FormLayout)Component).Type;
+    private string HeaderText => Component switch
+    {
+        FormField item => string.IsNullOrWhiteSpace(item.Label) ? item.Type : item.Label,
+        FormLayout { Title.Length: > 0 } layout => layout.Title,
+        FormLayout layout => layout.Type,
+        _ => "Component"
+    };
+}

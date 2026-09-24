@@ -1,0 +1,342 @@
+@page "/Admin/WorkflowInstances/{id:guid}"
+@model Argent.Web.Pages.Admin.WorkflowInstances.DetailModel
+@using Argent.Core.Workflows
+@using Argent.Core.Workflows.Execution
+@using Argent.WebComponents.Workflows.Modeler
+@{
+    ViewData["Title"] = string.Format(Localizer["Admin.WorkflowInstances.Detail.PageTitle"].Value, Model.Instance.WorkflowName);
+}
+
+<div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+    <div>
+        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">@Model.Instance.WorkflowName</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            Instance <code class="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs font-mono">@Model.Instance.InstanceId</code>
+        </p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a class="btn-action btn-action-secondary text-sm inline-flex items-center gap-1 px-3 py-1.5 rounded-lg" asp-page="/Admin/WorkflowInstances/Index">
+            <i class="bi bi-arrow-left"></i> @Localizer["Common.Back"]
+        </a>
+        @if (Model.Instance.State == InstanceState.Running)
+        {
+            <form method="post" asp-page-handler="Suspend" asp-route-id="@Model.Instance.InstanceId" class="inline">
+                <button type="submit" class="px-3 py-1.5 text-sm font-medium text-yellow-800 dark:text-yellow-200 bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 rounded-lg transition-colors">
+                    <i class="bi bi-pause-fill"></i> @Localizer["Admin.WorkflowInstances.Detail.SuspendButton"]
+                </button>
+            </form>
+            <form method="post" asp-page-handler="Cancel" asp-route-id="@Model.Instance.InstanceId" class="inline"
+                  onsubmit="return confirm('@Localizer["Admin.WorkflowInstances.Detail.CancelConfirm"]');">
+                <button type="submit" class="px-3 py-1.5 text-sm font-medium text-red-800 dark:text-red-200 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 rounded-lg transition-colors">
+                    <i class="bi bi-x-circle-fill"></i> @Localizer["Admin.WorkflowInstances.Detail.CancelButton"]
+                </button>
+            </form>
+        }
+        @if (Model.Instance.State == InstanceState.Suspended)
+        {
+            <form method="post" asp-page-handler="Resume" asp-route-id="@Model.Instance.InstanceId" class="inline">
+                <button type="submit" class="px-3 py-1.5 text-sm font-medium text-green-800 dark:text-green-200 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 rounded-lg transition-colors">
+                    <i class="bi bi-play-fill"></i> @Localizer["Admin.WorkflowInstances.Detail.ResumeButton"]
+                </button>
+            </form>
+        }
+    </div>
+</div>
+
+@* Instance Metadata *@
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="card p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.WorkflowInstances.Detail.StateLabel"]</div>
+        @{
+            var stateBadge = Model.Instance.State switch
+            {
+                InstanceState.Running => "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800",
+                InstanceState.Suspended => "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
+                InstanceState.Completed => "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800",
+                InstanceState.Failed => "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-200 dark:border-red-800",
+                InstanceState.Cancelled => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+                _ => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+            };
+        }
+        <span class="badge @stateBadge text-sm mt-1">@Model.Instance.State</span>
+    </div>
+    <div class="card p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.WorkflowInstances.Detail.ActiveTokensLabel"]</div>
+        <div class="text-lg font-bold text-gray-900 dark:text-gray-100">@Model.Instance.ActiveTokenCount</div>
+    </div>
+    <div class="card p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.WorkflowInstances.Detail.StartedLabel"]</div>
+        <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">@Model.Instance.StartTime.ToString("g")</div>
+    </div>
+    <div class="card p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.WorkflowInstances.Detail.EndedLabel"]</div>
+        <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">@(Model.Instance.EndTime?.ToString("g") ?? "—")</div>
+    </div>
+</div>
+
+@* Tabs using Alpine *@
+<div x-data="{ tab: 'diagram' }" class="space-y-4">
+    <div class="flex border-b border-gray-200 dark:border-gray-800 gap-0 -mb-px">
+        <button @@click="tab = 'diagram'" :class="{ 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-semibold': tab === 'diagram' }" class="px-4 py-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+            <i class="bi bi-diagram-3 me-1"></i> @Localizer["Admin.WorkflowInstances.Detail.TabDiagram"]
+        </button>
+        <button @@click="tab = 'tokens'" :class="{ 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-semibold': tab === 'tokens' }" class="px-4 py-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+            <i class="bi bi-circle-fill me-1"></i> @Localizer["Admin.WorkflowInstances.Detail.TabTokens"] (@Model.Tokens.Count)
+        </button>
+        <button @@click="tab = 'workitems'" :class="{ 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-semibold': tab === 'workitems' }" class="px-4 py-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+            <i class="bi bi-list-task me-1"></i> @Localizer["Admin.WorkflowInstances.Detail.TabWorkItems"] (@Model.WorkItems.Count)
+        </button>
+        <button @@click="tab = 'tasks'" :class="{ 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-semibold': tab === 'tasks' }" class="px-4 py-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+            <i class="bi bi-person-check me-1"></i> @Localizer["Admin.WorkflowInstances.Detail.TabUserTasks"] (@Model.UserTasks.Count)
+        </button>
+        <button @@click="tab = 'variables'" :class="{ 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-semibold': tab === 'variables' }" class="px-4 py-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+            <i class="bi bi-braces me-1"></i> @Localizer["Admin.WorkflowInstances.Detail.TabVariables"] (@Model.Variables.Count)
+        </button>
+        <button @@click="tab = 'audit'" :class="{ 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-semibold': tab === 'audit' }" class="px-4 py-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+            <i class="bi bi-journal-text me-1"></i> @Localizer["Admin.WorkflowInstances.Detail.TabAudit"] (@Model.AuditEntries.Count)
+        </button>
+    </div>
+
+    @* Diagram *@
+    <div x-show="tab === 'diagram'" style="height: 480px;">
+        <component type="typeof(InstanceModeler)" render-mode="WebAssembly"
+                   param-InstanceId="@Model.Instance.InstanceId" />
+    </div>
+
+    @* Tokens *@
+    <div x-show="tab === 'tokens'" x-cloak>
+        @if (Model.Tokens.Count == 0)
+        {
+            <div class="card p-4 text-center text-sm text-gray-500 dark:text-gray-400">@Localizer["Admin.WorkflowInstances.Detail.TokensEmpty"]</div>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="text-xs">
+                    <thead>
+                        <tr>
+                            <th>Id</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.TokensTableNode"]</th>
+                            <th>@Localizer["Common.State"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.TokensTableGroup"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.TokensTableCreated"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.TokensTableConsumed"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in Model.Tokens)
+                        {
+                            <tr>
+                                <td><code class="text-xs">@t.Id.ToString()[..8]…</code></td>
+                                <td><code class="text-xs">@t.NodeId.ToString()[..8]…</code></td>
+                                <td>
+                                    @{
+                                        var tBadge = t.State switch
+                                        {
+                                            TokenState.Ready => "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800",
+                                            TokenState.Waiting => "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
+                                            TokenState.Consumed => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+                                            _ => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+                                        };
+                                    }
+                                    <span class="badge @tBadge">@t.State</span>
+                                </td>
+                                <td class="text-gray-500 dark:text-gray-400 text-xs">@(t.GroupId?.ToString()[..8] ?? "—")</td>
+                                <td class="text-gray-500 dark:text-gray-400 text-xs">@t.CreatedAt.ToString("g")</td>
+                                <td class="text-gray-500 dark:text-gray-400 text-xs">@(t.ConsumedAt?.ToString("g") ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @* Work Items *@
+    <div x-show="tab === 'workitems'" x-cloak>
+        @if (Model.WorkItems.Count == 0)
+        {
+            <div class="card p-4 text-center text-sm text-gray-500 dark:text-gray-400">@Localizer["Admin.WorkflowInstances.Detail.WorkItemsEmpty"]</div>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="text-xs">
+                    <thead>
+                        <tr>
+                            <th>Id</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.WorkItemsTableNodeType"]</th>
+                            <th>@Localizer["Common.State"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.WorkItemsTablePriority"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.WorkItemsTableRetries"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.WorkItemsTableLockedBy"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.TokensTableCreated"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var w in Model.WorkItems)
+                        {
+                            <tr>
+                                <td>
+                                    <a asp-page="/Admin/WorkItems/Detail" asp-route-id="@w.Id"
+                                       class="font-mono text-indigo-600 dark:text-indigo-400 hover:underline text-xs">
+                                        @w.Id.ToString()[..8]…
+                                    </a>
+                                </td>
+                                <td>@w.NodeType</td>
+                                <td>
+                                    @{
+                                        var wiBadge = w.State switch
+                                        {
+                                            WorkItemState.Pending => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+                                            WorkItemState.Running => "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800",
+                                            WorkItemState.Completed => "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800",
+                                            WorkItemState.Failed => "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-200 dark:border-red-800",
+                                            WorkItemState.Waiting => "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
+                                            _ => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+                                        };
+                                    }
+                                    <span class="badge @wiBadge">@w.State</span>
+                                </td>
+                                <td>@w.Priority</td>
+                                <td>@w.RetryCount/@w.MaxRetries</td>
+                                <td class="text-gray-500 dark:text-gray-400">@(w.LockedBy ?? "—")</td>
+                                <td class="text-gray-500 dark:text-gray-400">@w.CreatedAt.ToString("g")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @* User Tasks *@
+    <div x-show="tab === 'tasks'" x-cloak>
+        @if (Model.UserTasks.Count == 0)
+        {
+            <div class="card p-4 text-center text-sm text-gray-500 dark:text-gray-400">@Localizer["Admin.WorkflowInstances.Detail.UserTasksEmpty"]</div>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="text-xs">
+                    <thead>
+                        <tr>
+                            <th>@Localizer["Tasks.Index.TableTitle"]</th>
+                            <th>@Localizer["Common.State"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.UserTasksTableAssignedTo"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.WorkItemsTablePriority"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.TokensTableCreated"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.UserTasksTableCompleted"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in Model.UserTasks)
+                        {
+                            <tr>
+                                <td class="font-medium">@(t.Title ?? "—")</td>
+                                <td>
+                                    @{
+                                        var utBadge = t.State switch
+                                        {
+                                            UserTaskState.Pending => "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800",
+                                            UserTaskState.Completed => "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800",
+                                            UserTaskState.Cancelled => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+                                            _ => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+                                        };
+                                    }
+                                    <span class="badge @utBadge">@t.State</span>
+                                </td>
+                                <td class="text-gray-500 dark:text-gray-400">@(t.AssignedTo ?? "—")</td>
+                                <td>@t.Priority</td>
+                                <td class="text-gray-500 dark:text-gray-400">@t.CreatedAt.ToString("g")</td>
+                                <td class="text-gray-500 dark:text-gray-400">@(t.CompletedAt?.ToString("g") ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @* Variables *@
+    <div x-show="tab === 'variables'" x-cloak>
+        @if (Model.Variables.Count == 0)
+        {
+            <div class="card p-4 text-center text-sm text-gray-500 dark:text-gray-400">@Localizer["Admin.WorkflowInstances.Detail.VariablesEmpty"]</div>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="text-xs">
+                    <thead>
+                        <tr>
+                            <th style="width: 100px">@Localizer["Admin.WorkflowInstances.Detail.VariablesTableSource"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.VariablesTableKey"]</th>
+                            <th>@Localizer["Admin.WorkflowInstances.Detail.VariablesTableValue"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var v in Model.Variables.OrderBy(v => v.Source).ThenBy(v => v.Key))
+                        {
+                            <tr>
+                                <td>
+                                    @{
+                                        var srcBadge = v.Source switch
+                                        {
+                                            "Instance" => "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800",
+                                            "Record" => "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800",
+                                            "Custom" => "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
+                                            _ => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+                                        };
+                                    }
+                                    <span class="badge @srcBadge">@v.Source</span>
+                                </td>
+                                <td class="font-medium font-mono text-xs">@v.Key</td>
+                                <td class="text-sm">@v.DisplayValue</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @* Audit *@
+    <div x-show="tab === 'audit'" x-cloak>
+        @if (Model.AuditEntries.Count == 0)
+        {
+            <div class="card p-4 text-center text-sm text-gray-500 dark:text-gray-400">@Localizer["Admin.WorkflowInstances.Detail.AuditEmpty"]</div>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="text-xs">
+                    <thead>
+                        <tr>
+                            <th>@Localizer["Admin.Audit.TableTime"]</th>
+                            <th>@Localizer["Admin.Audit.CategoryLabel"]</th>
+                            <th>@Localizer["Admin.Audit.TableEvent"]</th>
+                            <th>@Localizer["Admin.Audit.TableToken"]</th>
+                            <th>@Localizer["Admin.Audit.TableActor"]</th>
+                            <th>@Localizer["Admin.Audit.TableDetails"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var e in Model.AuditEntries)
+                        {
+                            <tr>
+                                <td class="text-gray-500 dark:text-gray-400">@e.TimeStamp.ToString("g")</td>
+                                <td><span class="badge bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700">@e.Category</span></td>
+                                <td class="font-medium">@e.EventType</td>
+                                <td class="text-gray-500 dark:text-gray-400 text-xs">@(e.TokenId?.ToString()[..8] ?? "—")</td>
+                                <td class="text-gray-500 dark:text-gray-400">@(e.Actor ?? "—")</td>
+                                <td><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">@(e.Details ?? "—")</code></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

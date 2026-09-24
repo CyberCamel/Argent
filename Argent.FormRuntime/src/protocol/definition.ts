@@ -1,0 +1,273 @@
+import { dependencies, FormProtocolError, type FormExpression } from './expression.js';
+
+export interface FormDefinition {
+  readonly protocolVersion: string;
+  readonly id: string;
+  readonly objectKey: string;
+  readonly title?: string;
+  readonly components: readonly FormComponent[];
+}
+
+export interface FormRuntimeMessages {
+  readonly loading?: string;
+  readonly invalidDefinition?: string;
+  readonly selectPlaceholder?: string;
+  readonly errorSummary?: string;
+  readonly submit?: string;
+}
+
+export type FormComponent = FormField | FormLayout;
+
+export interface FormField {
+  readonly kind: 'field';
+  readonly type: string;
+  readonly name: string;
+  readonly label: string;
+  readonly description?: string;
+  readonly placeholder?: string;
+  readonly required?: boolean;
+  readonly options?: readonly FormOption[];
+  readonly reference?: FormReferenceSource;
+  readonly validators?: readonly FormValidator[];
+  readonly visibleWhen?: FormExpression;
+  readonly requiredWhen?: FormExpression;
+  readonly disabledWhen?: FormExpression;
+  readonly readOnlyWhen?: FormExpression;
+}
+
+export interface FormReferenceSource {
+  readonly objectKey: string;
+  readonly labelField: string;
+}
+
+export interface FormOption {
+  readonly value: string;
+  readonly label: string;
+  readonly disabled?: boolean;
+}
+
+export interface FormValidator {
+  readonly type: string;
+  readonly code: string;
+  readonly message?: string;
+  readonly when?: FormExpression;
+  readonly minLength?: number;
+  readonly maxLength?: number;
+  readonly min?: string | number;
+  readonly max?: string | number;
+  readonly pattern?: string;
+  readonly otherField?: string;
+  readonly operator?: string;
+}
+
+export interface FormLayout {
+  readonly kind: 'layout';
+  readonly type: string;
+  readonly id?: string;
+  readonly title?: string;
+  readonly visibleWhen?: FormExpression;
+  readonly children: readonly FormComponent[];
+}
+
+export interface FormDefinitionError {
+  readonly code: string;
+  readonly path: string;
+  readonly message: string;
+}
+
+export interface CompiledFormDefinition {
+  readonly definition: FormDefinition;
+  readonly dependents: Readonly<Record<string, ReadonlySet<string>>>;
+}
+
+export interface FormDefinitionCompilation {
+  readonly definition?: CompiledFormDefinition;
+  readonly errors: readonly FormDefinitionError[];
+  readonly isValid: boolean;
+}
+
+const fieldTypes = new Set(['text', 'integer', 'decimal', 'date', 'timestamp', 'boolean', 'choice', 'file']);
+const identifierPattern = /^[A-Za-z][A-Za-z0-9_.-]{0,127}$/;
+const layoutTypes = new Set(['section', 'row', 'column', 'tabs', 'accordion']);
+const validatorTypes = new Set(['required', 'length', 'range', 'pattern', 'email', 'url', 'compare']);
+const binaryOperators = new Set([
+  'equals', 'notEquals', 'greaterThan', 'greaterThanOrEqual', 'lessThan', 'lessThanOrEqual',
+  'contains', 'startsWith', 'endsWith'
+]);
+
+export function compileDefinition(definition: FormDefinition): FormDefinitionCompilation {
+  const errors: FormDefinitionError[] = [];
+  if (definition.protocolVersion !== '2.0') {
+    errors.push({
+      code: 'protocol.unsupported',
+      path: 'protocolVersion',
+      message: `Unsupported protocol version '${definition.protocolVersion}'.`
+    });
+  }
+
+  const fields = new Map<string, string>();
+  const expressions: Array<{ path: string; expression: FormExpression }> = [];
+  walk(definition.components, 'components', fields, expressions, errors);
+
+  const mutableDependents = new Map<string, Set<string>>();
+  for (const item of expressions) {
+    try {
+      validateExpressionShape(item.expression);
+    } catch (error) {
+      errors.push({
+        code: 'expression.invalid',
+        path: item.path,
+        message: error instanceof Error ? error.message : 'Invalid expression.'
+      });
+      continue;
+    }
+
+    for (const dependency of dependencies(item.expression)) {
+      if (!fields.has(dependency)) {
+        errors.push({
+          code: 'expression.field_unknown',
+          path: item.path,
+          message: `Expression references unknown field '${dependency}'.`
+        });
+        continue;
+      }
+      const targets = mutableDependents.get(dependency) ?? new Set<string>();
+      targets.add(componentPath(item.path));
+      mutableDependents.set(dependency, targets);
+    }
+  }
+
+  if (errors.length > 0) return { errors, isValid: false };
+  return {
+    definition: {
+      definition,
+      dependents: Object.fromEntries(mutableDependents)
+    },
+    errors,
+    isValid: true
+  };
+}
+
+function walk(
+  components: readonly FormComponent[],
+  path: string,
+  fields: Map<string, string>,
+  expressions: Array<{ path: string; expression: FormExpression }>,
+  errors: FormDefinitionError[]
+): void {
+  components.forEach((component, index) => {
+    const current = `${path}[${index}]`;
+    if (component.kind === 'field') {
+      if (!fieldTypes.has(component.type)) {
+        errors.push({ code: 'field.type_unknown', path: `${current}.type`, message: `Unknown field type '${component.type}'.` });
+      }
+      if (fields.has(component.name)) {
+        errors.push({ code: 'field.name_duplicate', path: `${current}.name`, message: `Field name '${component.name}' is duplicated.` });
+      } else {
+        fields.set(component.name, current);
+      }
+      addExpressions(component, current, expressions);
+      validateFieldConfiguration(component, current, errors);
+      return;
+    }
+    if (component.kind === 'layout') {
+      if (!layoutTypes.has(component.type)) {
+        errors.push({ code: 'layout.type_unknown', path: `${current}.type`, message: `Unknown layout type '${component.type}'.` });
+      }
+      if (component.visibleWhen) expressions.push({ path: `${current}.visibleWhen`, expression: component.visibleWhen });
+      walk(component.children, `${current}.children`, fields, expressions, errors);
+      return;
+    }
+    errors.push({ code: 'component.kind_unknown', path: current, message: 'Unknown component kind.' });
+  });
+}
+
+function addExpressions(
+  field: FormField,
+  path: string,
+  expressions: Array<{ path: string; expression: FormExpression }>
+): void {
+  const entries = [
+    ['visibleWhen', field.visibleWhen],
+    ['requiredWhen', field.requiredWhen],
+    ['disabledWhen', field.disabledWhen],
+    ['readOnlyWhen', field.readOnlyWhen]
+  ] as const;
+  for (const [name, expression] of entries) {
+    if (expression) expressions.push({ path: `${path}.${name}`, expression });
+  }
+  field.validators?.forEach((validator, index) => {
+    if (validator.when) expressions.push({ path: `${path}.validators[${index}].when`, expression: validator.when });
+  });
+}
+
+function validateFieldConfiguration(field: FormField, path: string, errors: FormDefinitionError[]): void {
+  if (field.reference) {
+    if (field.type !== 'choice') {
+      errors.push({ code: 'reference.field_type_invalid', path: `${path}.type`, message: "A reference source requires field type 'choice'." });
+    }
+    if (!identifierPattern.test(field.reference.objectKey)) {
+      errors.push({ code: 'reference.object_key_invalid', path: `${path}.reference.objectKey`, message: `'${field.reference.objectKey}' is not a valid protocol identifier.` });
+    }
+    if (!identifierPattern.test(field.reference.labelField)) {
+      errors.push({ code: 'reference.label_field_invalid', path: `${path}.reference.labelField`, message: `'${field.reference.labelField}' is not a valid protocol identifier.` });
+    }
+  }
+  if (field.type === 'choice') {
+    const values = new Set<string>();
+    field.options?.forEach((option, index) => {
+      if (values.has(option.value)) {
+        errors.push({ code: 'choice.value_duplicate', path: `${path}.options[${index}].value`, message: `Choice value '${option.value}' is duplicated.` });
+      }
+      values.add(option.value);
+    });
+  }
+  field.validators?.forEach((validator, index) => {
+    const validatorPath = `${path}.validators[${index}]`;
+    if (!validatorTypes.has(validator.type)) {
+      errors.push({ code: 'validator.type_unknown', path: `${validatorPath}.type`, message: `Unknown validator type '${validator.type}'.` });
+    }
+    if (validator.type === 'compare' && !validator.otherField) {
+      errors.push({ code: 'validator.configuration_invalid', path: validatorPath, message: 'Compare validator requires otherField.' });
+    }
+    if (validator.type === 'pattern' && !validator.pattern) {
+      errors.push({ code: 'validator.configuration_invalid', path: validatorPath, message: 'Pattern validator requires pattern.' });
+    }
+  });
+}
+
+function validateExpressionShape(expression: FormExpression): void {
+  if (expression.operator === 'and' || expression.operator === 'or') {
+    if (!expression.arguments?.length) throw new FormProtocolError(`Operator '${expression.operator}' requires non-empty arguments.`);
+    expression.arguments.forEach(validateExpressionShape);
+    return;
+  }
+  if (expression.operator === 'not') {
+    if (!expression.argument) throw new FormProtocolError("Operator 'not' requires argument.");
+    validateExpressionShape(expression.argument);
+    return;
+  }
+  if (binaryOperators.has(expression.operator)) {
+    validateOperand(expression.left, expression.operator, 'left');
+    validateOperand(expression.right, expression.operator, 'right');
+    return;
+  }
+  if (expression.operator === 'isEmpty' || expression.operator === 'isNotEmpty') {
+    validateOperand(expression.operand, expression.operator, 'operand');
+    return;
+  }
+  throw new FormProtocolError(`Unknown form expression operator '${expression.operator}'.`);
+}
+
+function validateOperand(operand: { field?: string; value?: unknown } | undefined, operator: string, member: string): void {
+  if (!operand) throw new FormProtocolError(`Operator '${operator}' requires ${member}.`);
+  const hasField = typeof operand.field === 'string' && operand.field.length > 0;
+  const hasValue = Object.hasOwn(operand, 'value');
+  if (hasField === hasValue) {
+    throw new FormProtocolError(`Operator '${operator}' ${member} must contain exactly one of 'field' or 'value'.`);
+  }
+}
+
+function componentPath(expressionPath: string): string {
+  return expressionPath.slice(0, expressionPath.lastIndexOf('.'));
+}

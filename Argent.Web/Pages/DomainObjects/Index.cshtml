@@ -1,0 +1,82 @@
+@page "/DomainObjects"
+@using Microsoft.Extensions.Localization
+@model Argent.Web.Pages.DomainObjects.IndexModel
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = Localizer["DomainObjects.Index.PageTitle"];
+}
+
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = Localizer["DomainObjects.Index.PageTitle"].Value,
+    Subtitle = Localizer["DomainObjects.Index.Subtitle"].Value,
+    ActionLink = new Shared.LinkModel(Localizer["DomainObjects.Index.NewDomainObject"].Value, "/DomainObjects/Create", "bi-plus-lg")
+}' />
+
+@if (Model.Objects.Count == 0)
+{
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = "bi-diagram-3",
+        Message = Localizer["DomainObjects.Index.EmptyMessage"].Value,
+        LinkText = Localizer["DomainObjects.Index.EmptyLink"].Value,
+        LinkUrl = "/DomainObjects/Create"
+    }' />
+}
+else
+{
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>@Localizer["Common.Name"]</th>
+                    <th>@Localizer["DomainObjects.Index.TableKey"]</th>
+                    <th>@Localizer["DomainObjects.Index.TableStatus"]</th>
+                    <th class="text-right">@Localizer["Common.Actions"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var obj in Model.Objects)
+                {
+                    <tr>
+                        <td class="font-medium">@obj.Name</td>
+                        <td><code class="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">@obj.Key</code></td>
+                        <td>
+                            <div class="flex items-center gap-1.5">
+                                @if (obj.PublishedVersion != null)
+                                {
+                                    <span class="badge bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-800">@Localizer["DomainObjects.Index.PublishedBadge"]@(obj.PublishedVersion)</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">@Localizer["DomainObjects.Index.UnpublishedBadge"]</span>
+                                }
+                                @if (obj.HasDraft)
+                                {
+                                    <span class="badge bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800">@Localizer["DomainObjects.Index.DraftBadge"]</span>
+                                }
+                            </div>
+                        </td>
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                @if (obj.PublishedVersion != null)
+                                {
+                                    <a class="btn-action btn-action-primary" href="/DomainObjects/@obj.Key/Records" title="@Localizer["DomainObjects.Index.RecordsTooltip"]">
+                                        <i class="bi bi-table"></i>
+                                    </a>
+                                }
+                                <a class="btn-action btn-action-secondary" href="/DomainObjects/Edit/@obj.Id" title="@Localizer["Common.Edit"]">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@obj.Id" style="display:inline"
+                                      onsubmit="return confirm('@Localizer["DomainObjects.Index.DeleteConfirm"]')">
+                                    <button class="btn-action btn-action-danger" title="@Localizer["Common.Delete"]">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

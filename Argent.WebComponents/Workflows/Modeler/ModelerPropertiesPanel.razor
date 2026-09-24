@@ -1,0 +1,497 @@
+@using System.Reflection
+@using Argent.Core.Workflows
+@using Argent.Core.DomainObjects
+@using Argent.Core.DomainObjects
+@using Argent.Core.Workflows
+@using Argent.Core.Workflows.Activities
+@using Argent.Core.Workflows.BoundaryEvents
+@using Argent.Core.Workflows.Intermediates
+@using Argent.Core.Workflows.Modeler.Enums
+@using Argent.Core.Workflows.Shared
+@using Argent.Core.Forms
+@using Argent.WebComponents.Workflows.Modeler
+@inject IDomainObjectDefinitionService DomainObjectDefinitions
+@inject IFormDesignerStore FormDesignerStore
+@inject IStringLocalizer<SharedResource> Localizer
+
+@if (Node != null)
+{
+    var descriptor = Registry.GetDescriptor(Node.NodeData.GetType());
+
+    <div class="modeler-properties">
+        <div class="modeler-properties-header">
+            <span class="modeler-properties-title">
+                <i class="bi bi-gear"></i> @Localizer["ModelerPropertiesPanel.Properties"] —
+                <span class="modeler-properties-type">@(descriptor?.DisplayName ?? Localizer["ModelerPropertiesPanel.NodeFallback"])</span>
+                <span class="modeler-properties-sep">—</span>
+                <span class="modeler-properties-name">@Node.Title</span>
+            </span>
+            <button type="button" class="modeler-properties-close" @onclick="HandleClose" title="@Localizer["ModelerPropertiesPanel.Close"]">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="modeler-properties-body">
+            <div class="modeler-properties-section">
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label">@Localizer["Common.Name"]</label>
+                    <input class="modeler-properties-input"
+                           value="@Node.Title"
+                           @oninput="@(e => { Node.Title = e.Value?.ToString() ?? ""; State.MarkDirty(); })" />
+                </div>
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label">@Localizer["Common.Description"]</label>
+                    <textarea class="modeler-properties-input modeler-properties-textarea" rows="2"
+                              value="@Node.Description"
+                              @oninput="@(e => { Node.Description = e.Value?.ToString() ?? ""; State.MarkDirty(); })"></textarea>
+                </div>
+            </div>
+
+            @if (descriptor != null)
+            {
+                <div class="modeler-properties-section modeler-properties-section-dyn">
+                    @foreach (var prop in descriptor.Properties.OrderBy(p => p.Order))
+                    {
+                        var propInfo = Node.NodeData.GetType().GetProperty(prop.PropertyName);
+                        if (propInfo == null) continue;
+
+                        <div class="modeler-properties-field">
+                            <label class="modeler-properties-label">
+                                @prop.DisplayName
+                                @if (!string.IsNullOrEmpty(prop.Description))
+                                {
+                                    <span class="modeler-properties-tip" title="@prop.Description">
+                                        <i class="bi bi-info-circle"></i>
+                                    </span>
+                                }
+                            </label>
+
+                            @if (prop.DataType == PropertyDataType.Code)
+                            {
+                                <textarea class="modeler-properties-input modeler-properties-code"
+                                          spellcheck="false" rows="4"
+                                          value="@propInfo.GetValue(Node.NodeData)"
+                                          @oninput="@(e => UpdateValue(propInfo, e.Value))" />
+                            }
+                            else if (prop.DataType == PropertyDataType.KeyValuePairs)
+                            {
+                                <span class="modeler-properties-placeholder">@Localizer["ModelerPropertiesPanel.DictionaryComingSoon"]</span>
+                            }
+                            else if (prop.DataType == PropertyDataType.Boolean)
+                            {
+                                <label class="modeler-properties-switch">
+                                    <input type="checkbox"
+                                           checked="@((bool?)propInfo.GetValue(Node.NodeData) ?? false)"
+                                           @onchange="@(e => UpdateValue(propInfo, e.Value))" />
+                                    <span class="modeler-properties-switch-slider"></span>
+                                </label>
+                            }
+                            else
+                            {
+                                <input class="modeler-properties-input"
+                                       value="@propInfo.GetValue(Node.NodeData)"
+                                       @oninput="@(e => UpdateValue(propInfo, e.Value))" />
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            @* ── StartEvent: ObjectKey + FormId ─────────────────── *@
+            @if (Node.NodeData is StartEvent startEvent)
+            {
+                <div class="modeler-properties-section modeler-properties-section-dyn">
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">@Localizer["ModelerPropertiesPanel.DomainObject"]</label>
+                        <select class="modeler-properties-input"
+                                @onchange="(e) => OnStartEventObjectKeyChanged(startEvent, e.Value?.ToString())">
+                            <option value="">@Localizer["ModelerPropertiesPanel.SelectObject"]</option>
+                            @foreach (var obj in _domainSummaries)
+                            {
+                                <option value="@obj.Key" selected="@(startEvent.ObjectKey == obj.Key)">@obj.Name (@obj.Key)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">@Localizer["ModelerPropertiesPanel.StartForm"]</label>
+                        @if (string.IsNullOrEmpty(startEvent.ObjectKey))
+                        {
+                            <span class="modeler-properties-placeholder text-sm">@Localizer["ModelerPropertiesPanel.SelectDomainFirst"]</span>
+                        }
+                        else
+                        {
+                            <select class="modeler-properties-input"
+                                    @onchange="(e) => SetStartEventForm(startEvent, e.Value?.ToString())">
+                                <option value="">@Localizer["ModelerPropertiesPanel.None"]</option>
+                                @foreach (var form in _availableForms)
+                                {
+                                    <option value="@form.Id" selected="@(startEvent.FormId == form.Id)">@form.Name</option>
+                                }
+                            </select>
+                            @if (!_availableForms.Any() && !string.IsNullOrEmpty(startEvent.ObjectKey))
+                            {
+                                <div class="text-sm text-yellow-600 dark:text-yellow-400 mt-1"><i class="bi bi-exclamation-triangle"></i> @(string.Format(Localizer["ModelerPropertiesPanel.NoFormsBound"], startEvent.ObjectKey))</div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+
+            @* ── UserActivity: Form picker ───────────────────────── *@
+            @if (Node.NodeData is UserActivity userActivity)
+            {
+                var wfObjectKey = GetWorkflowObjectKey();
+                var currentFormId = (userActivity.UX as FormExperience)?.FormId;
+                <div class="modeler-properties-section modeler-properties-section-dyn">
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">Form</label>
+                        @if (string.IsNullOrEmpty(wfObjectKey))
+                        {
+                            <span class="modeler-properties-placeholder text-sm">Workflow needs a domain object on StartEvent</span>
+                        }
+                        else
+                        {
+                            <select class="modeler-properties-input"
+                                    @onchange="(e) => SetUserActivityForm(userActivity, e.Value?.ToString())">
+                                <option value="">@Localizer["ModelerPropertiesPanel.None"]</option>
+                                @foreach (var form in _availableForms)
+                                {
+                                    <option value="@form.Id" selected="@(currentFormId == form.Id)">@form.Name</option>
+                                }
+                            </select>
+                            @if (!_availableForms.Any() && !string.IsNullOrEmpty(wfObjectKey))
+                            {
+                                <div class="text-sm text-yellow-600 dark:text-yellow-400 mt-1"><i class="bi bi-exclamation-triangle"></i> No forms bound to "@wfObjectKey"</div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+
+            @* ── ScriptActivity: Actions editor ──────────────────── *@
+            @if (Node.NodeData is ScriptActivity scriptActivity)
+            {
+                <div class="modeler-properties-section modeler-properties-section-dyn">
+                    <div class="modeler-properties-label mb-1">Actions</div>
+
+                    @for (var i = 0; i < scriptActivity.Actions.Count; i++)
+                    {
+                        var idx = i;
+                        var action = scriptActivity.Actions[idx];
+                        <div class="modeler-script-action">
+                            <div class="modeler-script-action-header">
+                                <span class="modeler-script-action-type">@GetActionTypeName(action)</span>
+                                <button class="modeler-btn-icon modeler-script-action-remove"
+                                        @onclick="() => RemoveAction(scriptActivity, idx)" title="Remove">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+
+                            @if (action is SetFormFieldAction sff)
+                            {
+                                <div class="modeler-properties-field">
+                                    <label class="modeler-properties-label">Field Key</label>
+                                    <input class="modeler-properties-input" value="@sff.FieldKey"
+                                           @oninput="@(e => { sff.FieldKey = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
+                                </div>
+                                <div class="modeler-properties-field">
+                                    <label class="modeler-properties-label">Value</label>
+                                    <input class="modeler-properties-input" value="@sff.Value"
+                                           @oninput="@(e => { sff.Value = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
+                                </div>
+                            }
+                            else if (action is SetVariableAction sv)
+                            {
+                                <div class="modeler-properties-field">
+                                    <label class="modeler-properties-label">Variable Name</label>
+                                    <input class="modeler-properties-input" value="@sv.VariableName"
+                                           @oninput="@(e => { sv.VariableName = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
+                                </div>
+                                <div class="modeler-properties-field">
+                                    <label class="modeler-properties-label">Value</label>
+                                    <input class="modeler-properties-input" value="@sv.Value"
+                                           @oninput="@(e => { sv.Value = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="modeler-script-action-add">
+                        <select class="modeler-properties-input" @bind="_newActionType">
+                            <option value="">— add action —</option>
+                            <option value="set-form-field">Set Form Field</option>
+                            <option value="set-variable">Set Instance Variable</option>
+                        </select>
+                        <button class="modeler-btn-icon" title="Add"
+                                @onclick="() => AddAction(scriptActivity)">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            }
+        @* ── CatchingTimerEvent / TimerBoundaryEvent: timer config ──── *@
+        @if (Node.NodeData is CatchingTimerEvent or TimerBoundaryEvent)
+        {
+            var def = GetTimerDefinition(Node.NodeData)!;
+
+            <div class="modeler-properties-section modeler-properties-section-dyn">
+                <div class="modeler-properties-label mb-2">Timer Schedule</div>
+
+                <div class="modeler-properties-field">
+                    <label class="modeler-properties-label">Type</label>
+                    <div class="modeler-timer-toggle">
+                        <button class="modeler-timer-toggle-btn @(def is RelativeTimerDefinition ? "active" : "")"
+                                @onclick="() => OnTimerTypeChanged(Node.NodeData, false)">
+                            Relative
+                        </button>
+                        <button class="modeler-timer-toggle-btn @(def is CronTimerDefinition ? "active" : "")"
+                                @onclick="() => OnTimerTypeChanged(Node.NodeData, true)">
+                            Schedule
+                        </button>
+                    </div>
+                </div>
+
+                @if (def is RelativeTimerDefinition rel)
+                {
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">Delay</label>
+                        <div class="modeler-timer-row">
+                            <input type="number" min="0" class="modeler-properties-input modeler-timer-amount"
+                                   value="@rel.Amount"
+                                   @oninput="e => { if (int.TryParse(e.Value?.ToString(), out var n) && n >= 0) { rel.Amount = n; State.MarkDirty(); } }" />
+                            <select class="modeler-properties-input"
+                                    @onchange="e => { if (Enum.TryParse<TimerUnit>(e.Value?.ToString(), out var u)) { rel.Unit = u; State.MarkDirty(); } }">
+                                @foreach (var unit in Enum.GetValues<TimerUnit>())
+                                {
+                                    <option value="@unit" selected="@(rel.Unit == unit)">@unit</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">Anchor</label>
+                        <div class="modeler-timer-toggle">
+                            <button class="modeler-timer-toggle-btn @(!rel.UseField ? "active" : "")"
+                                    @onclick="() => { rel.UseField = false; rel.FieldKey = null; State.MarkDirty(); }">
+                                After arriving
+                            </button>
+                            <button class="modeler-timer-toggle-btn @(rel.UseField ? "active" : "")"
+                                    @onclick="() => { rel.UseField = true; State.MarkDirty(); }">
+                                After field date
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (rel.UseField)
+                    {
+                        <div class="modeler-properties-field">
+                            <label class="modeler-properties-label">
+                                Field Key
+                                <span class="modeler-properties-tip" title="Domain object or form field key containing the base date">
+                                    <i class="bi bi-info-circle"></i>
+                                </span>
+                            </label>
+                            <input class="modeler-properties-input" placeholder="e.g. submittedAt"
+                                   value="@rel.FieldKey"
+                                   @oninput="e => { rel.FieldKey = e.Value?.ToString(); State.MarkDirty(); }" />
+                        </div>
+                    }
+                }
+                else if (def is CronTimerDefinition cron)
+                {
+                    <CronExpressionEditor Expression="@cron.Expression"
+                                          ExpressionChanged="@(s => { cron.Expression = s; State.MarkDirty(); })"
+                                          TimeZoneId="@cron.TimeZoneId" />
+
+                    <div class="modeler-properties-field">
+                        <label class="modeler-properties-label">Timezone</label>
+                        <select class="modeler-properties-input"
+                                @onchange="@(e => { cron.TimeZoneId = e.Value?.ToString() ?? "UTC"; State.MarkDirty(); })">
+                            @foreach (var tz in s_timeZones)
+                            {
+                                <option value="@tz.Id" selected="@(cron.TimeZoneId == tz.Id)">@tz.Label</option>
+                            }
+                        </select>
+                    </div>
+                }
+
+                @if (Node.NodeData is TimerBoundaryEvent boundary)
+                {
+                    <div class="modeler-properties-field modeler-properties-field-inline">
+                        <label class="modeler-properties-label">
+                            Interrupting
+                            <span class="modeler-properties-tip"
+                                  title="Cancels the parent activity when the timer fires">
+                                <i class="bi bi-info-circle"></i>
+                            </span>
+                        </label>
+                        <label class="modeler-properties-switch">
+                            <input type="checkbox" checked="@boundary.IsInterrupting"
+                                   @onchange="e => { boundary.IsInterrupting = (bool)(e.Value ?? true); State.MarkDirty(); }" />
+                            <span class="modeler-properties-switch-slider"></span>
+                        </label>
+                    </div>
+                }
+            </div>
+        }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public required DesignerService State { get; set; }
+    [Parameter] public required IWorkflowNodeRegistry Registry { get; set; }
+    [Parameter] public required DesignerNode Node { get; set; }
+    [Parameter] public required EventCallback OnClose { get; set; }
+
+    private IReadOnlyList<DomainObjectSummary> _domainSummaries = [];
+    private IReadOnlyList<FormDesignSummary> _availableForms = [];
+    private string _loadedFormsKey = string.Empty;
+    private string _newActionType = string.Empty;
+
+    // FormDesignSummary from Argent.Core.Forms used directly (Guid Id, string Name)
+
+    private record TzOption(string Id, string Label);
+
+    private static readonly TzOption[] s_timeZones =
+    [
+        new("UTC",                   "UTC"),
+        new("Europe/London",         "London (GMT/BST)"),
+        new("Europe/Paris",          "Paris / Berlin (CET/CEST)"),
+        new("Europe/Stockholm",      "Stockholm (CET/CEST)"),
+        new("Europe/Helsinki",       "Helsinki (EET/EEST)"),
+        new("America/New_York",      "New York (ET)"),
+        new("America/Chicago",       "Chicago (CT)"),
+        new("America/Denver",        "Denver (MT)"),
+        new("America/Los_Angeles",   "Los Angeles (PT)"),
+        new("America/Sao_Paulo",     "São Paulo (BRT)"),
+        new("Africa/Johannesburg",   "Johannesburg (SAST)"),
+        new("Asia/Dubai",            "Dubai (GST)"),
+        new("Asia/Kolkata",          "Mumbai / Kolkata (IST)"),
+        new("Asia/Bangkok",          "Bangkok (ICT)"),
+        new("Asia/Singapore",        "Singapore (SGT)"),
+        new("Asia/Shanghai",         "Beijing / Shanghai (CST)"),
+        new("Asia/Tokyo",            "Tokyo (JST)"),
+        new("Asia/Seoul",            "Seoul (KST)"),
+        new("Australia/Sydney",      "Sydney (AEST/AEDT)"),
+        new("Pacific/Auckland",      "Auckland (NZST/NZDT)"),
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _domainSummaries = await DomainObjectDefinitions.GetSummariesAsync();
+        await RefreshAvailableFormsAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await RefreshAvailableFormsAsync();
+    }
+
+    private string GetWorkflowObjectKey() =>
+        State.Nodes.Select(n => n.NodeData).OfType<StartEvent>().FirstOrDefault()?.ObjectKey ?? string.Empty;
+
+    private async Task RefreshAvailableFormsAsync()
+    {
+        var key = Node.NodeData switch
+        {
+            StartEvent se => se.ObjectKey,
+            UserActivity => GetWorkflowObjectKey(),
+            _ => string.Empty
+        };
+
+        if (key == _loadedFormsKey) return;
+        _loadedFormsKey = key;
+
+        if (string.IsNullOrEmpty(key)) { _availableForms = []; return; }
+
+        _availableForms = await FormDesignerStore.GetSummariesByObjectKeyAsync(key);
+    }
+
+    private async Task OnStartEventObjectKeyChanged(StartEvent startEvent, string? key)
+    {
+        startEvent.ObjectKey = key ?? string.Empty;
+        startEvent.FormId = null;
+        _loadedFormsKey = string.Empty;
+        await RefreshAvailableFormsAsync();
+        State.MarkDirty();
+    }
+
+    private void SetStartEventForm(StartEvent startEvent, string? formIdStr)
+    {
+        startEvent.FormId = Guid.TryParse(formIdStr, out var id) ? id : null;
+        State.MarkDirty();
+    }
+
+    private void SetUserActivityForm(UserActivity activity, string? formIdStr)
+    {
+        if (Guid.TryParse(formIdStr, out var id))
+            activity.UX = new FormExperience { FormId = id };
+        else
+            activity.UX = new RedirectExperience("https://example.com");
+        State.MarkDirty();
+    }
+
+    // ── Timer helpers ────────────────────────────────────────────────
+
+    private static TimerDefinition? GetTimerDefinition(NodeBase node) => node switch
+    {
+        CatchingTimerEvent e => e.Definition,
+        TimerBoundaryEvent e => e.Definition,
+        _ => null
+    };
+
+    private void OnTimerTypeChanged(NodeBase node, bool useCron)
+    {
+        TimerDefinition next = useCron ? new CronTimerDefinition() : new RelativeTimerDefinition();
+        if (node is CatchingTimerEvent e1) e1.Definition = next;
+        else if (node is TimerBoundaryEvent e2) e2.Definition = next;
+        State.MarkDirty();
+    }
+
+    // ── Generic property helper ──────────────────────────────────────
+
+    private void UpdateValue(PropertyInfo prop, object? val)
+    {
+        if (Node == null) return;
+        if (prop.PropertyType == typeof(int) && int.TryParse(val?.ToString(), out var i))
+            prop.SetValue(Node.NodeData, i);
+        else if (prop.PropertyType == typeof(double) && double.TryParse(val?.ToString(), out var d))
+            prop.SetValue(Node.NodeData, d);
+        else if (prop.PropertyType == typeof(TimeSpan) && int.TryParse(val?.ToString(), out var seconds))
+            prop.SetValue(Node.NodeData, TimeSpan.FromSeconds(seconds));
+        else
+            prop.SetValue(Node.NodeData, val);
+        State.MarkDirty();
+    }
+
+    private void HandleClose() => OnClose.InvokeAsync();
+
+    private static string GetActionTypeName(ScriptAction action) => action switch
+    {
+        SetFormFieldAction => "Set Form Field",
+        SetVariableAction => "Set Instance Variable",
+        _ => "Unknown"
+    };
+
+    private void AddAction(ScriptActivity activity)
+    {
+        if (string.IsNullOrEmpty(_newActionType)) return;
+        ScriptAction? newAction = _newActionType switch
+        {
+            "set-form-field" => new SetFormFieldAction(),
+            "set-variable" => new SetVariableAction(),
+            _ => null
+        };
+        if (newAction == null) return;
+        activity.Actions.Add(newAction);
+        _newActionType = string.Empty;
+        State.MarkDirty();
+    }
+
+    private void RemoveAction(ScriptActivity activity, int index)
+    {
+        activity.Actions.RemoveAt(index);
+        State.MarkDirty();
+    }
+}

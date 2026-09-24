@@ -1,0 +1,82 @@
+@page "/DomainObjects/{Key}/Records"
+@using Microsoft.Extensions.Localization
+@model Argent.Web.Pages.DomainObjects.Records.IndexModel
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = $"{Model.Definition.DisplayName} {Localizer["DomainObjects.Records.PageTitle"]}";
+}
+
+<div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+    <div>
+        <nav class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="/DomainObjects" class="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Domain Objects</a>
+            <span class="text-gray-300 dark:text-gray-600">/</span>
+            <span class="text-gray-900 dark:text-gray-100 font-medium">@Model.Definition.DisplayName</span>
+        </nav>
+        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">@Model.Definition.DisplayName @Localizer["DomainObjects.Records.PageTitle"]</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400">@Model.TotalCount record@(Model.TotalCount == 1 ? "" : "s")</p>
+    </div>
+    <a class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm" href="/DomainObjects/@Model.Key/Records/Form">
+        <i class="bi bi-plus-lg"></i> @Localizer["DomainObjects.Records.NewRecord"]
+    </a>
+</div>
+
+@if (Model.Records.Count == 0)
+{
+    <div class="card text-center py-12">
+        <i class="bi bi-inbox text-4xl text-gray-300 dark:text-gray-600 mb-3 block"></i>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mb-0">
+            @Localizer["DomainObjects.Records.EmptyMessage"] <a href="/DomainObjects/@Model.Key/Records/Form" class="text-indigo-600 dark:text-indigo-400 hover:underline">Create the first one</a>.
+        </p>
+    </div>
+}
+else
+{
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    @foreach (var prop in Model.Definition.Properties.Take(5))
+                    {
+                        <th>@prop.DisplayName</th>
+                    }
+                    <th class="text-right">@Localizer["Common.Actions"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var record in Model.Records)
+                {
+                    <tr>
+                        @foreach (var prop in Model.Definition.Properties.Take(5))
+                        {
+                            <td class="text-sm">
+                                @{
+                                    record.Values.TryGetValue(prop.Key, out var val);
+                                    var display = val?.ToString();
+                                    if (display != null && display.Length > 60)
+                                        display = display[..57] + "…";
+                                }
+                                @(display ?? "—")
+                            </td>
+                        }
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <a class="btn-action btn-action-secondary"
+                                   href="/DomainObjects/@Model.Key/Records/Form?id=@record.Id" title="@Localizer["Common.Edit"]">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@record.Id"
+                                      asp-route-key="@Model.Key" style="display:inline"
+                                      onsubmit="return confirm('@Localizer["DomainObjects.Records.DeleteConfirm"]')">
+                                    <button class="btn-action btn-action-danger" title="@Localizer["Common.Delete"]">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

@@ -1,0 +1,389 @@
+@using Argent.Core.DomainObjects
+@using Argent.Core.DomainObjects
+@using Argent.WebComponents.Forms.Designer
+@using Argent.WebComponents.Forms
+@using Argent.WebComponents.Authorization
+@using Microsoft.JSInterop
+@implements IDisposable
+@inject FormDesignerService State
+@inject NavigationManager Navigation
+@inject IDomainObjectDefinitionService DomainObjectDefinitions
+@inject IJSRuntime Js
+@inject IStringLocalizer<SharedResource> Localizer
+
+<style>
+    .fd-dropzone { height: 0; overflow: hidden; border-radius: 4px; transition: height 0.1s, background 0.1s; }
+    .fd-dropzone.visible { height: 10px; margin: 2px 0; background: #e5e7eb; }
+    :where(.dark) .fd-dropzone.visible { background: #374151; }
+    .fd-dropzone.visible.active { background: #6366f1; }
+    .fd-dropzone-inside.visible { height: 34px; border: 2px dashed #9ca3af; background: #f9fafb; display: flex; align-items: center; justify-content: center; color: #6b7280; font-size: 0.75rem; }
+    :where(.dark) .fd-dropzone-inside.visible { background: #1f2937; color: #9ca3af; }
+    .fd-dropzone-inside.visible.active { border-color: #6366f1; background: #eef2ff; color: #6366f1; }
+
+    .fd-node { position: relative; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; margin: 2px 0; }
+    :where(.dark) .fd-node { background: #1f2937; border-color: #374151; }
+    .fd-node.selected { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15); }
+    .fd-node-container { background: #f9fafb; }
+    :where(.dark) .fd-node-container { background: #111827; }
+
+    .fd-node-header { display: flex; align-items: center; gap: 6px; padding: 2px 8px; font-size: 0.72rem; color: #6b7280; border-bottom: 1px dashed #e5e7eb; cursor: grab; user-select: none; }
+    :where(.dark) .fd-node-header { color: #9ca3af; border-color: #374151; }
+    .fd-node-header:active { cursor: grabbing; }
+    .fd-grip { color: #9ca3af; }
+    .fd-node-title { font-weight: 600; color: #374151; }
+    :where(.dark) .fd-node-title { color: #d1d5db; }
+    .fd-node-meta { font-family: 'Cascadia Code','Fira Code','Consolas',monospace; font-size: 0.65rem; color: #9ca3af; }
+    .fd-node-actions { margin-left: auto; display: none; gap: 2px; }
+    .fd-node:hover > .fd-node-header > .fd-node-actions,
+    .fd-node.selected > .fd-node-header > .fd-node-actions { display: inline-flex; }
+    .fd-action { border: none; background: none; padding: 0 3px; font-size: 0.72rem; color: #6b7280; line-height: 1.4; border-radius: 3px; }
+    .fd-action:hover { background: #e5e7eb; color: #6366f1; }
+    :where(.dark) .fd-action:hover { background: #374151; color: #818cf8; }
+    .fd-action-danger:hover { color: #ef4444; }
+
+    .fd-node-preview { padding: 6px 10px 2px; pointer-events: none; }
+    .fd-container-body { padding: 6px 10px; }
+    .fd-container-hint { padding: 1px 10px; font-size: 0.65rem; color: #9ca3af; font-style: italic; }
+    .fd-columns { display: flex; gap: 8px; padding: 6px 10px; }
+    .fd-column { flex: 1; min-width: 0; border: 1px dashed #e5e7eb; border-radius: 4px; padding: 4px; }
+    :where(.dark) .fd-column { border-color: #374151; }
+    .fd-column-label { font-size: 0.65rem; color: #9ca3af; text-transform: uppercase; margin-bottom: 2px; }
+
+    .fd-toolbox-item { cursor: grab; }
+    .fd-toolbox-item:active { cursor: grabbing; }
+    .fd-toolbox-category { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin: 8px 0 4px; }
+
+    .property-section { border-bottom: 1px solid #e5e7eb; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+    :where(.dark) .property-section { border-color: #374151; }
+    .property-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #6b7280; margin-bottom: 0.5rem; }
+    :where(.dark) .property-label { color: #9ca3af; }
+</style>
+
+<div class="flex flex-col h-full flex-1">
+    @* ── Toolbar ─────────────────────────────────────────────── *@
+    <div class="flex items-center gap-2 p-2 border-b bg-white dark:bg-gray-900" style="min-height: 42px;">
+        <a href="/Forms" class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors mr-1" title="@Localizer["FormDesigner.Back"]">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <select class="form-input text-sm @(string.IsNullOrEmpty(State.Definition.ObjectKey) ? "border-warning" : "")"
+                style="max-width: 200px;"
+                @onchange="OnObjectKeyChanged"
+                aria-invalid="@(string.IsNullOrWhiteSpace(State.Definition.ObjectKey))"
+                title="@Localizer["FormDesigner.ObjectKeyHint"]">
+            <option value="">@Localizer["FormDesigner.SelectDomainObject"]</option>
+            @foreach (var obj in _objectCatalog)
+            {
+                <option value="@obj.Key" selected="@(State.Definition.ObjectKey == obj.Key)">@obj.Name</option>
+            }
+        </select>
+        @if (_showObjectKeyError && string.IsNullOrWhiteSpace(State.Definition.ObjectKey))
+        {
+            <span class="text-red-600 dark:text-red-400 text-sm">@Localizer["FormDesigner.SelectDomainObject"]</span>
+        }
+        <input type="text" class="form-input form-input-sm" style="max-width: 200px;"
+               value="@State.Name"
+               @onchange="(e) => { State.Name = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }"
+               placeholder="@Localizer["FormDesigner.FormNamePlaceholder"]" />
+        <input type="text" class="form-input form-input-sm" style="max-width: 300px;"
+               value="@State.Description"
+               @onchange="(e) => { State.Description = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); }"
+               placeholder="@Localizer["FormDesigner.DescriptionPlaceholder"]" />
+        @if (!State.IsReadOnly)
+        {
+            <button class="px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors" @onclick="HandleSave" disabled="@_isBusy">
+                @if (_isBusy && _busyMode == "save")
+                {
+                    <span class="inline-block w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin mr-1"></span>
+                }
+                <i class="bi bi-save-fill"></i> @Localizer["FormDesigner.SaveDraft"]
+            </button>
+            <button class="px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-lg transition-colors" @onclick="HandlePublish" disabled="@_isBusy">
+                @if (_isBusy && _busyMode == "publish")
+                {
+                    <span class="inline-block w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin mr-1"></span>
+                }
+                <i class="bi bi-send-fill"></i> @Localizer["FormDesigner.Publish"]
+            </button>
+            <span title="@(State.HasUnsavedChanges ? Localizer["FormDesigner.UnsavedChanges"] : Localizer["FormDesigner.Saved"])"
+                  class="@(State.HasUnsavedChanges ? "text-yellow-600 dark:text-yellow-400" : "text-green-600 dark:text-green-400")">
+                <i class="bi @(State.HasUnsavedChanges ? "bi-circle-fill" : "bi-check-circle-fill")"></i>
+            </span>
+        }
+        else
+        {
+            <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                <i class="bi bi-eye-fill mr-1"></i> @Localizer["FormDesigner.ReadOnlyView"]
+            </span>
+        }
+        <button class="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors" @onclick="() => _showPreview = true">
+            <i class="bi bi-eye-fill"></i> @Localizer["FormDesigner.Preview"]
+        </button>
+        @if (!string.IsNullOrEmpty(_saveError))
+        {
+            <span class="text-red-600 dark:text-red-400 text-sm ml-2"><i class="bi bi-exclamation-triangle-fill"></i> @_saveError</span>
+        }
+        @if (State.StoredFormId.HasValue && !State.IsReadOnly)
+        {
+            <hr />
+            <ResourceSharingPanel ResourceType="Form" ResourceId="@State.StoredFormId.Value" />
+        }
+    </div>
+
+    @if (_initializationError is not null)
+    {
+        <div class="flex items-center gap-3 p-3 text-sm text-red-700 bg-red-50 border-b border-red-200" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>Designer initialization failed: @_initializationError</span>
+            <button class="btn-action btn-action-secondary ml-auto" @onclick="InitializeAsync" disabled="@_isInitializing">Retry</button>
+        </div>
+    }
+    else if (_isInitializing)
+    {
+        <div class="p-3 text-sm text-gray-500 border-b" role="status">Loading designer…</div>
+    }
+
+    <div class="flex flex-1 overflow-hidden">
+        @* ── Toolbox ─────────────────────────────────────────── *@
+        <div class="border-e bg-gray-100 dark:bg-gray-800 p-2" style="width: 200px; min-width: 200px; overflow-y: auto;">
+            @foreach (var category in FormDesignerService.ToolboxItems.GroupBy(t => t.Category))
+            {
+                <div class="fd-toolbox-category">@category.Key</div>
+                @foreach (var item in category)
+                {
+                    <div draggable="true"
+                         @ondragstart="() => State.BeginDragAdd(item.TypeName)"
+                         @ondragend="() => State.EndDrag()"
+                         @onclick="() => State.AddFromToolbox(item.TypeName)"
+                         class="fd-toolbox-item px-2 py-1 text-sm w-full text-start mb-1 font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                         style="font-size: 0.85rem;"
+                         title="@Localizer["FormDesigner.ToolboxHint"]">
+                        <i class="bi @item.Icon mr-2"></i> @item.DisplayName
+                    </div>
+                }
+            }
+        </div>
+
+        @* ── Canvas ──────────────────────────────────────────── *@
+        <div class="flex-1 overflow-auto p-3" tabindex="0"
+             @onkeydown="HandleKeyDown"
+             @onclick="() => State.SelectComponent(null)">
+                @if (State.Definition.Components.Count == 0)
+                {
+                    <div class="flex items-center justify-center text-gray-500 dark:text-gray-400 border rounded"
+                         style="min-height: 300px; border-style: dashed !important;"
+                         @ondragenter="() => State.SetHover(RootEnd)"
+                         @ondragleave="() => State.ClearHover(RootEnd)"
+                         @ondrop="() => State.Drop(RootEnd)"
+                         @ondragover:preventDefault>
+                        <div class="text-center">
+                            <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
+                             <p class="mt-2 mb-0">@Localizer["FormDesigner.DragHere"]</p>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    @for (int i = 0; i < State.Definition.Components.Count; i++)
+                    {
+                        var index = i;
+                        <DropZone State="@State" Target="@(new DropTarget(null, index))" />
+                        <DesignerNode State="@State" Component="@State.Definition.Components[index]" />
+                    }
+                    <DropZone State="@State" Inside="true" Target="@RootEnd" />
+                }
+        </div>
+
+        @* ── Sidebar (Properties / Versions) ─────────────────── *@
+        <div class="border-s bg-gray-100 dark:bg-gray-800 flex flex-col" style="width: 360px; min-width: 360px;">
+            @* Tab bar *@
+            <div class="flex border-b bg-white dark:bg-gray-900">
+                <button class="px-4 py-2 text-sm font-medium transition-colors @(_sidebarTab == "props" ? "border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300")"
+                        @onclick='() => _sidebarTab = "props"'>
+                    <i class="bi bi-sliders mr-1"></i> @Localizer["FormDesigner.Properties"]
+                </button>
+                <button class="px-4 py-2 text-sm font-medium transition-colors @(_sidebarTab == "versions" ? "border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300")"
+                        @onclick='() => _sidebarTab = "versions"'>
+                    <i class="bi bi-clock-history mr-1"></i> @Localizer["FormDesigner.Versions"]
+                    @if (State.Versions.Count > 0)
+                    {
+                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400">@State.Versions.Count</span>
+                    }
+                </button>
+            </div>
+            @* Tab content *@
+            <div class="flex-1 overflow-y-auto p-3">
+                @if (_sidebarTab == "props")
+                {
+                    <FormPropertyPanel State="@State" />
+                }
+                else
+                {
+                    <FormVersioningPanel State="@State" OnVersionLoaded="StateHasChanged" />
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ── Preview modal ───────────────────────────────────────────── *@
+@if (_showPreview)
+{
+    <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4"
+         @onclick="() => _showPreview = false">
+        <div class="relative w-full max-w-4xl mt-8 mb-8 bg-white dark:bg-gray-900 rounded-xl shadow-2xl"
+             @onclick:stopPropagation>
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h5 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    <i class="bi bi-eye-fill text-green-500"></i> @Localizer["FormDesigner.PreviewTitle"]: @State.Name
+                </h5>
+                <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                        @onclick="() => _showPreview = false"
+                        title="@Localizer["FormDesigner.ClosePreview"]">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="px-6 py-4 max-h-[70vh] overflow-y-auto">
+                <FormRuntimePreview Definition="State.Definition" />
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid? FormId { get; set; }
+
+    private bool _showPreview;
+    private bool _isBusy;
+    private string _busyMode = "";
+    private string? _saveError;
+    private string? _initializationError;
+    private bool _isInitializing;
+    private bool _showObjectKeyError;
+    private string _sidebarTab = "props";
+    private IReadOnlyList<DomainObjectSummary> _objectCatalog = [];
+
+    private static DropTarget RootEnd => new(null, int.MaxValue);
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.OnChange += StateHasChanged;
+        await InitializeAsync();
+    }
+
+    private async Task InitializeAsync()
+    {
+        _isInitializing = true;
+        _initializationError = null;
+        try
+        {
+            _objectCatalog = await DomainObjectDefinitions.GetSummariesAsync();
+            if (FormId.HasValue)
+                await State.LoadAsync(FormId.Value);
+        }
+        catch (Exception exception)
+        {
+            _initializationError = exception.Message;
+        }
+        finally
+        {
+            _isInitializing = false;
+        }
+    }
+
+    private void OnObjectKeyChanged(ChangeEventArgs e)
+    {
+        State.Definition.ObjectKey = e.Value?.ToString() ?? string.Empty;
+        _showObjectKeyError = string.IsNullOrWhiteSpace(State.Definition.ObjectKey);
+        if (!_showObjectKeyError)
+            _saveError = null;
+        State.MarkDirty();
+    }
+
+    private async Task<bool> ValidateDesignerPrerequisitesAsync()
+    {
+        _showObjectKeyError = string.IsNullOrWhiteSpace(State.Definition.ObjectKey);
+        if (_showObjectKeyError)
+        {
+            _saveError = Localizer["FormDesigner.SelectDomainObject"];
+            return false;
+        }
+
+        var domainDefinition = await DomainObjectDefinitions.GetPublishedDefinitionAsync(State.Definition.ObjectKey);
+        if (domainDefinition is null)
+        {
+            _saveError = $"The published domain object '{State.Definition.ObjectKey}' could not be loaded.";
+            return false;
+        }
+
+        var properties = domainDefinition.Properties.ToDictionary(property => property.Key, StringComparer.Ordinal);
+        foreach (var field in State.AllFields())
+        {
+            if (!properties.TryGetValue(field.Name, out var property)) continue;
+            if (property.Type == DomainPropertyType.Reference && property.IsCollection)
+            {
+                _saveError = $"Field '{field.Label}' is bound to a collection reference. Multi-reference fields are not supported yet.";
+                return false;
+            }
+            var expectedType = FormDesignerService.FieldTypeFor(property.Type);
+            if (field.Type != expectedType)
+            {
+                _saveError = $"Field '{field.Label}' is bound to {property.DisplayName} ({property.Type}) and must use field type '{expectedType}', not '{field.Type}'.";
+                return false;
+            }
+            if (property.Type == DomainPropertyType.Reference &&
+                (field.Reference is null || field.Reference.ObjectKey != property.ReferenceTargetKey))
+            {
+                _saveError = $"Field '{field.Label}' has incomplete reference configuration. Rebind it to {property.DisplayName}.";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= StateHasChanged;
+    }
+
+    private async Task HandleSave()
+    {
+        if (!await ValidateDesignerPrerequisitesAsync()) return;
+        _isBusy = true; _busyMode = "save"; _saveError = null;
+        try
+        {
+            var isNew = !State.StoredFormId.HasValue;
+            await State.SaveAsync();
+            if (isNew && State.StoredFormId.HasValue)
+                Navigation.NavigateTo($"/Forms/Edit/{State.StoredFormId}", forceLoad: true);
+        }
+        catch (Exception ex) { _saveError = ex.Message; }
+        finally { _isBusy = false; _busyMode = ""; }
+    }
+
+    private async Task HandlePublish()
+    {
+        if (!await ValidateDesignerPrerequisitesAsync()) return;
+        _isBusy = true; _busyMode = "publish"; _saveError = null;
+        try
+        {
+            var isNew = !State.StoredFormId.HasValue;
+            await State.SaveAsync();
+            await State.PublishAsync();
+            _sidebarTab = "versions";
+            if (isNew && State.StoredFormId.HasValue)
+                Navigation.NavigateTo($"/Forms/Edit/{State.StoredFormId}", forceLoad: true);
+        }
+        catch (Exception ex) { _saveError = ex.Message; }
+        finally { _isBusy = false; _busyMode = ""; }
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (State.IsReadOnly) return;
+        if (e.Key == "Delete")
+            State.RemoveSelected();
+        else if (e.Key == "Escape")
+            State.SelectComponent(null);
+    }
+}

@@ -1,0 +1,28 @@
+﻿@using Argent.WebComponents.Workflows.Modeler
+
+<div class="json-viewer">
+    @if (State.CompiledDefinition is not null)
+    {
+        <div style="max-width:20vw;white-space: pre-wrap; overflow: scroll; max-height: 80vh;">
+            <pre>@(State.CompiledJson)</pre>
+        </div>
+    }
+    else
+    {
+        <div class="json-viewer-empty">
+            <i class="bi @(State.IsReadOnlyVersion ? "bi-eye-slash" : "bi-code-slash")"></i>
+            <span>
+                @(State.IsReadOnlyVersion
+                    ? "This version is read-only. Compile an in-memory preview of the workflow JSON."
+                    : "The workflow JSON is generated on demand. Compile it to preview the current definition.")
+            </span>
+            <button type="button" class="json-viewer-compile" @onclick="State.Compile">
+                <i class="bi bi-gear-fill me-1"></i> Compile JSON
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public required DesignerService State { get; set; }
+}

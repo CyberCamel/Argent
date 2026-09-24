@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://argent.dev/schemas/form/v2",
+  "title": "Argent Form Protocol v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocolVersion", "id", "objectKey", "components"],
+  "properties": {
+    "protocolVersion": { "const": "2.0" },
+    "id": { "$ref": "#/$defs/protocolId" },
+    "objectKey": { "$ref": "#/$defs/identifier" },
+    "title": { "type": "string" },
+    "components": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/component" }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "protocolId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "component": {
+      "oneOf": [
+        { "$ref": "#/$defs/field" },
+        { "$ref": "#/$defs/layout" }
+      ]
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "type", "name", "label"],
+      "properties": {
+        "kind": { "const": "field" },
+        "type": {
+          "enum": ["text", "integer", "decimal", "date", "timestamp", "boolean", "choice", "file"]
+        },
+        "name": { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "placeholder": { "type": "string" },
+        "required": { "type": "boolean" },
+        "options": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/option" }
+        },
+        "reference": { "$ref": "#/$defs/referenceSource" },
+        "visibleWhen": { "$ref": "#/$defs/expression" },
+        "requiredWhen": { "$ref": "#/$defs/expression" },
+        "disabledWhen": { "$ref": "#/$defs/expression" },
+        "readOnlyWhen": { "$ref": "#/$defs/expression" },
+        "validators": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validator" }
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "label"],
+      "properties": {
+        "value": { "type": "string" },
+        "label": { "type": "string" },
+        "disabled": { "type": "boolean" }
+      }
+    },
+    "referenceSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["objectKey", "labelField"],
+      "properties": {
+        "objectKey": { "$ref": "#/$defs/identifier" },
+        "labelField": { "$ref": "#/$defs/identifier" }
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "type", "children"],
+      "properties": {
+        "kind": { "const": "layout" },
+        "type": { "enum": ["section", "row", "column", "tabs", "accordion"] },
+        "id": { "$ref": "#/$defs/identifier" },
+        "title": { "type": "string" },
+        "visibleWhen": { "$ref": "#/$defs/expression" },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/component" }
+        }
+      }
+    },
+    "expression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operator", "arguments"],
+          "properties": {
+            "operator": { "enum": ["and", "or"] },
+            "arguments": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/expression" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operator", "argument"],
+          "properties": {
+            "operator": { "const": "not" },
+            "argument": { "$ref": "#/$defs/expression" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operator", "left", "right"],
+          "properties": {
+            "operator": {
+              "enum": ["equals", "notEquals", "greaterThan", "greaterThanOrEqual", "lessThan", "lessThanOrEqual", "contains", "startsWith", "endsWith"]
+            },
+            "left": { "$ref": "#/$defs/operand" },
+            "right": { "$ref": "#/$defs/operand" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operator", "operand"],
+          "properties": {
+            "operator": { "enum": ["isEmpty", "isNotEmpty"] },
+            "operand": { "$ref": "#/$defs/operand" }
+          }
+        }
+      ]
+    },
+    "operand": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["field"],
+          "properties": { "field": { "$ref": "#/$defs/identifier" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value"],
+          "properties": {
+            "value": {
+              "type": ["string", "number", "boolean", "null"]
+            }
+          }
+        }
+      ]
+    },
+    "validator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "code"],
+      "properties": {
+        "type": { "enum": ["required", "length", "range", "pattern", "email", "url", "compare"] },
+        "code": { "$ref": "#/$defs/identifier" },
+        "message": { "type": "string" },
+        "when": { "$ref": "#/$defs/expression" },
+        "minLength": { "type": "integer", "minimum": 0 },
+        "maxLength": { "type": "integer", "minimum": 0 },
+        "min": { "type": ["number", "string"] },
+        "max": { "type": ["number", "string"] },
+        "pattern": { "type": "string" },
+        "otherField": { "$ref": "#/$defs/identifier" },
+        "operator": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+﻿@page
+@model ErrorModel
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = Localizer["Error.PageTitle"];
+}
+
+<div class="text-center py-12">
+    <i class="bi bi-exclamation-triangle text-4xl text-red-500 dark:text-red-400 mb-3 block"></i>
+    <h1 class="text-lg font-bold text-red-600 dark:text-red-400">@Localizer["Error.Heading"]</h1>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-0">@Localizer["Error.Message"]</p>
+
+    @if (Model.ShowRequestId)
+    {
+        <p class="mt-4 mb-0 text-sm text-gray-400">
+            @Localizer["Error.RequestId"] <code class="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs">@Model.RequestId</code>
+        </p>
+    }
+</div>

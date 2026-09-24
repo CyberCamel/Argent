@@ -1,0 +1,18 @@
+﻿@page "/Workflows/Edit/{id:guid}"
+@using Microsoft.Extensions.Localization
+@using Argent.WebComponents.Workflows.Modeler
+@inject IStringLocalizer<SharedResource> Localizer
+@model Argent.Web.Pages.Workflows.Model.EditModel
+@{
+    ViewData["Title"] = Localizer["Workflows.Edit.PageTitle"] + Model.WorkflowName;
+    ViewData["IsFullWidth"] = true;
+}
+
+<div class="flex-grow-1 d-flex" style="height: calc(100vh - 56px);">
+    <component type="typeof(WorkflowModeler)" render-mode="WebAssembly"
+               param-WorkflowId="@Model.WorkflowId" />
+</div>
+
+@section Styles {
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+}

@@ -1,0 +1,193 @@
+@using Argent.Core.DomainObjects
+@using Argent.WebComponents.DomainObjects.Designer
+@using Microsoft.JSInterop
+
+@inject IJSRuntime Js
+@inject IStringLocalizer<SharedResource> Localizer
+
+@implements IDisposable
+
+<div class="modeler-version-panel">
+    <h3 class="modeler-version-title">
+        <i class="bi bi-archive"></i> @State.Name
+    </h3>
+
+    <div class="modeler-version-subtitle">@Localizer["DomainObjectVersioningPanel.Versions"]</div>
+
+    @{
+        var timeline = BuildTimeline();
+    }
+
+    @if (timeline.Count == 0)
+    {
+        <p class="modeler-version-empty">@Localizer["DomainObjectVersioningPanel.NoVersions"]</p>
+    }
+    else
+    {
+        <div class="modeler-version-timeline">
+            @for (var i = 0; i < timeline.Count; i++)
+            {
+                var entry = timeline[i];
+                var isLast = i == timeline.Count - 1;
+
+                <div class="modeler-version-node @(entry.IsLoaded ? "modeler-version-node-active" : "") @(entry.IsDraft ? "modeler-version-node-draft" : "")">
+                    <div class="modeler-version-dot @(entry.IsLoaded ? "modeler-version-dot-active" : "modeler-version-dot-inactive")"></div>
+                    <div class="modeler-version-node-body">
+                        <div class="modeler-version-node-top">
+                            <span class="modeler-version-node-number">@entry.Label</span>
+                            <span class="modeler-version-badge @entry.BadgeCss">@entry.BadgeText</span>
+                        </div>
+                        <div class="modeler-version-node-meta">
+                            @entry.CreatedBy · @entry.CreatedAt.ToString("g")
+                        </div>
+
+                        @if (entry.IsDraft && entry.IsLoaded)
+                        {
+                            if (_confirming)
+                            {
+                                <div class="modeler-version-publish-inline">
+                                    <span class="modeler-version-publish-label">@Localizer["DomainObjectVersioningPanel.PublishAs"] v@(_nextVersion)?</span>
+                                    <button class="modeler-version-action-btn modeler-version-action-btn-primary" @onclick="ConfirmPublish" @onclick:stopPropagation>
+                                        <i class="bi bi-check-lg"></i> @Localizer["DomainObjectVersioningPanel.Confirm"]
+                                    </button>
+                                    <button class="modeler-version-action-btn" @onclick="() => _confirming = false" @onclick:stopPropagation>
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <button class="modeler-version-action-btn modeler-version-action-btn-primary"
+                                        @onclick="StartPublish" @onclick:stopPropagation>
+                                    <i class="bi bi-send-fill"></i> @Localizer["DomainObjectVersioningPanel.Publish"]
+                                </button>
+                            }
+                        }
+
+                        @if (!entry.IsDraft && !entry.IsLoaded)
+                        {
+                            <button class="modeler-version-action-btn" @onclick="() => LoadVersion(entry.Id)" @onclick:stopPropagation>
+                                <i class="bi bi-eye-fill"></i> @Localizer["DomainObjectVersioningPanel.ViewVersion"]
+                            </button>
+                        }
+
+                        @if (!entry.IsDraft && entry.IsLoaded)
+                        {
+                            <button class="modeler-version-action-btn" @onclick="SwitchToDraft" @onclick:stopPropagation>
+                                <i class="bi bi-pencil-fill"></i> @Localizer["DomainObjectVersioningPanel.ReturnToDraft"]
+                            </button>
+                        }
+
+                        @if (!entry.IsDraft && !State.HasDraft)
+                        {
+                            <button class="modeler-version-action-btn" @onclick="() => CreateDraftFromVersion(entry.Id)" @onclick:stopPropagation>
+                                <i class="bi bi-copy"></i> @Localizer["DomainObjectVersioningPanel.CreateDraft"]
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                @if (!isLast)
+                {
+                    <div class="modeler-version-line"></div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public required DomainObjectDesignerService State { get; set; }
+    [Parameter] public EventCallback OnVersionLoaded { get; set; }
+
+    private bool _confirming;
+    private string _nextVersion = "1.0";
+
+    private record TimelineEntry(
+        Guid Id, string Label, string BadgeText, string BadgeCss,
+        string CreatedBy, DateTime CreatedAt,
+        bool IsDraft, bool IsLoaded);
+
+    protected override void OnInitialized()
+    {
+        State.OnChange += StateHasChanged;
+        ComputeNextVersion();
+    }
+
+    public void Dispose() => State.OnChange -= StateHasChanged;
+
+    private List<TimelineEntry> BuildTimeline()
+    {
+        var list = new List<TimelineEntry>();
+        if (State.StoredObjectId == null) return list;
+
+        if (State.HasDraft)
+        {
+            var badgeDraft = Localizer["DomainObjectVersioningPanel.BadgeDraft"].ToString();
+            list.Add(new TimelineEntry(
+                State.StoredObjectId!.Value,
+                badgeDraft, badgeDraft, "modeler-version-badge-draft",
+                "", DateTime.UtcNow,
+                IsDraft: true, IsLoaded: !State.IsReadOnly));
+        }
+
+        foreach (var v in State.Versions)
+        {
+            list.Add(new TimelineEntry(
+                v.Id, $"v{v.Version}", Localizer["DomainObjectVersioningPanel.BadgePublished"], "modeler-version-badge-published",
+                v.CreatedBy, v.CreatedAt,
+                IsDraft: false, IsLoaded: State.LoadedVersionId == v.Id));
+        }
+
+        return list;
+    }
+
+    private void ComputeNextVersion()
+    {
+        var latest = State.Versions.FirstOrDefault();
+        _nextVersion = latest == null
+            ? "1.0"
+            : $"{latest.Version.Major}.{latest.Version.Minor + 1}";
+    }
+
+    private void StartPublish() => _confirming = true;
+
+    private async Task ConfirmPublish()
+    {
+        _confirming = false;
+        await State.PublishAsync();
+        ComputeNextVersion();
+        await OnVersionLoaded.InvokeAsync();
+    }
+
+    private async Task LoadVersion(Guid versionId)
+    {
+        if (State.HasUnsavedChanges)
+        {
+            var confirmed = await Js.InvokeAsync<bool>("confirm", Localizer["DomainObjectVersioningPanel.ConfirmLoadVersion"]);
+            if (!confirmed) return;
+        }
+        await State.LoadVersionAsync(versionId);
+        ComputeNextVersion();
+        await OnVersionLoaded.InvokeAsync();
+    }
+
+    private async Task SwitchToDraft()
+    {
+        if (State.HasUnsavedChanges)
+        {
+            var confirmed = await Js.InvokeAsync<bool>("confirm", Localizer["DomainObjectVersioningPanel.ConfirmReturnToDraft"]);
+            if (!confirmed) return;
+        }
+        await State.SwitchToDraftAsync();
+        ComputeNextVersion();
+        await OnVersionLoaded.InvokeAsync();
+    }
+
+    private async Task CreateDraftFromVersion(Guid versionId)
+    {
+        await State.CreateDraftFromVersionAsync(versionId);
+        ComputeNextVersion();
+        await OnVersionLoaded.InvokeAsync();
+    }
+}

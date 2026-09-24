@@ -1,0 +1,19 @@
+﻿@page "/Modeler"
+@using Microsoft.Extensions.Localization
+@using Argent.WebComponents.Workflows.Modeler
+@inject IStringLocalizer<SharedResource> Localizer
+
+@model Argent.Web.Pages.Workflows.ModelerModel
+@{
+    ViewData["Title"] = Localizer["Workflows.Modeler.PageTitle"];
+    ViewData["IsFullWidth"] = true;
+}
+
+@{
+    <component type="typeof(WorkflowModeler)" render-mode="WebAssembly" />
+    
+}
+
+@section Styles {
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+}

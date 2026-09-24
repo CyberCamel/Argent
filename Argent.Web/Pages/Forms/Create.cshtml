@@ -1,0 +1,11 @@
+@page "/Forms/Create"
+@using Microsoft.Extensions.Localization
+@using Argent.WebComponents.Forms.Designer
+@model Argent.Web.Pages.Forms.CreateModel
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = Localizer["Forms.Create.PageTitle"];
+    ViewData["IsFullWidth"] = true;
+}
+
+<component type="typeof(FormDesigner)" render-mode="WebAssembly" />

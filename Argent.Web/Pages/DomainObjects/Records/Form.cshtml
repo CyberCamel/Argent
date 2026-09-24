@@ -1,0 +1,136 @@
+@page "/DomainObjects/{Key}/Records/Form"
+@using Microsoft.Extensions.Localization
+@model Argent.Web.Pages.DomainObjects.Records.FormModel
+@using Argent.Core.DomainObjects
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = Model.IsEdit
+        ? $"Edit Record — {Model.Definition.DisplayName}"
+        : $"New Record — {Model.Definition.DisplayName}";
+}
+
+<div class="max-w-2xl mx-auto">
+    <nav class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
+        <a href="/DomainObjects" class="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Domain Objects</a>
+        <span class="text-gray-300 dark:text-gray-600">/</span>
+        <a href="/DomainObjects/@Model.Key/Records" class="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">@Model.Definition.DisplayName</a>
+        <span class="text-gray-300 dark:text-gray-600">/</span>
+        <span class="text-gray-900 dark:text-gray-100 font-medium">@(Model.IsEdit ? "Edit" : "New")</span>
+    </nav>
+
+    <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">@(Model.IsEdit ? "Edit Record" : "New Record")</h1>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">@Model.Definition.DisplayName</p>
+
+    <div class="card">
+        <div class="p-6">
+            <form method="post">
+                @Html.AntiForgeryToken()
+                @if (Model.Id.HasValue)
+                {
+                    <input type="hidden" name="Id" value="@Model.Id" />
+                }
+
+                <div class="space-y-4">
+                    @foreach (var prop in Model.Definition.Properties)
+                    {
+                        Model.FormValues.TryGetValue(prop.Key, out var currentVal);
+                        <div>
+                            <label class="form-label">
+                                @prop.DisplayName
+                                @if (prop.Required)
+                                {
+                                    <span class="text-red-500">*</span>
+                                }
+                            </label>
+
+                            @switch (prop.Type)
+                            {
+                                case DomainPropertyType.MultiLineText:
+                                case DomainPropertyType.Json:
+                                    <textarea class="form-input font-mono"
+                                              name="FormValues[@prop.Key]"
+                                              rows="4"
+                                              placeholder="@prop.Description">@currentVal</textarea>
+                                    break;
+
+                                case DomainPropertyType.Number:
+                                    <input type="number" class="form-input"
+                                           name="FormValues[@prop.Key]"
+                                           value="@currentVal"
+                                           step="1"
+                                           placeholder="@prop.Description" />
+                                    break;
+
+                                case DomainPropertyType.Boolean:
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" class="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                                               name="FormValues[@prop.Key]"
+                                               value="true"
+                                               checked="@(currentVal == "true")" />
+                                        <span class="text-sm text-gray-500 dark:text-gray-400">@(prop.Description ?? prop.DisplayName)</span>
+                                    </label>
+                                    break;
+
+                                case DomainPropertyType.Date:
+                                    <input type="date" class="form-input"
+                                           name="FormValues[@prop.Key]"
+                                           value="@currentVal" />
+                                    break;
+
+                                case DomainPropertyType.DateTime:
+                                    <input type="datetime-local" class="form-input"
+                                           name="FormValues[@prop.Key]"
+                                           value="@currentVal" />
+                                    break;
+
+                                case DomainPropertyType.Choice:
+                                    <select class="form-input" name="FormValues[@prop.Key]">
+                                        <option value="">@Localizer["DomainObjects.Records.Form.SelectPlaceholder"]</option>
+                                        @foreach (var choice in prop.Choices)
+                                        {
+                                            var choiceVal = choice.Value?.ToString();
+                                            <option value="@choiceVal" selected="@(currentVal == choiceVal)">@choice.Label</option>
+                                        }
+                                    </select>
+                                    break;
+
+                                case DomainPropertyType.Reference:
+                                    <select class="form-input" name="FormValues[@prop.Key]">
+                                        <option value="">@Localizer["DomainObjects.Records.Form.SelectPlaceholder"]</option>
+                                        @if (Model.ReferenceOptions.TryGetValue(prop.Key, out var refOptions))
+                                        {
+                                            @foreach (var opt in refOptions)
+                                            {
+                                                var optVal = opt.Value?.ToString();
+                                                <option value="@optVal" selected="@(currentVal == optVal)">@opt.Label</option>
+                                            }
+                                        }
+                                    </select>
+                                    break;
+
+                                default:
+                                    <input type="text" class="form-input"
+                                           name="FormValues[@prop.Key]"
+                                           value="@currentVal"
+                                           placeholder="@prop.Description" />
+                                    break;
+                            }
+
+                            @if (!string.IsNullOrEmpty(prop.Description) && prop.Type is not (DomainPropertyType.MultiLineText or DomainPropertyType.Json or DomainPropertyType.Boolean))
+                            {
+                                <p class="text-xs text-gray-400 mt-1">@prop.Description</p>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="flex items-center gap-3 mt-6">
+                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm inline-flex items-center gap-1">
+                        <i class="bi bi-check-lg"></i>@(Model.IsEdit ? Localizer["DomainObjects.Records.Form.SubmitEdit"] : Localizer["DomainObjects.Records.Form.SubmitCreate"])
+                    </button>
+                    <a class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors" href="/DomainObjects/@Model.Key/Records">@Localizer["Common.Cancel"]</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,67 @@
+@page "/Admin/Groups"
+@model Argent.Web.Pages.Admin.Groups.IndexModel
+@{
+    ViewData["Title"] = Localizer["Admin.Groups.Index.PageTitle"];
+}
+
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = Localizer["Admin.Groups.Index.PageTitle"].Value,
+    Subtitle = Localizer["Admin.Groups.Index.Subtitle"].Value,
+    ActionLink = new Argent.Web.Pages.Shared.LinkModel(Localizer["Admin.Groups.Index.NewGroup"].Value, "/Admin/Groups/Create", "bi-plus-lg")
+}' />
+
+@if (Model.Groups.Count == 0)
+{
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = "bi-people",
+        Message = Localizer["Admin.Groups.Index.EmptyMessage"].Value
+    }' />
+}
+else
+{
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>@Localizer["Common.Name"]</th>
+                    <th>@Localizer["Common.Description"]</th>
+                    <th>@Localizer["Admin.Groups.Index.TableMembers"]</th>
+                    <th class="text-right">@Localizer["Common.Actions"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var g in Model.Groups)
+                {
+                    <tr>
+                        <td class="font-medium">
+                            @g.Name
+                            @if (g.IsSystem)
+                            {
+                                <span class="badge bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 ms-1">@Localizer["Admin.Groups.Index.SystemBadge"]</span>
+                            }
+                        </td>
+                        <td class="text-sm text-gray-500 dark:text-gray-400">@g.Description</td>
+                        <td>
+                            @if (g.IsSystem)
+                            {
+                                <span class="text-gray-400 text-sm">—</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">@g.MemberCount</span>
+                            }
+                        </td>
+                        <td class="text-right">
+                            @if (!g.IsSystem)
+                            {
+                                <a class="btn-action btn-action-secondary" href="/Admin/Groups/Edit/@g.Id" title="@Localizer["Common.Edit"]">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

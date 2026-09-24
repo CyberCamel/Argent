@@ -1,0 +1,141 @@
+@page "/Admin/Audit"
+@model Argent.Web.Pages.Admin.Audit.IndexModel
+@{
+    ViewData["Title"] = Localizer["Admin.Audit.PageTitle"];
+}
+
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = Localizer["Admin.Audit.PageTitle"].Value,
+    Subtitle = Localizer["Admin.Audit.Subtitle"].Value
+}' />
+
+@* Filters *@
+<div class="card mb-4">
+    <div class="p-4">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.Audit.CategoryLabel"]</label>
+                <select name="category" class="form-input" onchange="this.form.submit()">
+                    <option value="">@Localizer["Admin.Audit.AllFilter"]</option>
+                    @foreach (var cat in (List<string>)ViewData["Categories"]!)
+                    {
+                        <option value="@cat" selected="@(Model.CategoryFilter == cat)">@cat</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.Audit.EventTypeLabel"]</label>
+                <select name="eventType" class="form-input" onchange="this.form.submit()">
+                    <option value="">All</option>
+                    @foreach (var et in (List<string>)ViewData["EventTypes"]!)
+                    {
+                        <option value="@et" selected="@(Model.EventTypeFilter == et)">@et</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.Audit.InstanceIdLabel"]</label>
+                <input type="text" name="instanceId" class="form-input" placeholder="@Localizer["Admin.Audit.InstanceIdPlaceholder"]" value="@Model.InstanceFilter?.ToString()" style="width: 280px;" />
+            </div>
+            <div>
+                <button type="submit" class="px-3 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors">
+                    <i class="bi bi-funnel-fill me-1"></i> @Localizer["Admin.Audit.FilterButton"]
+                </button>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.CategoryFilter) || !string.IsNullOrEmpty(Model.EventTypeFilter) || Model.InstanceFilter.HasValue)
+            {
+                <div>
+                    <a class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors" asp-page="/Admin/Audit/Index">
+                        <i class="bi bi-x-circle me-1"></i> @Localizer["Admin.Audit.ClearButton"]
+                    </a>
+                </div>
+            }
+        </form>
+    </div>
+</div>
+
+@if (Model.Entries.Count == 0)
+{
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = "bi-journal-text",
+        Message = Localizer["Admin.Audit.EmptyMessage"].Value
+    }' />
+}
+else
+{
+    <div class="table-wrap">
+        <table class="text-xs">
+            <thead>
+                <tr>
+                    <th>@Localizer["Admin.Audit.TableTime"]</th>
+                    <th>@Localizer["Admin.Audit.CategoryLabel"]</th>
+                    <th>@Localizer["Admin.Audit.TableEvent"]</th>
+                    <th>@Localizer["Admin.Audit.TableInstance"]</th>
+                    <th>@Localizer["Admin.Audit.TableToken"]</th>
+                    <th>@Localizer["Admin.Audit.TableActor"]</th>
+                    <th>@Localizer["Admin.Audit.TableDetails"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in Model.Entries)
+                {
+                    <tr>
+                        <td class="text-gray-500 dark:text-gray-400 whitespace-nowrap">@entry.TimeStamp.ToString("g")</td>
+                        <td><span class="badge bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">@entry.Category</span></td>
+                        <td class="font-medium">@entry.EventType</td>
+                        <td>
+                            @if (entry.InstanceId == Guid.Empty)
+                            {
+                                <span class="text-gray-400 dark:text-gray-500">—</span>
+                            }
+                            else
+                            {
+                                <a class="text-indigo-600 dark:text-indigo-400 hover:underline font-mono text-xs"
+                                   asp-page="/Admin/WorkflowInstances/Detail"
+                                   asp-route-id="@entry.InstanceId">
+                                    @entry.InstanceId.ToString()[..8]…
+                                </a>
+                            }
+                        </td>
+                        <td class="text-gray-500 dark:text-gray-400 font-mono text-xs">
+                            @(entry.TokenId?.ToString()[..8] ?? "—")
+                        </td>
+                        <td class="text-gray-500 dark:text-gray-400">@(entry.Actor ?? "—")</td>
+                        <td><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">@(string.IsNullOrEmpty(entry.Details) ? "—" : entry.Details)</code></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <div class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
+            <span>@string.Format(Localizer["Admin.Audit.EntryCount"].Value, Model.TotalCount)</span>
+            @if (Model.TotalPages > 1)
+            {
+                <div class="flex items-center gap-1">
+                    @if (Model.CurrentPage > 1)
+                    {
+                        <a class="px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                           asp-page="/Admin/Audit/Index"
+                           asp-route-category="@Model.CategoryFilter"
+                           asp-route-eventType="@Model.EventTypeFilter"
+                           asp-route-instanceId="@Model.InstanceFilter"
+                           asp-route-page="@(Model.CurrentPage - 1)">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    }
+                    <small class="px-1">@Model.CurrentPage / @Model.TotalPages</small>
+                    @if (Model.CurrentPage < Model.TotalPages)
+                    {
+                        <a class="px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                           asp-page="/Admin/Audit/Index"
+                           asp-route-category="@Model.CategoryFilter"
+                           asp-route-eventType="@Model.EventTypeFilter"
+                           asp-route-instanceId="@Model.InstanceFilter"
+                           asp-route-page="@(Model.CurrentPage + 1)">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}

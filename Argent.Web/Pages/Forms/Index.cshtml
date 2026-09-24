@@ -1,0 +1,61 @@
+@page "/Forms"
+@using Microsoft.Extensions.Localization
+@model Argent.Web.Pages.Forms.IndexModel
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = Localizer["Forms.Index.PageTitle"];
+}
+
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = Localizer["Forms.Index.PageTitle"].Value,
+    Subtitle = Localizer["Forms.Index.Subtitle"].Value,
+    ActionLink = new Argent.Web.Pages.Shared.LinkModel(Localizer["Forms.Index.NewForm"].Value, "/Forms/Create", "bi-plus-lg")
+}' />
+
+@if (Model.Forms.Count == 0)
+{
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = "bi-ui-checks",
+        Message = Localizer["Forms.Index.EmptyMessage"].Value,
+        LinkText = Localizer["Forms.Index.EmptyLink"].Value,
+        LinkUrl = "/Forms/Create"
+    }' />
+}
+else
+{
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>@Localizer["Common.Name"]</th>
+                    <th>@Localizer["Common.Description"]</th>
+                    <th>@Localizer["Forms.Index.TableUpdated"]</th>
+                    <th class="text-right">@Localizer["Common.Actions"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var form in Model.Forms)
+                {
+                    <tr>
+                        <td class="font-medium">@form.Name</td>
+                        <td class="text-gray-500 dark:text-gray-400">@form.Description</td>
+                        <td class="text-sm text-gray-500 dark:text-gray-400">@form.UpdatedAt.ToString("g")</td>
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <a class="btn-action btn-action-secondary" href="/Forms/Edit/@form.Id" title="@Localizer["Common.Edit"]">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@form.Id" style="display:inline"
+                                      onsubmit="return confirm('@Localizer["Forms.Index.DeleteConfirm"]')">
+                                    <button class="btn-action btn-action-danger" title="@Localizer["Common.Delete"]">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

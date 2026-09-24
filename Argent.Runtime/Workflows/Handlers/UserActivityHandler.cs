@@ -1,0 +1,72 @@
+using Argent.Core.Workflows.Execution;
+using Argent.Core.Workflows;
+using Argent.Core.Workflows.Activities;
+using Argent.Core.Workflows.Execution;
+using Argent.Runtime.Workflows.Execution;
+using System.Text.Json;
+
+namespace Argent.Runtime.Workflows.Handlers;
+
+public class UserActivityHandler(
+    ITaskInboxService taskManager,
+    IWorkflowAudienceResolver audienceResolver) : INodeHandler
+{
+    public Type HandledNodeType => typeof(UserActivity);
+
+    public async Task<NodeResult> ExecuteAsync(NodeBase node, ITokenExecutionContext ctx, CancellationToken ct)
+    {
+        var activity = (UserActivity)node;
+
+        var existingTask = await taskManager.GetTaskByTokenAsync(ctx.TokenId, ct);
+
+        if (existingTask == null)
+        {
+            DateTime? dueDate = activity.UX switch
+            {
+                TaskExperience t => DateTime.UtcNow.Add(t.Timeout),
+                _ => null
+            };
+
+            Guid? formId = activity.UX switch
+            {
+                FormExperience f => f.FormId,
+                _ => null
+            };
+
+            var task = await taskManager.CreateTaskAsync(
+                ctx.InstanceId, ctx.TokenId, ctx.NodeId, dueDate,
+                title: activity.TaskTitle,
+                description: activity.TaskDescription,
+                priority: activity.TaskPriority,
+                formId: formId,
+                formData: null,
+                ct: ct);
+
+            // Snapshot the swimlane audience into CandidateUsers at task creation time.
+            if (activity.LaneRoleId is Guid roleId)
+            {
+                var userIds = await audienceResolver.ResolveAsync(ctx.InstanceId, roleId, ct);
+                if (userIds.Count > 0)
+                    await taskManager.SetCandidateUsersAsync(task.Id, JsonSerializer.Serialize(userIds), ct);
+            }
+
+            return new NodeResult(true, ResultType: NodeResultType.Waiting);
+        }
+
+        if (existingTask.State == UserTaskState.Completed)
+        {
+            if (!string.IsNullOrEmpty(existingTask.ResultData))
+            {
+                var match = ctx.CandidateTargets.FirstOrDefault(t => t.Label == existingTask.ResultData);
+                if (match != null)
+                    return new NodeResult(true, ExplicitTargetNodeIds: [match.NodeId]);
+            }
+            return new NodeResult(true);
+        }
+
+        if (existingTask.DueDate != null && existingTask.DueDate <= DateTime.UtcNow)
+            return new NodeResult(true);
+
+        return new NodeResult(true, ResultType: NodeResultType.Waiting);
+    }
+}

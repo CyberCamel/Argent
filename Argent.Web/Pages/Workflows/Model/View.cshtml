@@ -1,0 +1,29 @@
+@page "/Workflows/View/{id:guid}"
+@using Microsoft.Extensions.Localization
+@using Argent.WebComponents.Workflows.Modeler
+@inject IStringLocalizer<SharedResource> Localizer
+@model Argent.Web.Pages.Workflows.Model.ViewModel
+@{
+    ViewData["Title"] = Model.WorkflowName;
+    ViewData["IsFullWidth"] = true;
+}
+
+<div class="flex flex-col h-full">
+    <div class="border-b bg-white dark:bg-gray-900 px-3 py-2 flex items-center gap-3">
+        <h1 class="mb-0 text-lg font-semibold text-gray-900 dark:text-gray-100">@Model.WorkflowName</h1>
+        @if (!string.IsNullOrEmpty(Model.WorkflowDescription))
+        {
+            <span class="text-gray-500 dark:text-gray-400 text-sm">- @Model.WorkflowDescription</span>
+        }
+        <span class="ml-auto px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">@Localizer["Workflows.View.Badge"]</span>
+    </div>
+    <div class="flex-1 flex" style="height: calc(100vh - 106px);">
+        <component type="typeof(WorkflowModeler)" render-mode="WebAssembly"
+                   param-WorkflowId="@Model.WorkflowId"
+                   param-IsViewMode="true" />
+    </div>
+</div>
+
+@section Styles {
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+}

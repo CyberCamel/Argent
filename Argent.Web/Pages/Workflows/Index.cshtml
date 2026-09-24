@@ -1,0 +1,106 @@
+﻿@page "/Workflows"
+@using Microsoft.Extensions.Localization
+@model Argent.Web.Pages.Workflows.IndexModel
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = Localizer["Workflows.Index.PageTitle"];
+}
+
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = Localizer["Workflows.Index.PageTitle"].Value,
+    Subtitle = Localizer["Workflows.Index.Subtitle"].Value,
+    ActionModal = new Argent.Web.Pages.Shared.ModalModel(Localizer["Workflows.Index.NewWorkflow"].Value, "createModal", "bi-plus-lg")
+}' />
+
+@if (Model.Defs.Count == 0)
+{
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = "bi-diagram-3",
+        Message = Localizer["Workflows.Index.EmptyMessage"].Value
+    }' />
+}
+else
+{
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>@Localizer["Common.Name"]</th>
+                    <th>@Localizer["Common.Description"]</th>
+                    <th class="text-right">@Localizer["Common.Actions"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var wf in Model.Defs)
+                {
+                    <tr>
+                        <td class="font-medium">@wf.Name</td>
+                        <td class="text-gray-500 dark:text-gray-400">@wf.Description</td>
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                @if (Model.DeployedWorkflowIds.Contains(wf.Id))
+                                {
+                                    <a class="btn-action btn-action-success" href="/Workflows/Start?workflowId=@wf.Id" title="@Localizer["Workflows.Index.StartTooltip"]">
+                                        <i class="bi bi-play-fill"></i>
+                                    </a>
+                                }
+                                <a class="btn-action btn-action-primary" href="/Workflows/View/@wf.Id" title="@Localizer["Common.View"]">
+                                    <i class="bi bi-eye-fill"></i>
+                                </a>
+                                <a class="btn-action btn-action-secondary" href="/Workflows/Edit/@wf.Id" title="@Localizer["Common.Edit"]">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@wf.Id" style="display:inline"
+                                      onsubmit="return confirm('@Localizer["Workflows.Index.DeleteConfirm"]')">
+                                    <button class="btn-action btn-action-danger" title="@Localizer["Common.Delete"]">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@* Create modal *@
+<div id="createModal" class="fixed inset-0 z-50 flex items-center justify-center"
+     x-data="{ open: false }"
+     x-init="open = false"
+     x-show="open"
+     x-cloak
+     @@open-modal.window="if ($event.detail === 'createModal') open = true"
+     @@keydown.escape.window="open = false">
+    <div class="fixed inset-0 bg-black/50" @@click="open = false"></div>
+    <div class="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6" @@click.outside="open = false">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold flex items-center gap-2">
+                <i class="bi bi-diagram-3 text-indigo-600 dark:text-indigo-400"></i>@Localizer["Workflows.Index.ModalTitle"]
+            </h2>
+            <button type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" @@click="open = false">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form method="post" asp-page-handler="Create">
+            <div class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">@Localizer["Common.Name"]</label>
+                    <input id="name" name="name" type="text" required placeholder="@Localizer["Workflows.Index.ModalNamePlaceholder"]"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors" />
+                </div>
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">@Localizer["Common.Description"]</label>
+                    <textarea id="description" name="description" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors" rows="3" placeholder="@Localizer["Workflows.Index.ModalDescriptionPlaceholder"]"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors" @@click="open = false">@Localizer["Common.Cancel"]</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm">
+                    <i class="bi bi-save-fill me-1"></i> @Localizer["Workflows.Index.ModalCreate"]
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

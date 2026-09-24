@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CoreCLR-NCalc" Version="3.1.253" />
+    <PackageReference Include="Cronos" Version="0.13.0" />
+    <PackageReference Include="Jint" Version="4.7.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.*" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Argent.Core\Argent.Core.csproj" />
+    <ProjectReference Include="..\Argent.Infrastructure\Argent.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- TODO(form-runtime): replace IHttpContextAccessor usage in Runtime services with a
+         host-neutral actor/request-context abstraction. Keep the supported shared-framework
+         reference while the existing services still resolve identity from ASP.NET Core. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="DomainObjects\" />
+    <!-- Superseded by the WASM designer state in Argent.WebComponents. This stale duplicate still
+         edits the legacy form model and must not be revived during the Protocol v2 cutover. -->
+    <Compile Remove="Forms\Modeling\FormDesignerService.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Argent.Runtime.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

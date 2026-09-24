@@ -1,0 +1,63 @@
+@page "/DataSources"
+@using Microsoft.Extensions.Localization
+@model Argent.Web.Pages.DataSources.IndexModel
+@inject IStringLocalizer<SharedResource> Localizer
+@{
+    ViewData["Title"] = Localizer["DataSources.Index.PageTitle"];
+}
+
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = Localizer["DataSources.Index.PageTitle"].Value,
+    Subtitle = Localizer["DataSources.Index.Subtitle"].Value,
+    ActionLink = new Argent.Web.Pages.Shared.LinkModel(Localizer["DataSources.Index.NewDataSource"].Value, "/DataSources/Create", "bi-plus-lg")
+}' />
+
+@if (Model.DataSources.Count == 0)
+{
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = "bi-hdd-network",
+        Message = Localizer["DataSources.Index.EmptyMessage"].Value,
+        LinkText = Localizer["DataSources.Index.EmptyLink"].Value,
+        LinkUrl = "/DataSources/Create"
+    }' />
+}
+else
+{
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>@Localizer["Common.Name"]</th>
+                    <th>@Localizer["DataSources.Index.TableKey"]</th>
+                    <th>@Localizer["DataSources.Index.TableKind"]</th>
+                    <th class="text-right">@Localizer["Common.Actions"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ds in Model.DataSources)
+                {
+                    <tr>
+                        <td class="font-medium">@ds.Name</td>
+                        <td><code class="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">@ds.Key</code></td>
+                        <td>
+                            <span class="badge bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">@ds.Kind</span>
+                        </td>
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <a class="btn-action btn-action-secondary" href="/DataSources/Edit/@ds.Id" title="@Localizer["Common.Edit"]">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@ds.Id" style="display:inline"
+                                      onsubmit="return confirm('@Localizer["DataSources.Index.DeleteConfirm"]')">
+                                    <button class="btn-action btn-action-danger" title="@Localizer["Common.Delete"]">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

@@ -1,0 +1,79 @@
+@using System.Text.Json
+@using Argent.Core.Forms.Protocol.V2
+
+<div class="property-section">
+    <div class="property-label">Validators</div>
+    @for (var i = 0; i < Field.Validators.Count; i++)
+    {
+        var index = i;
+        var validator = Field.Validators[index];
+        <div class="border rounded p-2 mb-2">
+            <div class="flex gap-1">
+                <select class="form-input" value="@validator.Type" @onchange="@(e => Set(() => validator.Type = e.Value?.ToString() ?? "required"))">
+                    @foreach (var type in Types)
+                    {
+                        <option value="@type">@type</option>
+                    }
+                </select>
+                <button class="fd-action fd-action-danger" @onclick="() => Remove(index)"><i class="bi bi-trash"></i></button>
+            </div>
+            <input class="form-input mt-1" value="@validator.Code" placeholder="Stable error code" @onchange="@(e => Set(() => validator.Code = e.Value?.ToString() ?? "field.invalid"))" />
+            <input class="form-input mt-1" value="@validator.Message" placeholder="Fallback message" @onchange="@(e => Set(() => validator.Message = EmptyToNull(e.Value)))" />
+            @if (validator.Type == "length")
+            {
+                <div class="flex gap-1 mt-1">
+                    <input type="number" class="form-input" value="@validator.MinLength" placeholder="Min length" @onchange="@(e => Set(() => validator.MinLength = Int(e.Value)))" />
+                    <input type="number" class="form-input" value="@validator.MaxLength" placeholder="Max length" @onchange="@(e => Set(() => validator.MaxLength = Int(e.Value)))" />
+                </div>
+            }
+            else if (validator.Type == "range")
+            {
+                <div class="flex gap-1 mt-1">
+                    <input class="form-input" value="@Raw(validator.Min)" placeholder="Min JSON number/string" @onchange="@(e => Set(() => validator.Min = Json(e.Value)))" />
+                    <input class="form-input" value="@Raw(validator.Max)" placeholder="Max JSON number/string" @onchange="@(e => Set(() => validator.Max = Json(e.Value)))" />
+                </div>
+            }
+            else if (validator.Type == "pattern")
+            {
+                <input class="form-input mt-1 font-mono" value="@validator.Pattern" placeholder="Regular expression" @onchange="@(e => Set(() => validator.Pattern = EmptyToNull(e.Value)))" />
+            }
+            else if (validator.Type == "compare")
+            {
+                <select class="form-input mt-1" value="@validator.OtherField" @onchange="@(e => Set(() => validator.OtherField = EmptyToNull(e.Value)))">
+                    <option value="">Other field</option>
+                    @foreach (var name in State.FieldNames().Where(name => name != Field.Name))
+                    {
+                        <option value="@name">@name</option>
+                    }
+                </select>
+                <select class="form-input mt-1" value="@validator.Operator" @onchange="@(e => Set(() => validator.Operator = e.Value?.ToString() ?? "equals"))">
+                    @foreach (var op in CompareOperators)
+                    {
+                        <option value="@op">@op</option>
+                    }
+                </select>
+            }
+        </div>
+    }
+    <button class="btn-action btn-action-secondary" @onclick="Add"><i class="bi bi-plus"></i> Add validator</button>
+</div>
+
+@code {
+    [Parameter] public required FormField Field { get; set; }
+    [Parameter] public required FormDesignerService State { get; set; }
+    private static readonly string[] Types = ["required", "length", "range", "pattern", "email", "url", "compare"];
+    private static readonly string[] CompareOperators = ["equals", "notEquals", "greaterThan", "greaterThanOrEqual", "lessThan", "lessThanOrEqual"];
+    private void Set(Action update) { update(); State.MarkDirty(); }
+    private void Add() => Set(() => Field.Validators.Add(new() { Type = "length", Code = $"{Field.Name}.length" }));
+    private void Remove(int index) => Set(() => Field.Validators.RemoveAt(index));
+    private static int? Int(object? value) => int.TryParse(value?.ToString(), out var result) ? result : null;
+    private static string? EmptyToNull(object? value) => string.IsNullOrWhiteSpace(value?.ToString()) ? null : value.ToString();
+    private static string Raw(JsonElement value) => value.ValueKind == JsonValueKind.Undefined ? string.Empty : value.GetRawText();
+    private static JsonElement Json(object? value)
+    {
+        var raw = value?.ToString();
+        if (string.IsNullOrWhiteSpace(raw)) return default;
+        try { return JsonDocument.Parse(raw).RootElement.Clone(); }
+        catch (JsonException) { return JsonSerializer.SerializeToElement(raw); }
+    }
+}
