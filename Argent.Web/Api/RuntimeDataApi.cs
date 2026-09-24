@@ -224,9 +224,10 @@ public static class RuntimeDataApi
                 if (task.FormId is null) return Results.NotFound();
 
                 var snapshot = await workflows.GetStateAsync(task.InstanceId, cancellationToken);
+                var viewMode = await tasks.GetTaskViewModeAsync(task.InstanceId, task.NodeId);
                 var bootstrap = snapshot.RecordIds.Count > 0
-                    ? await runtime.BootstrapAsync(task.FormId.Value, snapshot.RecordIds, cancellationToken)
-                    : await runtime.BootstrapAsync(task.FormId.Value, snapshot.RecordId, cancellationToken);
+                    ? await runtime.BootstrapAsync(task.FormId.Value, snapshot.RecordIds, cancellationToken, viewMode)
+                    : await runtime.BootstrapAsync(task.FormId.Value, snapshot.RecordId, cancellationToken, viewMode);
                 if (bootstrap is null) return Results.NotFound();
                 Localize(bootstrap, localizer);
                 var actions = await tasks.GetTaskActionDescriptorsAsync(task.InstanceId, task.NodeId);
@@ -244,6 +245,7 @@ public static class RuntimeDataApi
 
         app.MapPost("/api/runtime/tasks/{taskId:guid}/form/submit",
             async (Guid taskId, [FromBody] FormSubmitRequest request, ITaskInboxService inbox,
+                IWorkflowTaskStore tasks,
                 IWorkflowInstanceService workflows, IFormRuntimeService runtime,
                 IAntiforgery antiforgery, HttpContext context, CancellationToken cancellationToken) =>
             {
@@ -267,9 +269,10 @@ public static class RuntimeDataApi
                 var snapshot = await workflows.GetStateAsync(task.InstanceId, cancellationToken);
                 request.RecordId = snapshot.RecordId;
                 request.RecordIds = new Dictionary<string, Guid>(snapshot.RecordIds);
+                var viewMode = await tasks.GetTaskViewModeAsync(task.InstanceId, task.NodeId);
                 var submission = await runtime.SubmitAsync(
                     task.FormId.Value, request, context.User.Identity?.Name, cancellationToken,
-                    updateAttachedRecords: true);
+                    updateAttachedRecords: true, viewMode: viewMode);
                 if (!submission.IsValid)
                     return Results.UnprocessableEntity(new { errors = submission.Errors });
 

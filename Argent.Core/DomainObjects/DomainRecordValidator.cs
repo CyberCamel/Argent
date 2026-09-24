@@ -12,7 +12,8 @@ public static class DomainRecordValidator
 {
     public static IReadOnlyList<DomainValidationError> Validate(
         DomainObjectDefinition definition,
-        IDictionary<string, object?> values)
+        IDictionary<string, object?> values,
+        bool requireCompleteRecord = true)
     {
         var errors = new List<DomainValidationError>();
 
@@ -21,7 +22,7 @@ public static class DomainRecordValidator
             values.TryGetValue(prop.Key, out var value);
             var isEmpty = value is null || (value is string s && string.IsNullOrWhiteSpace(s));
 
-            if (prop.Required && isEmpty)
+            if (requireCompleteRecord && prop.Required && isEmpty)
             {
                 errors.Add(new DomainValidationError(prop.Key, $"{Label(prop)} is required."));
                 continue;

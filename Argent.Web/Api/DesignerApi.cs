@@ -64,6 +64,10 @@ public static class DesignerApi
             async (Guid instanceId, Guid nodeId, IWorkflowTaskStore store) =>
                 Results.Ok(await store.GetTaskActionsAsync(instanceId, nodeId)));
 
+        app.MapGet("/api/designer/workflow-instances/{instanceId:guid}/nodes/{nodeId:guid}/view-mode",
+            async (Guid instanceId, Guid nodeId, IWorkflowTaskStore store) =>
+                Results.Ok(await store.GetTaskViewModeAsync(instanceId, nodeId)));
+
         app.MapGet("/api/designer/workflow-instances/{instanceId:guid}/nodes/{nodeId:guid}/action-descriptors",
             async (Guid instanceId, Guid nodeId, IWorkflowTaskStore store) =>
                 Results.Ok(await store.GetTaskActionDescriptorsAsync(instanceId, nodeId)))
@@ -73,6 +77,10 @@ public static class DesignerApi
 
         app.MapGet("/api/designer/forms/{formDesignId:guid}", async (Guid formDesignId, IFormDesignerStore store) =>
             await store.LoadAsync(formDesignId) is { } r ? Results.Ok(r) : Results.NotFound());
+
+        app.MapGet("/api/designer/forms/{formDesignId:guid}/view-modes",
+            async (Guid formDesignId, IFormDesignerStore store) =>
+                Results.Ok(await store.GetPublishedViewModesAsync(formDesignId)));
 
         app.MapGet("/api/designer/form-versions/{versionId:guid}", async (Guid versionId, IFormDesignerStore store) =>
             await store.LoadVersionAsync(versionId) is { } r ? Results.Ok(r) : Results.NotFound());

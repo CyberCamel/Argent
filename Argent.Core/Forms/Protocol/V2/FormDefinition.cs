@@ -11,6 +11,8 @@ public sealed class FormDefinition
     public string ObjectKey { get; set; } = string.Empty;
     /// <summary>Named records created or updated by this form. One binding is the workflow's primary record.</summary>
     public List<FormObjectBinding> Objects { get; set; } = [];
+    /// <summary>Named task views. An empty key uses the form's default field settings.</summary>
+    public List<string> ViewModes { get; set; } = [];
     public string? Title { get; set; }
     public List<FormComponent> Components { get; set; } = [];
 }
@@ -36,6 +38,10 @@ public sealed class FormField : FormComponent
     public string? Description { get; set; }
     public string? Placeholder { get; set; }
     public bool Required { get; set; }
+    /// <summary>Field presentation and validation overrides keyed by view mode.</summary>
+    public Dictionary<string, FormFieldViewMode> ModeOverrides { get; set; } = [];
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Hidden { get; set; }
     public List<FormOption> Options { get; set; } = [];
     public FormReferenceSource? Reference { get; set; }
     public List<FormValidator> Validators { get; set; } = [];
@@ -43,6 +49,12 @@ public sealed class FormField : FormComponent
     public FormExpression? RequiredWhen { get; set; }
     public FormExpression? DisabledWhen { get; set; }
     public FormExpression? ReadOnlyWhen { get; set; }
+}
+
+public sealed class FormFieldViewMode
+{
+    public bool Hidden { get; set; }
+    public bool? Required { get; set; }
 }
 
 public sealed class FormObjectBinding

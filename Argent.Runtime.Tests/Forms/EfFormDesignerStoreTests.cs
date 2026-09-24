@@ -13,7 +13,7 @@ namespace Argent.Runtime.Tests.Forms;
 public sealed class EfFormDesignerStoreTests
 {
     [Fact]
-    public async Task Publish_rejects_a_create_binding_missing_required_domain_properties()
+    public async Task Publish_allows_a_form_that_will_enrich_required_domain_properties_later()
     {
         var options = new DbContextOptionsBuilder<ArgentDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N")).Options;
@@ -41,13 +41,13 @@ public sealed class EfFormDesignerStoreTests
             }
         });
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => store.PublishAsync(new FormPublishRequest
+        var published = await store.PublishAsync(new FormPublishRequest
         {
             FormDesignId = saved.FormDesignId
-        }));
+        });
         await using var verify = new ArgentDbContext(options);
-        Assert.Empty(await verify.FormDesignVersions.ToListAsync());
-        Assert.Single(await verify.FormDesignDrafts.ToListAsync());
+        Assert.Equal(published.Id, (await verify.FormDesignVersions.SingleAsync()).Id);
+        Assert.Empty(await verify.FormDesignDrafts.ToListAsync());
     }
 
     [Fact]

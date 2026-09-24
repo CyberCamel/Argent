@@ -8,6 +8,40 @@ namespace Argent.Runtime.Tests.Forms;
 public sealed class FormDesignerV2SerializationTests
 {
     [Fact]
+    public void Field_condition_survives_form_serialization()
+    {
+        var definition = new FormDefinition
+        {
+            Id = "conditional-form", ObjectKey = "employee", ViewModes = ["reviewer"],
+            Components =
+            [
+                new FormField { Name = "approved", Label = "Approved", Type = "boolean" },
+                new FormField
+                {
+                    Name = "salary", Label = "Salary", Type = "decimal",
+                    VisibleWhen = new FormExpression
+                    {
+                        Operator = "isNotEmpty", Operand = new FormOperand { Field = "approved" }
+                    },
+                    RequiredWhen = new FormExpression
+                    {
+                        Operator = "equals", Left = new FormOperand { Context = "viewMode" },
+                        Right = new FormOperand { Value = JsonSerializer.SerializeToElement("reviewer") }
+                    }
+                }
+            ]
+        };
+
+        var json = JsonSerializer.Serialize(definition, FormSerializer.Options);
+        var restored = JsonSerializer.Deserialize<FormDefinition>(json, FormSerializer.Options)!;
+        var field = (FormField)restored.Components[1];
+
+        Assert.Equal("approved", field.VisibleWhen?.Operand?.Field);
+        Assert.Equal("viewMode", field.RequiredWhen?.Left?.Context);
+        Assert.True(FormDefinitionCompiler.Compile(restored).IsValid);
+    }
+
+    [Fact]
     public void Designer_definition_persists_as_runtime_ready_v2_json()
     {
         var definition = new FormDefinition

@@ -33,6 +33,9 @@ public sealed class FormOperand
     [JsonPropertyName("field")]
     public string? Field { get; set; }
 
+    [JsonPropertyName("context")]
+    public string? Context { get; set; }
+
     [JsonPropertyName("value")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public JsonElement Value { get; set; }

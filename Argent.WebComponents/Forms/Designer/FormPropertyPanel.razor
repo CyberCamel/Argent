@@ -12,7 +12,7 @@
             <input class="form-input mb-2" value="@selectedBinding.Key" disabled />
             @if (!selectedBinding.IsPrimary)
             {
-                <label class="text-sm">Create/update only when this boolean field is true</label>
+                <label class="text-sm">Include this object only when this boolean field is true</label>
                 <select class="form-input mb-2" value="@ConditionField(selectedBinding)"
                         @onchange="e => SetCondition(selectedBinding, e.Value?.ToString())">
                     <option value="">Always</option>
@@ -157,7 +157,7 @@ else if (State.SelectedComponent is FormField field)
         <label class="text-sm">Placeholder</label>
         <input class="form-input mb-2" value="@field.Placeholder" @onchange="@(e => Set(() => field.Placeholder = EmptyToNull(e.Value)))" />
         <label class="flex gap-2 items-center text-sm">
-            <input type="checkbox" checked="@field.Required" @onchange="() => Set(() => field.Required = !field.Required)" /> Required
+            <input type="checkbox" checked="@field.Required" @onchange="() => Set(() => field.Required = !field.Required)" /> Required by default / at start
         </label>
     </div>
 
@@ -190,11 +190,13 @@ else if (State.SelectedComponent is FormField field)
     }
 
     <ValidatorListEditor State="State" Field="field" />
-    <ConditionBuilder State="State" Field="field" />
+    <ConditionBuilder @key="field.EditorId" State="State" Field="field" SelectedViewMode="@SelectedViewMode" />
 }
 
 @code {
     [Parameter] public required FormDesignerService State { get; set; }
+    [Parameter] public string? SelectedViewMode { get; set; }
+
     private static readonly string[] FieldTypes = ["text", "integer", "decimal", "date", "timestamp", "boolean", "choice", "file"];
     private static readonly string[] LayoutTypes = ["section", "row", "column", "tabs", "accordion"];
     private DomainObjectDefinition? _boundDefinition;

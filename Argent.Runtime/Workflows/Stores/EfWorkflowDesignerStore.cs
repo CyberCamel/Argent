@@ -3,6 +3,7 @@ using Argent.Core.Workflows.Execution;
 using Argent.Infrastructure.Data;
 using Argent.Core.Enums;
 using Argent.Core.Workflows;
+using Argent.Core.Workflows.Activities;
 using Argent.Core.Workflows.Auditing;
 using Microsoft.EntityFrameworkCore;
 
@@ -156,6 +157,17 @@ public class EfWorkflowDesignerStore(
 
         var draft = await db.WorkflowDrafts.FindAsync(request.DraftId)
             ?? throw new InvalidOperationException("Draft not found.");
+
+        foreach (var task in draft.Definition.Nodes.OfType<UserActivity>())
+        {
+            if (task.UX is not FormExperience { ViewMode: { Length: > 0 } mode } form) continue;
+            var publishedForm = await db.FormDesignVersions.AsNoTracking()
+                .Where(version => version.FormDesignId == form.FormId)
+                .OrderByDescending(version => version.CreatedAt)
+                .FirstOrDefaultAsync();
+            if (publishedForm is null || !publishedForm.Definition.ViewModes.Contains(mode, StringComparer.Ordinal))
+                throw new InvalidOperationException($"Task '{task.TaskTitle ?? task.Id.ToString()}' uses view mode '{mode}' which is not published on its form.");
+        }
 
         var publishedVersions = await db.WorkflowVersions
             .Where(v => v.WorkflowId == draft.WorkflowId && v.State != WorkflowDefinitionState.Draft)

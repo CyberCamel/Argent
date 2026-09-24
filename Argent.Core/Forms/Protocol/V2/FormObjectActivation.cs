@@ -28,6 +28,7 @@ public static class FormObjectActivation
 
     private static bool IsPopulated(FormField field, IReadOnlyDictionary<string, JsonElement> values)
     {
+        if (field.Hidden) return false;
         if (field.VisibleWhen is not null && !FormExpressionEvaluator.Evaluate(field.VisibleWhen, values)) return false;
         if (field.DisabledWhen is not null && FormExpressionEvaluator.Evaluate(field.DisabledWhen, values)) return false;
         if (!values.TryGetValue(field.Name, out var value)) return false;

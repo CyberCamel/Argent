@@ -15,15 +15,17 @@ public sealed partial class FormRuntimeService(
     IFormDataStore formData) : IFormRuntimeService
 {
     public async Task<FormBootstrap?> BootstrapAsync(
-        Guid formDesignId, Guid? recordId = null, CancellationToken cancellationToken = default)
-        => await BootstrapAsync(formDesignId, new Dictionary<string, Guid>(), recordId, cancellationToken);
+        Guid formDesignId, Guid? recordId = null, CancellationToken cancellationToken = default, string? viewMode = null)
+        => await BootstrapAsync(formDesignId, new Dictionary<string, Guid>(), recordId, cancellationToken, viewMode);
 
     public Task<FormBootstrap?> BootstrapAsync(
-        Guid formDesignId, IReadOnlyDictionary<string, Guid> recordIds, CancellationToken cancellationToken = default)
-        => BootstrapAsync(formDesignId, recordIds, null, cancellationToken);
+        Guid formDesignId, IReadOnlyDictionary<string, Guid> recordIds, CancellationToken cancellationToken = default,
+        string? viewMode = null)
+        => BootstrapAsync(formDesignId, recordIds, null, cancellationToken, viewMode);
 
     private async Task<FormBootstrap?> BootstrapAsync(
-        Guid formDesignId, IReadOnlyDictionary<string, Guid> recordIds, Guid? recordId, CancellationToken cancellationToken)
+        Guid formDesignId, IReadOnlyDictionary<string, Guid> recordIds, Guid? recordId,
+        CancellationToken cancellationToken, string? viewMode)
     {
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var version = await db.FormDesignVersions.AsNoTracking()
@@ -32,6 +34,7 @@ public sealed partial class FormRuntimeService(
             .ThenByDescending(candidate => candidate.Id)
             .FirstOrDefaultAsync(cancellationToken);
         if (version is null) return null;
+        version.Definition = FormViewModeProjector.Apply(version.Definition, viewMode);
 
         var compilation = FormDefinitionCompiler.Compile(version.Definition);
         if (!compilation.IsValid)
@@ -39,7 +42,11 @@ public sealed partial class FormRuntimeService(
                 string.Join("; ", compilation.Errors.Select(error => $"{error.Path}: {error.Message}")));
 
         if (version.Definition.Objects.Count > 0)
-            return await BootstrapObjectsAsync(formDesignId, version, recordIds, recordId, cancellationToken);
+        {
+            var bootstrap = await BootstrapObjectsAsync(formDesignId, version, recordIds, recordId, cancellationToken);
+            RemoveHiddenValues(bootstrap);
+            return bootstrap;
+        }
 
         await HydrateReferenceOptionsAsync(version.Definition);
 
@@ -57,13 +64,15 @@ public sealed partial class FormRuntimeService(
                 initialValues[item.Key] = ToProtocolElement(item.Key, item.Value, fieldsByName);
         }
 
-        return new FormBootstrap
+        var result = new FormBootstrap
         {
             FormDesignId = formDesignId,
             FormVersionId = version.Id,
             Definition = version.Definition,
             InitialValues = initialValues
         };
+        RemoveHiddenValues(result);
+        return result;
     }
 
     public async Task<FormRuntimeSubmission> SubmitAsync(
@@ -71,7 +80,8 @@ public sealed partial class FormRuntimeService(
         FormSubmitRequest request,
         string? user,
         CancellationToken cancellationToken = default,
-        bool updateAttachedRecords = false)
+        bool updateAttachedRecords = false,
+        string? viewMode = null)
     {
         if (request.ProtocolVersion != "2.0")
             return Invalid("protocolVersion", "protocol.unsupported", $"Unsupported protocol version '{request.ProtocolVersion}'.");
@@ -97,6 +107,15 @@ public sealed partial class FormRuntimeService(
             .FirstOrDefaultAsync(candidate => candidate.Id == request.FormVersionId && candidate.FormDesignId == formDesignId, cancellationToken);
         if (version is null)
             return Invalid(string.Empty, "form.version_unknown", "The submitted form version does not exist.");
+        try { version.Definition = FormViewModeProjector.Apply(version.Definition, viewMode); }
+        catch (InvalidOperationException exception)
+        { return Invalid(string.Empty, "form.view_mode_unknown", exception.Message); }
+
+        var hiddenKeys = FlattenFields(version.Definition.Components)
+            .Where(field => field.Hidden).Select(field => field.Name).ToHashSet(StringComparer.Ordinal);
+        if (hiddenKeys.Count > 0)
+            request.Values = request.Values.Where(item => !hiddenKeys.Contains(item.Key))
+                .ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
 
         var definitionCompilation = FormDefinitionCompiler.Compile(version.Definition);
         if (!definitionCompilation.IsValid)
@@ -298,7 +317,7 @@ public sealed partial class FormRuntimeService(
         {
             if (component is FormField field)
             {
-                var visible = parentVisible &&
+                var visible = parentVisible && !field.Hidden &&
                     (field.VisibleWhen is null || FormExpressionEvaluator.Evaluate(field.VisibleWhen, values));
                 var disabled = field.DisabledWhen is not null &&
                     FormExpressionEvaluator.Evaluate(field.DisabledWhen, values);
@@ -311,5 +330,11 @@ public sealed partial class FormRuntimeService(
                 foreach (var key in ActiveFieldKeys(layout.Children, values, visible)) yield return key;
             }
         }
+    }
+
+    private static void RemoveHiddenValues(FormBootstrap bootstrap)
+    {
+        foreach (var field in FlattenFields(bootstrap.Definition.Components).Where(field => field.Hidden))
+            bootstrap.InitialValues.Remove(field.Name);
     }
 }

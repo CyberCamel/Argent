@@ -12,6 +12,8 @@ public static class FormExpressionEvaluator
             "not" => !Evaluate(expression.Argument ?? throw Invalid(expression, "argument"), values),
             "equals" => Equal(expression, values),
             "notEquals" => !Equal(expression, values),
+            "in" => In(expression, values),
+            "notIn" => !In(expression, values),
             "greaterThan" => Order(expression, values) > 0,
             "greaterThanOrEqual" => Order(expression, values) >= 0,
             "lessThan" => Order(expression, values) < 0,
@@ -74,6 +76,28 @@ public static class FormExpressionEvaluator
 
     private static bool SamePrimitiveKind(JsonValueKind left, JsonValueKind right) =>
         left == right || (left is JsonValueKind.True or JsonValueKind.False && right is JsonValueKind.True or JsonValueKind.False);
+
+    private static bool In(FormExpression expression, IReadOnlyDictionary<string, JsonElement> values)
+    {
+        var left = Resolve(expression.Left ?? throw Invalid(expression, "left"), values);
+        var right = Resolve(expression.Right ?? throw Invalid(expression, "right"), values);
+        if (right.ValueKind != JsonValueKind.Array)
+            throw new FormProtocolException($"Operator '{expression.Operator}' requires an array on the right.");
+        if (left.ValueKind == JsonValueKind.Undefined) return false;
+        foreach (var candidate in right.EnumerateArray())
+        {
+            if (left.ValueKind == JsonValueKind.Null && candidate.ValueKind == JsonValueKind.Null) return true;
+            if (!SamePrimitiveKind(left.ValueKind, candidate.ValueKind)) continue;
+            if (left.ValueKind switch
+            {
+                JsonValueKind.String => left.GetString() == candidate.GetString(),
+                JsonValueKind.Number => left.GetDecimal() == candidate.GetDecimal(),
+                JsonValueKind.True or JsonValueKind.False => left.GetBoolean() == candidate.GetBoolean(),
+                _ => false
+            }) return true;
+        }
+        return false;
+    }
 
     private static int Order(FormExpression expression, IReadOnlyDictionary<string, JsonElement> values)
     {

@@ -2,6 +2,7 @@ using Argent.Core.Workflows.Execution;
 using Argent.Infrastructure.Data;
 using Argent.Core.Enums;
 using Argent.Core.Workflows;
+using Argent.Core.Workflows.Activities;
 using Argent.Core.Workflows.Execution;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,18 @@ namespace Argent.Runtime.Workflows.Stores;
 
 public class EfWorkflowTaskStore(IDbContextFactory<ArgentDbContext> _dbFactory) : IWorkflowTaskStore
 {
+    public async Task<string?> GetTaskViewModeAsync(Guid instanceId, Guid nodeId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var versionId = await db.WorkflowInstances.AsNoTracking()
+            .Where(instance => instance.InstanceId == instanceId)
+            .Select(instance => instance.VersionId).FirstOrDefaultAsync();
+        if (versionId == Guid.Empty) return null;
+        var version = await db.WorkflowVersions.AsNoTracking().FirstOrDefaultAsync(item => item.Id == versionId);
+        return version?.Definition.Nodes.OfType<UserActivity>()
+            .FirstOrDefault(node => node.Id == nodeId)?.UX is FormExperience form
+            ? form.ViewMode : null;
+    }
     public async Task<Guid?> GetStartFormIdAsync(Guid workflowId)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();

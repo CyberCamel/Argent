@@ -45,6 +45,7 @@ export class FormState {
   }
 
   visible(field: FormField): boolean {
+    if (field.hidden) return false;
     const binding = this.definition.objects?.find(item => item.key === field.objectBinding);
     if (binding?.when && !evaluate(binding.when, this.values)) return false;
     if (this.definition.objects?.some(item => item.assignToBinding === field.objectBinding &&

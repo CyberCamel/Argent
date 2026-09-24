@@ -21,6 +21,7 @@ public record TaskExperience : UserExperience
 public record FormExperience : UserExperience
 {
     public required Guid FormId { get; init; }
+    public string? ViewMode { get; init; }
     /// <summary>Pinned at workflow publish time. Null until the workflow is first published.</summary>
     public Guid? FormVersionId { get; init; }
     public List<FormVariableMapping> InputMappings { get; init; } = [];

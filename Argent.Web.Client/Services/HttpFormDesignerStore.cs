@@ -43,4 +43,7 @@ public class HttpFormDesignerStore(HttpClient _http) : IFormDesignerStore
         var result = await _http.GetFromJsonAsync<List<string>>($"/api/designer/forms/field-names?objectKey={Uri.EscapeDataString(objectKey)}");
         return result ?? [];
     }
+
+    public async Task<IReadOnlyList<string>> GetPublishedViewModesAsync(Guid formDesignId) =>
+        await _http.GetFromJsonAsync<List<string>>($"/api/designer/forms/{formDesignId}/view-modes") ?? [];
 }

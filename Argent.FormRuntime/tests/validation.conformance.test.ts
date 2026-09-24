@@ -61,6 +61,19 @@ it('allows an empty secondary object and requires its fields once populated', ()
     .toEqual([expect.objectContaining({ field: 'customer.name', code: 'field.required' })]);
 });
 
+it('ignores hidden fields and enforces required fields in a projected view', () => {
+  const definition: FormDefinition = {
+    protocolVersion: '2.0', id: 'approval', objectKey: 'invoice',
+    objects: [{ key: 'invoice', objectKey: 'invoice', isPrimary: true }],
+    components: [
+      { kind: 'field', type: 'text', name: 'invoice.number', label: 'Number', objectBinding: 'invoice', hidden: true, required: true },
+      { kind: 'field', type: 'text', name: 'invoice.approvedBy', label: 'Approved by', objectBinding: 'invoice', required: true }
+    ]
+  };
+  expect(validateForm(definition, { 'invoice.number': 'stale' }))
+    .toEqual([expect.objectContaining({ field: 'invoice.approvedBy', code: 'field.required' })]);
+});
+
 function byFieldAndCode(left: ExpectedError, right: ExpectedError): number {
   return left.field.localeCompare(right.field) || left.code.localeCompare(right.code);
 }

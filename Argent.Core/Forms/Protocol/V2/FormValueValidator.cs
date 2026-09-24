@@ -30,6 +30,7 @@ public static class FormValueValidator
 
     public static IReadOnlyList<FormValueError> Validate(FormField field, IReadOnlyDictionary<string, JsonElement> values)
     {
+        if (field.Hidden) return [];
         if (field.VisibleWhen is not null && !FormExpressionEvaluator.Evaluate(field.VisibleWhen, values)) return [];
         if (field.DisabledWhen is not null && FormExpressionEvaluator.Evaluate(field.DisabledWhen, values)) return [];
 

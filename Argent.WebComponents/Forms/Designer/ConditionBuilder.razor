@@ -4,41 +4,85 @@
 <div class="property-section">
     <div class="property-label">Conditional behavior</div>
     <select class="form-input mb-2" @bind="_target">
-        <option value="visible">Visible when</option>
-        <option value="required">Required when</option>
-        <option value="disabled">Disabled when</option>
-        <option value="readonly">Read-only when</option>
+        <option value="visible">Visible when@(Field.VisibleWhen is null ? "" : " •")</option>
+        <option value="required">Required when@(Field.RequiredWhen is null ? "" : " •")</option>
+        <option value="disabled">Disabled when@(Field.DisabledWhen is null ? "" : " •")</option>
+        <option value="readonly">Read-only when@(Field.ReadOnlyWhen is null ? "" : " •")</option>
     </select>
 
     @if (Current is null)
     {
-        <button class="btn-action btn-action-secondary" @onclick="Add" disabled="@(!AvailableFields.Any())"><i class="bi bi-plus"></i> Add condition</button>
-        @if (!AvailableFields.Any())
+        <button class="btn-action btn-action-secondary" @onclick="Add" disabled="@(!AvailableFields.Any() && !State.Definition.ViewModes.Any())"><i class="bi bi-plus"></i> Add condition</button>
+        @if (!AvailableFields.Any() && !State.Definition.ViewModes.Any())
         {
-            <p class="text-xs text-amber-600 mt-1">Add another field before creating a condition.</p>
+            <p class="text-xs text-amber-600 mt-1">Add another field or view mode before creating a condition.</p>
         }
     }
     else
     {
         <div class="grid gap-2">
-            <select class="form-input" value="@Current.Left?.Field" @onchange="ChangeField">
-                <option value="">Select field</option>
+            <label class="text-xs">Based on</label>
+            <select class="form-input" value="@Source" @onchange="ChangeSource">
                 @foreach (var name in AvailableFields)
                 {
                     <option value="@name">@name</option>
                 }
-            </select>
-            <select class="form-input" value="@Current.Operator" @onchange="ChangeOperator">
-                @foreach (var op in Operators)
+                @if (State.Definition.ViewModes.Any())
                 {
-                    <option value="@op">@op</option>
+                    <option value="@ViewModeSource">View mode</option>
                 }
             </select>
-            @if (Current.Operator is not ("isEmpty" or "isNotEmpty"))
+            <select class="form-input" value="@Current.Operator" @onchange="ChangeOperator">
+                @foreach (var op in OperatorsForSource)
+                {
+                    <option value="@op.Value">@op.Label</option>
+                }
+            </select>
+            @if (IsViewModeSource)
+            {
+                @if (Current.Operator is "in" or "notIn")
+                {
+                    <fieldset class="rounded border border-gray-300 dark:border-gray-600 p-2">
+                        <legend class="text-xs px-1">View modes</legend>
+                        <div class="grid grid-cols-2 gap-1">
+                            @foreach (var mode in State.Definition.ViewModes)
+                            {
+                                <label class="flex items-center gap-1 text-sm">
+                                    <input type="checkbox" checked="@SelectedModes.Contains(mode)"
+                                           @onchange="e => ToggleMode(mode, e.Value is true)" /> @mode
+                                </label>
+                            }
+                        </div>
+                    </fieldset>
+                }
+                else
+                {
+                    <select class="form-input" value="@ModeLiteral" @onchange="ChangeMode">
+                        @foreach (var mode in State.Definition.ViewModes)
+                        {
+                            <option value="@mode">@mode</option>
+                        }
+                    </select>
+                }
+            }
+            else if (Current.Operator is not ("isEmpty" or "isNotEmpty"))
             {
                 <input class="form-input font-mono" value="@Literal" @onchange="ChangeLiteral" placeholder='JSON literal, e.g. true or "yes"' />
             }
             <button class="fd-action fd-action-danger" @onclick="Remove"><i class="bi bi-trash"></i> Remove</button>
+        </div>
+    }
+    @if (Field.ModeOverrides.Count > 0)
+    {
+        <div class="mt-3 border-t pt-2 text-xs text-gray-500">
+            <div class="font-medium">Earlier view mode rules</div>
+            @foreach (var entry in Field.ModeOverrides.ToList())
+            {
+                <div class="flex items-center gap-2 mt-1">
+                    <span>@entry.Key: @(entry.Value.Hidden ? "hidden" : "visible")@(entry.Value.Required is true ? ", required" : entry.Value.Required is false ? ", optional" : "")</span>
+                    <button type="button" class="underline" @onclick="() => RemoveLegacyMode(entry.Key)">Remove</button>
+                </div>
+            }
         </div>
     }
 </div>
@@ -46,11 +90,29 @@
 @code {
     [Parameter] public required FormDesignerService State { get; set; }
     [Parameter] public required FormField Field { get; set; }
+    [Parameter] public string? SelectedViewMode { get; set; }
     private string _target = "visible";
+    private const string ViewModeSource = "$viewMode";
     private static readonly string[] Operators = ["equals", "notEquals", "greaterThan", "greaterThanOrEqual", "lessThan", "lessThanOrEqual", "contains", "startsWith", "endsWith", "isEmpty", "isNotEmpty"];
+    private static readonly (string Value, string Label)[] ModeOperators =
+    [
+        ("in", "In selected modes"), ("notIn", "Not in selected modes"),
+        ("equals", "Is one mode"), ("notEquals", "Is not one mode")
+    ];
+    private IEnumerable<(string Value, string Label)> OperatorsForSource => IsViewModeSource
+        ? ModeOperators
+        : Operators.Select(op => (op, op));
     private IEnumerable<string> AvailableFields => State.FieldNames().Where(name => name != Field.Name);
     private FormExpression? Current => _target switch { "required" => Field.RequiredWhen, "disabled" => Field.DisabledWhen, "readonly" => Field.ReadOnlyWhen, _ => Field.VisibleWhen };
+    private FormOperand? SourceOperand => Current?.Operator is "isEmpty" or "isNotEmpty" ? Current.Operand : Current?.Left;
+    private string? Source => SourceOperand?.Context == "viewMode" ? ViewModeSource : SourceOperand?.Field;
+    private bool IsViewModeSource => Source == ViewModeSource;
     private string Literal => Current?.Right?.Value.ValueKind is { } kind && kind != JsonValueKind.Undefined ? Current.Right.Value.GetRawText() : "null";
+    private string ModeLiteral => Current?.Right?.Value.ValueKind == JsonValueKind.String ? Current.Right.Value.GetString() ?? string.Empty : string.Empty;
+    private HashSet<string> SelectedModes => Current?.Right?.Value.ValueKind == JsonValueKind.Array
+        ? Current.Right.Value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString()!).ToHashSet(StringComparer.Ordinal)
+        : [];
 
     private void Assign(FormExpression? expression)
     {
@@ -62,16 +124,76 @@
     }
     private void Add()
     {
+        if (!string.IsNullOrEmpty(SelectedViewMode) && State.Definition.ViewModes.Contains(SelectedViewMode))
+        {
+            Assign(NewModeCondition(SelectedViewMode));
+            return;
+        }
         var fieldName = AvailableFields.FirstOrDefault();
-        if (fieldName is null) return;
-        Assign(new() { Operator = "equals", Left = new() { Field = fieldName }, Right = new() { Value = JsonSerializer.SerializeToElement(true) } });
+        if (fieldName is not null)
+            Assign(new() { Operator = "equals", Left = new() { Field = fieldName }, Right = new() { Value = JsonSerializer.SerializeToElement(true) } });
+        else if (State.Definition.ViewModes.FirstOrDefault() is { } mode)
+            Assign(NewModeCondition(mode));
     }
+    private FormExpression NewModeCondition(string mode) => new()
+    {
+        Operator = _target == "visible" ? "notIn" : "in",
+        Left = new() { Context = "viewMode" },
+        Right = new() { Value = JsonSerializer.SerializeToElement(new[] { mode }) }
+    };
     private void Remove() => Assign(null);
-    private void ChangeField(ChangeEventArgs e) { if (Current?.Left is { } left) { left.Field = e.Value?.ToString(); State.MarkDirty(); } }
+    private void RemoveLegacyMode(string mode) { Field.ModeOverrides.Remove(mode); State.MarkDirty(); }
+    private void ChangeSource(ChangeEventArgs e)
+    {
+        if (Current is null) return;
+        var wasViewMode = IsViewModeSource;
+        var source = e.Value?.ToString();
+        var operand = source == ViewModeSource ? new FormOperand { Context = "viewMode" } : new FormOperand { Field = source };
+        if (Current.Operator is "isEmpty" or "isNotEmpty") Current.Operand = operand;
+        else Current.Left = operand;
+        if (source == ViewModeSource)
+        {
+            Current.Operator = _target == "visible" ? "notIn" : "in";
+            Current.Left = operand;
+            Current.Operand = null;
+            Current.Right = new() { Value = JsonSerializer.SerializeToElement(new[] {
+                string.IsNullOrEmpty(SelectedViewMode) ? State.Definition.ViewModes.First() : SelectedViewMode }) };
+        }
+        else if (wasViewMode && Current.Operator is not ("isEmpty" or "isNotEmpty"))
+        {
+            if (Current.Operator is "in" or "notIn") Current.Operator = "equals";
+            Current.Right = new() { Value = JsonSerializer.SerializeToElement(true) };
+        }
+        State.MarkDirty();
+    }
+    private void ChangeMode(ChangeEventArgs e)
+    {
+        if (Current?.Right is null) return;
+        Current.Right.Value = JsonSerializer.SerializeToElement(e.Value?.ToString() ?? string.Empty);
+        State.MarkDirty();
+    }
+    private void ToggleMode(string mode, bool selected)
+    {
+        if (Current?.Right is null) return;
+        var modes = SelectedModes;
+        if (selected) modes.Add(mode);
+        else if (modes.Count > 1) modes.Remove(mode);
+        Current.Right.Value = JsonSerializer.SerializeToElement(State.Definition.ViewModes.Where(modes.Contains).ToArray());
+        State.MarkDirty();
+    }
     private void ChangeOperator(ChangeEventArgs e)
     {
         if (Current is null) return;
+        var oldOperator = Current.Operator;
         Current.Operator = e.Value?.ToString() ?? "equals";
+        if (IsViewModeSource)
+        {
+            if (Current.Operator is not ("equals" or "notEquals" or "in" or "notIn")) Current.Operator = "in";
+            if (oldOperator is ("in" or "notIn") && Current.Operator is ("equals" or "notEquals"))
+                Current.Right = new() { Value = JsonSerializer.SerializeToElement(SelectedModes.FirstOrDefault() ?? State.Definition.ViewModes.First()) };
+            else if (oldOperator is ("equals" or "notEquals") && Current.Operator is ("in" or "notIn"))
+                Current.Right = new() { Value = JsonSerializer.SerializeToElement(new[] { ModeLiteral }) };
+        }
         if (Current.Operator is "isEmpty" or "isNotEmpty") { Current.Operand = Current.Left; Current.Left = null; Current.Right = null; }
         else if (Current.Left is null) { Current.Left = Current.Operand; Current.Operand = null; Current.Right = new() { Value = JsonSerializer.SerializeToElement(true) }; }
         State.MarkDirty();

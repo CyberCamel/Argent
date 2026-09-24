@@ -43,6 +43,7 @@ export function activeObjectBindings(definition: FormDefinition, values: FormVal
 }
 
 function populated(field: FormField, values: FormValues): boolean {
+  if (field.hidden) return false;
   if (field.visibleWhen && !evaluate(field.visibleWhen, values)) return false;
   if (field.disabledWhen && evaluate(field.disabledWhen, values)) return false;
   const value = values[field.name];
@@ -52,6 +53,7 @@ function populated(field: FormField, values: FormValues): boolean {
 }
 
 export function validateField(field: FormField, values: FormValues): readonly FormValueError[] {
+  if (field.hidden) return [];
   if (field.visibleWhen && !evaluate(field.visibleWhen, values)) return [];
   if (field.disabledWhen && evaluate(field.disabledWhen, values)) return [];
 

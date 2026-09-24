@@ -7,6 +7,65 @@ namespace Argent.Runtime.Tests.Forms;
 public sealed class FormDefinitionCompilerTests
 {
     [Fact]
+    public void View_mode_conditions_compile_and_project_to_values()
+    {
+        var definition = Definition(new FormField
+        {
+            Type = "text", Name = "salary", Label = "Salary",
+            VisibleWhen = new FormExpression
+            {
+                Operator = "notEquals", Left = new FormOperand { Context = "viewMode" },
+                Right = new FormOperand { Value = JsonSerializer.SerializeToElement("applicant") }
+            }
+        });
+        definition.ViewModes.Add("applicant");
+
+        Assert.True(FormDefinitionCompiler.Compile(definition).IsValid);
+        var applicant = FormViewModeProjector.Apply(definition, "applicant");
+        var reviewer = FormViewModeProjector.Apply(definition, null);
+        var applicantCondition = ((FormField)applicant.Components[0]).VisibleWhen!;
+        var reviewerCondition = ((FormField)reviewer.Components[0]).VisibleWhen!;
+        Assert.False(FormExpressionEvaluator.Evaluate(applicantCondition, new Dictionary<string, JsonElement>()));
+        Assert.True(FormExpressionEvaluator.Evaluate(reviewerCondition, new Dictionary<string, JsonElement>()));
+        Assert.Equal("viewMode", ((FormField)definition.Components[0]).VisibleWhen!.Left!.Context);
+    }
+
+    [Fact]
+    public void Multiple_view_modes_can_hide_a_field()
+    {
+        var definition = Definition(new FormField
+        {
+            Type = "text", Name = "salary", Label = "Salary",
+            VisibleWhen = new FormExpression
+            {
+                Operator = "notIn", Left = new FormOperand { Context = "viewMode" },
+                Right = new FormOperand { Value = JsonSerializer.SerializeToElement(new[] { "HR", "IT", "Legal" }) }
+            }
+        });
+        definition.ViewModes.AddRange(["HR", "IT", "Legal", "Finance"]);
+
+        Assert.True(FormDefinitionCompiler.Compile(definition).IsValid);
+        var hidden = ((FormField)FormViewModeProjector.Apply(definition, "IT").Components[0]).VisibleWhen!;
+        var visible = ((FormField)FormViewModeProjector.Apply(definition, "Finance").Components[0]).VisibleWhen!;
+        Assert.False(FormExpressionEvaluator.Evaluate(hidden, new Dictionary<string, JsonElement>()));
+        Assert.True(FormExpressionEvaluator.Evaluate(visible, new Dictionary<string, JsonElement>()));
+    }
+
+    [Fact]
+    public void Compile_accepts_domain_object_keys_with_spaces()
+    {
+        var definition = Definition(new FormField
+        {
+            Type = "decimal", Name = "Viewmode_POC.salary", Label = "Salary",
+            ObjectBinding = "Viewmode_POC", PropertyKey = "salary"
+        });
+        definition.ObjectKey = "Viewmode POC";
+        definition.Objects.Add(new FormObjectBinding { Key = "Viewmode_POC", ObjectKey = "Viewmode POC", IsPrimary = true });
+
+        Assert.True(FormDefinitionCompiler.Compile(definition).IsValid);
+    }
+
+    [Fact]
     public void Dotnet_compiler_matches_shared_definition_fixtures()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "TestData", "definition-conformance.json");

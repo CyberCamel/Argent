@@ -4,7 +4,8 @@ export type FormValues = Readonly<Record<string, JsonValue>>;
 
 export interface FormOperand {
   readonly field?: string;
-  readonly value?: JsonPrimitive;
+  readonly context?: 'viewMode';
+  readonly value?: JsonPrimitive | JsonPrimitive[];
 }
 
 export interface FormExpression {
@@ -33,6 +34,10 @@ export function evaluate(expression: FormExpression, values: FormValues): boolea
       return equal(expression, values);
     case 'notEquals':
       return !equal(expression, values);
+    case 'in':
+      return inList(expression, values);
+    case 'notIn':
+      return !inList(expression, values);
     case 'greaterThan':
       return order(expression, values) > 0;
     case 'greaterThanOrEqual':
@@ -114,6 +119,14 @@ function equal(expression: FormExpression, values: FormValues): boolean {
     return left === right;
   }
   throw new FormProtocolError(`Operator '${expression.operator}' does not support ${kind(left)} operands.`);
+}
+
+function inList(expression: FormExpression, values: FormValues): boolean {
+  const left = resolve(requiredOperand(expression, 'left'), values);
+  const right = resolve(requiredOperand(expression, 'right'), values);
+  if (!Array.isArray(right)) throw new FormProtocolError(`Operator '${expression.operator}' requires an array on the right.`);
+  if (left === undefined) return false;
+  return right.some(candidate => candidate === left);
 }
 
 function order(expression: FormExpression, values: FormValues): number {

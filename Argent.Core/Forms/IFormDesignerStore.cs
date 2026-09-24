@@ -12,6 +12,7 @@ public interface IFormDesignerStore
     Task<FormDesignerLoadResult?> CreateDraftFromVersionAsync(Guid versionId, string? userName = null);
     Task<IReadOnlyList<FormDesignSummary>> GetSummariesByObjectKeyAsync(string objectKey);
     Task<IReadOnlyList<string>> GetPublishedFieldNamesByObjectKeyAsync(string objectKey);
+    Task<IReadOnlyList<string>> GetPublishedViewModesAsync(Guid formDesignId);
 }
 
 public record FormDesignSummary(Guid Id, string Name);

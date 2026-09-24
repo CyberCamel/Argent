@@ -54,6 +54,39 @@
       "dependencies": ["optionalReference"]
     },
     {
+      "name": "view mode is in selected modes",
+      "values": { "viewMode": "HR" },
+      "expression": {
+        "operator": "in",
+        "left": { "field": "viewMode" },
+        "right": { "value": ["HR", "IT", "Legal"] }
+      },
+      "expected": true,
+      "dependencies": ["viewMode"]
+    },
+    {
+      "name": "view mode is not in hidden modes",
+      "values": { "viewMode": "Finance" },
+      "expression": {
+        "operator": "notIn",
+        "left": { "field": "viewMode" },
+        "right": { "value": ["HR", "IT", "Legal"] }
+      },
+      "expected": true,
+      "dependencies": ["viewMode"]
+    },
+    {
+      "name": "not in returns false for a selected mode",
+      "values": { "viewMode": "HR" },
+      "expression": {
+        "operator": "notIn",
+        "left": { "field": "viewMode" },
+        "right": { "value": ["HR", "IT", "Legal"] }
+      },
+      "expected": false,
+      "dependencies": ["viewMode"]
+    },
+    {
       "name": "ordinal text comparison is case sensitive",
       "values": { "country": "se" },
       "expression": {

@@ -32,9 +32,13 @@ public class FormDesignerService(IFormDesignerStore _store)
 
     public FormObjectBinding AddObject(string objectKey)
     {
-        var key = objectKey;
+        var baseKey = ProtocolName(objectKey);
+        var key = baseKey;
         for (var suffix = 2; Definition.Objects.Any(binding => binding.Key == key); suffix++)
-            key = $"{objectKey}{suffix}";
+        {
+            var suffixText = suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            key = $"{baseKey[..Math.Min(baseKey.Length, 128 - suffixText.Length)]}{suffixText}";
+        }
         var binding = new FormObjectBinding
         {
             Key = key,
@@ -47,6 +51,43 @@ public class FormDesignerService(IFormDesignerStore _store)
         SelectedComponent = null;
         MarkDirty();
         return binding;
+    }
+
+    public static string ProtocolName(string value)
+    {
+        var name = new string(value.Select(character =>
+            char.IsAsciiLetter(character) || char.IsAsciiDigit(character) || character is '_' or '.' or '-'
+                ? character : '_').ToArray());
+        if (name.Length == 0 || !char.IsAsciiLetter(name[0])) name = $"object_{name}";
+        return name[..Math.Min(name.Length, 128)];
+    }
+
+    private bool NormalizeBindingNames()
+    {
+        var changed = false;
+        foreach (var binding in Definition.Objects)
+        {
+            if (System.Text.RegularExpressions.Regex.IsMatch(binding.Key, "^[A-Za-z][A-Za-z0-9_.-]{0,127}$")) continue;
+            var oldKey = binding.Key;
+            var baseKey = ProtocolName(oldKey);
+            var newKey = baseKey;
+            for (var suffix = 2; Definition.Objects.Any(other => other != binding && other.Key == newKey); suffix++)
+            {
+                var suffixText = suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                newKey = $"{baseKey[..Math.Min(baseKey.Length, 128 - suffixText.Length)]}{suffixText}";
+            }
+            binding.Key = newKey;
+            foreach (var other in Definition.Objects)
+                if (other.AssignToBinding == oldKey) other.AssignToBinding = newKey;
+            foreach (var field in AllFields().Where(field => field.ObjectBinding == oldKey))
+            {
+                field.ObjectBinding = newKey;
+                if (field.Name.StartsWith($"{oldKey}.", StringComparison.Ordinal))
+                    RenameField(field, $"{newKey}{field.Name[oldKey.Length..]}");
+            }
+            changed = true;
+        }
+        return changed;
     }
 
     public void RemoveObject(FormObjectBinding binding)
@@ -257,6 +298,8 @@ public class FormDesignerService(IFormDesignerStore _store)
                     validator.OtherField = newName;
             }
         });
+        foreach (var binding in Definition.Objects)
+            RewriteExpression(binding.When, oldName, newName);
         MarkDirty();
     }
 
@@ -495,6 +538,7 @@ public class FormDesignerService(IFormDesignerStore _store)
     private void ApplyLoadResult(FormDesignerLoadResult result, bool readOnly = false)
     {
         Definition = result.Definition ?? NewDefinition();
+        var normalized = !readOnly && !result.IsReadOnlyVersion && NormalizeBindingNames();
         SelectedBindingKey = Definition.Objects.FirstOrDefault()?.Key;
         Name = result.Name;
         Description = result.Description;
@@ -503,7 +547,7 @@ public class FormDesignerService(IFormDesignerStore _store)
         Versions = result.Versions;
         HasDraft = result.DraftId.HasValue;
         SelectedComponent = null;
-        HasUnsavedChanges = false;
+        HasUnsavedChanges = normalized;
         Notify();
     }
 

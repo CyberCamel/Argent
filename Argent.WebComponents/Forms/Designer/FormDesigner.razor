@@ -137,6 +137,34 @@
         }
     </div>
 
+    <div class="flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-gray-50 dark:bg-gray-800 text-sm">
+        <label for="form-view-mode" class="font-medium">View mode</label>
+        <select id="form-view-mode" class="form-input text-sm" style="max-width: 180px;" value="@_selectedViewMode"
+                @onchange="e => _selectedViewMode = e.Value?.ToString() ?? string.Empty">
+            <option value="">Default / start</option>
+            @foreach (var mode in State.Definition.ViewModes)
+            {
+                <option value="@mode">@mode</option>
+            }
+        </select>
+        @if (!State.IsReadOnly)
+        {
+            <input class="form-input text-sm" style="max-width: 160px;" value="@_newViewMode"
+                   @oninput="e => _newViewMode = e.Value?.ToString() ?? string.Empty"
+                   placeholder="New mode name" aria-label="New view mode name" />
+            <button type="button" class="btn-action btn-action-secondary px-2" @onclick="AddViewMode">Add mode</button>
+            @if (!string.IsNullOrEmpty(_selectedViewMode))
+            {
+                <button type="button" class="btn-action btn-action-danger px-2" @onclick="RemoveViewMode">Remove mode</button>
+            }
+        }
+        <span class="text-gray-500 dark:text-gray-400">Use this mode in field conditions; the selection also controls preview.</span>
+        @if (_viewModeError is not null)
+        {
+            <span class="text-red-600 dark:text-red-400" role="alert">@_viewModeError</span>
+        }
+    </div>
+
     @if (State.Definition.Objects.Count > 0)
     {
         <div class="flex flex-wrap gap-2 px-3 py-2 border-b bg-gray-50 dark:bg-gray-800 text-sm">
@@ -236,7 +264,7 @@
             <div class="flex-1 overflow-y-auto p-3">
                 @if (_sidebarTab == "props")
                 {
-                    <FormPropertyPanel State="@State" />
+                    <FormPropertyPanel State="@State" SelectedViewMode="@_selectedViewMode" />
                 }
                 else
                 {
@@ -265,7 +293,7 @@
                 </button>
             </div>
             <div class="px-6 py-4 max-h-[70vh] overflow-y-auto">
-                <FormRuntimePreview Definition="State.Definition" />
+                <FormRuntimePreview Definition="@FormViewModeProjector.Apply(State.Definition, _selectedViewMode)" />
             </div>
         </div>
     </div>
@@ -282,10 +310,63 @@
     private bool _isInitializing;
     private bool _showObjectKeyError;
     private int _addObjectPickerVersion;
+    private string _selectedViewMode = string.Empty;
+    private string _newViewMode = string.Empty;
+    private string? _viewModeError;
     private string _sidebarTab = "props";
     private IReadOnlyList<DomainObjectSummary> _objectCatalog = [];
 
     private static DropTarget RootEnd => new(null, int.MaxValue);
+
+    private void AddViewMode()
+    {
+        var mode = _newViewMode.Trim();
+        if (!System.Text.RegularExpressions.Regex.IsMatch(mode, "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"))
+        {
+            _viewModeError = "Use letters, numbers, dots, underscores or hyphens; start with a letter.";
+            return;
+        }
+        if (State.Definition.ViewModes.Contains(mode))
+        {
+            _viewModeError = "That view mode already exists.";
+            return;
+        }
+        State.Definition.ViewModes.Add(mode);
+        _selectedViewMode = mode;
+        _newViewMode = string.Empty;
+        _viewModeError = null;
+        State.MarkDirty();
+    }
+
+    private void RemoveViewMode()
+    {
+        if (!State.Definition.ViewModes.Remove(_selectedViewMode)) return;
+        foreach (var field in State.AllFields())
+        {
+            field.ModeOverrides.Remove(_selectedViewMode);
+            field.VisibleWhen = RemoveModeFromCondition(field.VisibleWhen, _selectedViewMode);
+            field.RequiredWhen = RemoveModeFromCondition(field.RequiredWhen, _selectedViewMode);
+            field.DisabledWhen = RemoveModeFromCondition(field.DisabledWhen, _selectedViewMode);
+            field.ReadOnlyWhen = RemoveModeFromCondition(field.ReadOnlyWhen, _selectedViewMode);
+        }
+        _selectedViewMode = string.Empty;
+        State.MarkDirty();
+    }
+
+    private static FormExpression? RemoveModeFromCondition(FormExpression? expression, string mode)
+    {
+        if (expression?.Left?.Context != "viewMode" || expression.Right is null) return expression;
+        var right = expression.Right.Value;
+        if (right.ValueKind == System.Text.Json.JsonValueKind.String)
+            return right.GetString() == mode ? null : expression;
+        if (right.ValueKind != System.Text.Json.JsonValueKind.Array) return expression;
+        var remaining = right.EnumerateArray().Where(item => item.ValueKind == System.Text.Json.JsonValueKind.String)
+            .Select(item => item.GetString()!).Where(item => item != mode).ToArray();
+        if (remaining.Length == right.GetArrayLength()) return expression;
+        if (remaining.Length == 0) return null;
+        expression.Right.Value = System.Text.Json.JsonSerializer.SerializeToElement(remaining);
+        return expression;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -385,18 +466,6 @@
                     (field.Reference is null || field.Reference.ObjectKey != property.ReferenceTargetKey))
                 {
                     _saveError = $"Field '{field.Label}' has incomplete reference configuration.";
-                    return false;
-                }
-            }
-            if (requireCoverage)
-            {
-                var missing = domainDefinition.Properties.FirstOrDefault(property => property.Required &&
-                    !bindingFields.Any(field => (field.PropertyKey ?? field.Name) == property.Key) &&
-                    !State.Definition.Objects.Any(child => child.AssignToBinding == binding.Key &&
-                        child.AssignToProperty == property.Key && child.When is null));
-                if (missing is not null)
-                {
-                    _saveError = $"'{binding.ObjectKey}' requires '{missing.DisplayName}'. Add that property to the form.";
                     return false;
                 }
             }

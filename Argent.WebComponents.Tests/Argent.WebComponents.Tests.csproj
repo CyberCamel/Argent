@@ -11,4 +11,9 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Argent.Core\Argent.Core.csproj" />
+    <ProjectReference Include="..\Argent.WebComponents\Argent.WebComponents.csproj" />
+  </ItemGroup>
+
 </Project>

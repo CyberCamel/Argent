@@ -211,11 +211,6 @@ public class EfFormDesignerStore(
             foreach (var field in bound)
                 if (!domain.Properties.Any(property => property.Key == (field.PropertyKey ?? field.Name)))
                     throw new InvalidOperationException($"Field '{field.Name}' is not a property of '{binding.ObjectKey}'.");
-            foreach (var property in domain.Properties.Where(property => property.Required))
-                if (!bound.Any(field => (field.PropertyKey ?? field.Name) == property.Key) &&
-                    !definition.Objects.Any(child => child.AssignToBinding == binding.Key &&
-                        child.AssignToProperty == property.Key && child.When is null))
-                    throw new InvalidOperationException($"'{binding.ObjectKey}' requires property '{property.Key}'.");
             foreach (var child in definition.Objects.Where(child => child.AssignToBinding == binding.Key))
             {
                 var property = domain.Properties.FirstOrDefault(candidate => candidate.Key == child.AssignToProperty);
@@ -258,6 +253,16 @@ public class EfFormDesignerStore(
         await db.SaveChangesAsync();
 
         return await LoadAsync(version.FormDesignId);
+    }
+
+    public async Task<IReadOnlyList<string>> GetPublishedViewModesAsync(Guid formDesignId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var version = await db.FormDesignVersions.AsNoTracking()
+            .Where(item => item.FormDesignId == formDesignId)
+            .OrderByDescending(item => item.CreatedAt)
+            .FirstOrDefaultAsync();
+        return version?.Definition.ViewModes ?? [];
     }
 
     public async Task<IReadOnlyList<FormDesignSummary>> GetSummariesByObjectKeyAsync(string objectKey)

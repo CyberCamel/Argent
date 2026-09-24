@@ -40,8 +40,16 @@ public static class FormDefinitionCompiler
         if (definition.ProtocolVersion != "2.0")
             errors.Add(new("protocol.unsupported", "protocolVersion", $"Unsupported protocol version '{definition.ProtocolVersion}'."));
         ValidateProtocolId(definition.Id, "id", "form.id_invalid", errors);
+        var viewModes = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < definition.ViewModes.Count; index++)
+        {
+            var mode = definition.ViewModes[index];
+            ValidateIdentifier(mode, $"viewModes[{index}]", "form.view_mode_invalid", errors);
+            if (!viewModes.Add(mode))
+                errors.Add(new("form.view_mode_duplicate", $"viewModes[{index}]", "View mode keys must be unique."));
+        }
         if (definition.Objects.Count == 0)
-            ValidateIdentifier(definition.ObjectKey, "objectKey", "form.object_key_invalid", errors);
+            ValidateExternalKey(definition.ObjectKey, "objectKey", "form.object_key_invalid", errors);
         else
         {
             var keys = new HashSet<string>(StringComparer.Ordinal);
@@ -51,7 +59,7 @@ public static class FormDefinitionCompiler
             {
                 var binding = definition.Objects[index];
                 ValidateIdentifier(binding.Key, $"objects[{index}].key", "object.binding_invalid", errors);
-                ValidateIdentifier(binding.ObjectKey, $"objects[{index}].objectKey", "object.key_invalid", errors);
+                ValidateExternalKey(binding.ObjectKey, $"objects[{index}].objectKey", "object.key_invalid", errors);
                 if (!keys.Add(binding.Key))
                     errors.Add(new("object.binding_duplicate", $"objects[{index}].key", "Object binding keys must be unique."));
                 if (binding.IsPrimary && binding.When is not null)
@@ -83,6 +91,10 @@ public static class FormDefinitionCompiler
         var boundProperties = new HashSet<string>(StringComparer.Ordinal);
         foreach (var field in Fields(definition.Components))
         {
+            foreach (var mode in field.ModeOverrides.Keys)
+                if (!viewModes.Contains(mode))
+                    errors.Add(new("field.view_mode_unknown", fields[field.Name] + ".modeOverrides",
+                        $"Field '{field.Name}' refers to undefined view mode '{mode}'."));
             if (field.ObjectBinding is null) continue;
             if (!definition.Objects.Any(binding => binding.Key == field.ObjectBinding))
                 errors.Add(new("field.binding_unknown", fields[field.Name] + ".objectBinding", $"Unknown object binding '{field.ObjectBinding}'."));
@@ -191,7 +203,7 @@ public static class FormDefinitionCompiler
         {
             if (field.Type != "choice")
                 errors.Add(new("reference.field_type_invalid", $"{path}.type", "A reference source requires field type 'choice'."));
-            ValidateIdentifier(field.Reference.ObjectKey, $"{path}.reference.objectKey", "reference.object_key_invalid", errors);
+            ValidateExternalKey(field.Reference.ObjectKey, $"{path}.reference.objectKey", "reference.object_key_invalid", errors);
             ValidateIdentifier(field.Reference.LabelField, $"{path}.reference.labelField", "reference.label_field_invalid", errors);
         }
 
@@ -223,6 +235,12 @@ public static class FormDefinitionCompiler
     {
         if (value is null || !IdentifierPattern.IsMatch(value))
             errors.Add(new(code, path, $"'{value}' is not a valid protocol identifier."));
+    }
+
+    private static void ValidateExternalKey(string? value, string path, string code, List<FormDefinitionError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            errors.Add(new(code, path, "Domain object key is required."));
     }
 
     private static void ValidateProtocolId(string? value, string path, string code, List<FormDefinitionError> errors)
@@ -260,6 +278,17 @@ public static class FormDefinitionCompiler
                 ValidateOperand(expression.Left, expression.Operator, "left");
                 ValidateOperand(expression.Right, expression.Operator, "right");
                 return;
+            case "in" or "notIn":
+                ValidateOperand(expression.Left, expression.Operator, "left");
+                ValidateOperand(expression.Right, expression.Operator, "right");
+                if (expression.Right?.Value.ValueKind != System.Text.Json.JsonValueKind.Array ||
+                    expression.Right.Value.GetArrayLength() == 0 ||
+                    expression.Right.Value.EnumerateArray().Any(item => item.ValueKind is not (
+                        System.Text.Json.JsonValueKind.String or System.Text.Json.JsonValueKind.Number or
+                        System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False or
+                        System.Text.Json.JsonValueKind.Null)))
+                    throw new FormProtocolException($"Operator '{expression.Operator}' requires a non-empty array of primitive values on the right.");
+                return;
             case "isEmpty" or "isNotEmpty":
                 ValidateOperand(expression.Operand, expression.Operator, "operand");
                 return;
@@ -272,9 +301,11 @@ public static class FormDefinitionCompiler
     {
         if (operand is null) throw new FormProtocolException($"Operator '{op}' requires {member}.");
         var hasField = !string.IsNullOrWhiteSpace(operand.Field);
+        var hasContext = !string.IsNullOrWhiteSpace(operand.Context);
         var hasValue = operand.Value.ValueKind != System.Text.Json.JsonValueKind.Undefined;
-        if (hasField == hasValue)
-            throw new FormProtocolException($"Operator '{op}' {member} must contain exactly one of 'field' or 'value'.");
+        if (Convert.ToInt32(hasField) + Convert.ToInt32(hasContext) + Convert.ToInt32(hasValue) != 1 ||
+            hasContext && operand.Context != "viewMode")
+            throw new FormProtocolException($"Operator '{op}' {member} must contain exactly one valid field, context or value.");
     }
 
     private static string ComponentPath(string expressionPath) =>

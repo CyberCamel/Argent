@@ -9,4 +9,5 @@ public interface IWorkflowTaskStore
     Task<IReadOnlyList<string>> GetTaskActionsAsync(Guid instanceId, Guid nodeId);
 
     Task<IReadOnlyList<TaskActionDescriptor>> GetTaskActionDescriptorsAsync(Guid instanceId, Guid nodeId);
+    Task<string?> GetTaskViewModeAsync(Guid instanceId, Guid nodeId);
 }

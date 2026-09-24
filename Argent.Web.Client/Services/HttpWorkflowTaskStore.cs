@@ -6,6 +6,8 @@ namespace Argent.Web.Client.Services;
 
 public class HttpWorkflowTaskStore(HttpClient _http) : IWorkflowTaskStore
 {
+    public Task<string?> GetTaskViewModeAsync(Guid instanceId, Guid nodeId) =>
+        _http.GetFromJsonAsync<string?>($"/api/designer/workflow-instances/{instanceId}/nodes/{nodeId}/view-mode");
     public Task<Guid?> GetStartFormIdAsync(Guid workflowId) =>
         _http.GetFromJsonAsync<Guid?>($"/api/designer/workflows/{workflowId}/start-form");
 

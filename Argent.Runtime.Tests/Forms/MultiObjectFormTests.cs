@@ -16,6 +16,82 @@ namespace Argent.Runtime.Tests.Forms;
 public sealed class MultiObjectFormTests
 {
     [Fact]
+    public async Task View_mode_requires_later_fields_and_allows_incomplete_record_at_start()
+    {
+        var options = new DbContextOptionsBuilder<ArgentDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N")).Options;
+        var formId = Guid.NewGuid();
+        var version = new FormDesignVersion
+        {
+            FormDesignId = formId,
+            Definition = new FormDefinition
+            {
+                Id = "stagedInvoice", ObjectKey = "invoice", ViewModes = ["approval"],
+                Objects = [new() { Key = "invoice", ObjectKey = "invoice", IsPrimary = true }],
+                Components =
+                [
+                    new FormField { Name = "invoice.number", ObjectBinding = "invoice", PropertyKey = "number",
+                        Label = "Number", ModeOverrides = new() { ["approval"] = new() { Hidden = true } } },
+                    new FormField { Name = "invoice.approvedBy", ObjectBinding = "invoice", PropertyKey = "approvedBy",
+                        Label = "Approved by", ModeOverrides = new() { ["approval"] = new() { Required = true } } }
+                ]
+            }
+        };
+        await using (var db = new ArgentDbContext(options))
+        {
+            var invoice = new DomainObject { Key = "invoice", Name = "Invoice" };
+            db.DomainObjects.Add(invoice);
+            db.DomainObjectVersions.Add(new DomainObjectVersion { DomainObjectId = invoice.Id,
+                State = DomainObjectState.Published,
+                Definition = new DomainObjectDefinition { Key = "invoice", Properties =
+                    [new() { Key = "number", Type = DomainPropertyType.Text, Required = true },
+                     new() { Key = "approvedBy", Type = DomainPropertyType.Text, Required = true }] } });
+            db.FormDesignVersions.Add(version);
+            await db.SaveChangesAsync();
+        }
+
+        var domainObjects = new Mock<IDomainObjectStore>();
+        var formData = new Mock<IFormDataStore>();
+        var service = new FormRuntimeService(new Factory(options), Mock.Of<IDomainObjectDefinitionService>(),
+            domainObjects.Object, formData.Object);
+        var created = await service.SubmitAsync(formId, new FormSubmitRequest
+        {
+            SubmissionId = Guid.NewGuid(), FormVersionId = version.Id,
+            Values = new() { ["invoice.number"] = JsonSerializer.SerializeToElement("INV-1") }
+        }, "starter");
+        Assert.True(created.IsValid, string.Join("; ", created.Errors.Select(error => error.Message)));
+
+        domainObjects.Setup(store => store.GetAsync("invoice", created.Result!.RecordId))
+            .ReturnsAsync(new DomainRecord { Id = created.Result!.RecordId, ObjectKey = "invoice",
+                Values = new() { ["number"] = "INV-1" } });
+        formData.Setup(store => store.GetCustomDataAsync(created.Result!.RecordId, formId))
+            .ReturnsAsync([]);
+        var bootstrap = await service.BootstrapAsync(formId, created.Result!.RecordIds,
+            viewMode: "approval");
+        Assert.DoesNotContain("invoice.number", bootstrap!.InitialValues.Keys);
+
+        var approval = FormViewModeProjector.Apply(version.Definition, "approval");
+        Assert.True(((FormField)approval.Components[0]).Hidden);
+        Assert.Contains(FormValueValidator.Validate(approval, new Dictionary<string, JsonElement>()),
+            error => error.Field == "invoice.approvedBy" && error.Code == "field.required");
+        var completed = await service.SubmitAsync(formId, new FormSubmitRequest
+        {
+            SubmissionId = Guid.NewGuid(), FormVersionId = version.Id,
+            RecordIds = created.Result!.RecordIds,
+            Values = new()
+            {
+                ["invoice.number"] = JsonSerializer.SerializeToElement("TAMPERED"),
+                ["invoice.approvedBy"] = JsonSerializer.SerializeToElement("alexb")
+            }
+        }, "alexb", updateAttachedRecords: true, viewMode: "approval");
+        Assert.True(completed.IsValid, string.Join("; ", completed.Errors.Select(error => error.Message)));
+        await using var check = new ArgentDbContext(options);
+        var record = await check.DomainObjectRecords.FindAsync(created.Result.RecordId);
+        Assert.Equal("INV-1", record!.Values["number"]?.ToString());
+        Assert.Equal("alexb", record.Values["approvedBy"]?.ToString());
+    }
+
+    [Fact]
     public async Task Same_form_updates_attached_record_and_creates_secondary_object_when_later_populated()
     {
         var options = new DbContextOptionsBuilder<ArgentDbContext>()

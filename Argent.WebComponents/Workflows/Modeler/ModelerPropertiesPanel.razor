@@ -178,6 +178,20 @@
                             }
                         }
                     </div>
+                    @if (currentFormId.HasValue)
+                    {
+                        <div class="modeler-properties-field">
+                            <label class="modeler-properties-label">View mode</label>
+                            <select class="modeler-properties-input" value="@((userActivity.UX as FormExperience)?.ViewMode)"
+                                    @onchange="e => SetUserActivityViewMode(userActivity, e.Value?.ToString())">
+                                <option value="">Default</option>
+                                @foreach (var mode in _availableViewModes)
+                                {
+                                    <option value="@mode">@mode</option>
+                                }
+                            </select>
+                        </div>
+                    }
                 </div>
             }
 
@@ -397,6 +411,8 @@
 
     private IReadOnlyList<DomainObjectSummary> _domainSummaries = [];
     private IReadOnlyList<FormDesignSummary> _availableForms = [];
+    private IReadOnlyList<string> _availableViewModes = [];
+    private Guid? _loadedModesFormId;
     private string _loadedFormsKey = string.Empty;
     private string _newActionType = string.Empty;
     private JintActivity? _editingJint;
@@ -441,6 +457,16 @@
     protected override async Task OnParametersSetAsync()
     {
         await RefreshAvailableFormsAsync();
+        await RefreshViewModesAsync();
+    }
+
+    private async Task RefreshViewModesAsync()
+    {
+        var formId = (Node.NodeData as UserActivity)?.UX is FormExperience form ? form.FormId : (Guid?)null;
+        if (formId == _loadedModesFormId) return;
+        _loadedModesFormId = formId;
+        _availableViewModes = formId.HasValue
+            ? await FormDesignerStore.GetPublishedViewModesAsync(formId.Value) : [];
     }
 
     private string GetWorkflowObjectKey() =>
@@ -478,12 +504,20 @@
         State.MarkDirty();
     }
 
-    private void SetUserActivityForm(UserActivity activity, string? formIdStr)
+    private async Task SetUserActivityForm(UserActivity activity, string? formIdStr)
     {
         if (Guid.TryParse(formIdStr, out var id))
             activity.UX = new FormExperience { FormId = id };
         else
             activity.UX = new RedirectExperience("https://example.com");
+        await RefreshViewModesAsync();
+        State.MarkDirty();
+    }
+
+    private void SetUserActivityViewMode(UserActivity activity, string? viewMode)
+    {
+        if (activity.UX is not FormExperience form) return;
+        activity.UX = form with { ViewMode = string.IsNullOrWhiteSpace(viewMode) ? null : viewMode };
         State.MarkDirty();
     }
 

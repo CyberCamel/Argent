@@ -5,6 +5,7 @@ export interface FormDefinition {
   readonly id: string;
   readonly objectKey: string;
   readonly objects?: readonly FormObjectBinding[];
+  readonly viewModes?: readonly string[];
   readonly title?: string;
   readonly components: readonly FormComponent[];
 }
@@ -38,6 +39,8 @@ export interface FormField {
   readonly description?: string;
   readonly placeholder?: string;
   readonly required?: boolean;
+  readonly hidden?: boolean;
+  readonly modeOverrides?: Readonly<Record<string, { readonly hidden?: boolean; readonly required?: boolean | null }>>;
   readonly options?: readonly FormOption[];
   readonly reference?: FormReferenceSource;
   readonly validators?: readonly FormValidator[];
@@ -100,6 +103,7 @@ export interface FormDefinitionCompilation {
 
 const fieldTypes = new Set(['text', 'integer', 'decimal', 'date', 'timestamp', 'boolean', 'choice', 'file']);
 const identifierPattern = /^[A-Za-z][A-Za-z0-9_.-]{0,127}$/;
+const validExternalKey = (key: string): boolean => typeof key === 'string' && key.trim().length > 0;
 const layoutTypes = new Set(['section', 'row', 'column', 'tabs', 'accordion']);
 const validatorTypes = new Set(['required', 'length', 'range', 'pattern', 'email', 'url', 'compare']);
 const binaryOperators = new Set([
@@ -118,16 +122,29 @@ export function compileDefinition(definition: FormDefinition): FormDefinitionCom
   }
 
   const fields = new Map<string, string>();
+  const viewModes = new Set(definition.viewModes ?? []);
+  if (viewModes.size !== (definition.viewModes?.length ?? 0))
+    errors.push({ code: 'form.view_mode_duplicate', path: 'viewModes', message: 'View mode keys must be unique.' });
+  for (const mode of viewModes) if (!identifierPattern.test(mode))
+    errors.push({ code: 'form.view_mode_invalid', path: 'viewModes', message: 'Invalid view mode key.' });
   const expressions: Array<{ path: string; expression: FormExpression }> = [];
   walk(definition.components, 'components', fields, expressions, errors);
+  for (const field of allFields(definition.components))
+    for (const mode of Object.keys(field.modeOverrides ?? {}))
+      if (!viewModes.has(mode))
+        errors.push({ code: 'field.view_mode_unknown', path: `components.${field.name}.modeOverrides`, message: `Unknown view mode '${mode}'.` });
   const objectKeys = new Set((definition.objects ?? []).map(binding => binding.key));
+  if (!definition.objects?.length && !validExternalKey(definition.objectKey))
+    errors.push({ code: 'form.object_key_invalid', path: 'objectKey', message: 'Domain object key is required.' });
   if (definition.objects?.length) {
     if (definition.objects.filter(binding => binding.isPrimary).length !== 1)
       errors.push({ code: 'form.primary_object_required', path: 'objects', message: 'Exactly one primary object binding is required.' });
     const seenKeys = new Set<string>();
     definition.objects.forEach((binding, index) => {
-      if (!identifierPattern.test(binding.key) || !identifierPattern.test(binding.objectKey))
-        errors.push({ code: 'object.binding_invalid', path: `objects[${index}]`, message: 'Invalid object binding.' });
+      if (!identifierPattern.test(binding.key))
+        errors.push({ code: 'object.binding_invalid', path: `objects[${index}].key`, message: 'Invalid object binding.' });
+      if (!validExternalKey(binding.objectKey))
+        errors.push({ code: 'object.key_invalid', path: `objects[${index}].objectKey`, message: 'Domain object key is required.' });
       if (seenKeys.has(binding.key))
         errors.push({ code: 'object.binding_duplicate', path: `objects[${index}].key`, message: 'Object binding keys must be unique.' });
       seenKeys.add(binding.key);
@@ -263,8 +280,8 @@ function validateFieldConfiguration(field: FormField, path: string, errors: Form
     if (field.type !== 'choice') {
       errors.push({ code: 'reference.field_type_invalid', path: `${path}.type`, message: "A reference source requires field type 'choice'." });
     }
-    if (!identifierPattern.test(field.reference.objectKey)) {
-      errors.push({ code: 'reference.object_key_invalid', path: `${path}.reference.objectKey`, message: `'${field.reference.objectKey}' is not a valid protocol identifier.` });
+    if (!validExternalKey(field.reference.objectKey)) {
+      errors.push({ code: 'reference.object_key_invalid', path: `${path}.reference.objectKey`, message: 'Domain object key is required.' });
     }
     if (!identifierPattern.test(field.reference.labelField)) {
       errors.push({ code: 'reference.label_field_invalid', path: `${path}.reference.labelField`, message: `'${field.reference.labelField}' is not a valid protocol identifier.` });
@@ -309,6 +326,15 @@ function validateExpressionShape(expression: FormExpression): void {
     validateOperand(expression.right, expression.operator, 'right');
     return;
   }
+  if (expression.operator === 'in' || expression.operator === 'notIn') {
+    validateOperand(expression.left, expression.operator, 'left');
+    validateOperand(expression.right, expression.operator, 'right');
+    const values = expression.right?.value;
+    if (!Array.isArray(values) || values.length === 0 ||
+        values.some(item => item !== null && !['string', 'number', 'boolean'].includes(typeof item)))
+      throw new FormProtocolError(`Operator '${expression.operator}' requires a non-empty array of primitive values on the right.`);
+    return;
+  }
   if (expression.operator === 'isEmpty' || expression.operator === 'isNotEmpty') {
     validateOperand(expression.operand, expression.operator, 'operand');
     return;
@@ -316,12 +342,14 @@ function validateExpressionShape(expression: FormExpression): void {
   throw new FormProtocolError(`Unknown form expression operator '${expression.operator}'.`);
 }
 
-function validateOperand(operand: { field?: string; value?: unknown } | undefined, operator: string, member: string): void {
+function validateOperand(operand: { field?: string; context?: string; value?: unknown } | undefined, operator: string, member: string): void {
   if (!operand) throw new FormProtocolError(`Operator '${operator}' requires ${member}.`);
   const hasField = typeof operand.field === 'string' && operand.field.length > 0;
+  const hasContext = operand.context === 'viewMode';
   const hasValue = Object.hasOwn(operand, 'value');
-  if (hasField === hasValue) {
-    throw new FormProtocolError(`Operator '${operator}' ${member} must contain exactly one of 'field' or 'value'.`);
+  if (Number(hasField) + Number(hasContext) + Number(hasValue) !== 1 ||
+      (operand.context !== undefined && !hasContext)) {
+    throw new FormProtocolError(`Operator '${operator}' ${member} must contain exactly one valid field, context or value.`);
   }
 }
 

@@ -48,10 +48,12 @@ public sealed class FormSubmitResult
 
 public interface IFormRuntimeService
 {
-    Task<FormBootstrap?> BootstrapAsync(Guid formDesignId, Guid? recordId = null, CancellationToken cancellationToken = default);
-    Task<FormBootstrap?> BootstrapAsync(Guid formDesignId, IReadOnlyDictionary<string, Guid> recordIds, CancellationToken cancellationToken = default);
+    Task<FormBootstrap?> BootstrapAsync(Guid formDesignId, Guid? recordId = null, CancellationToken cancellationToken = default,
+        string? viewMode = null);
+    Task<FormBootstrap?> BootstrapAsync(Guid formDesignId, IReadOnlyDictionary<string, Guid> recordIds, CancellationToken cancellationToken = default,
+        string? viewMode = null);
     Task<FormRuntimeSubmission> SubmitAsync(Guid formDesignId, FormSubmitRequest request, string? user,
-        CancellationToken cancellationToken = default, bool updateAttachedRecords = false);
+        CancellationToken cancellationToken = default, bool updateAttachedRecords = false, string? viewMode = null);
     Task CompleteWorkflowStartAsync(Guid submissionId, Guid workflowInstanceId, CancellationToken cancellationToken = default);
     Task DiscardSubmissionAsync(Guid submissionId, CancellationToken cancellationToken = default);
 }
