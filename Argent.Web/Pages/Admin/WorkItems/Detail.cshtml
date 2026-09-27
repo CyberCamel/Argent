@@ -18,14 +18,14 @@
 
 <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
     <div>
-        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">@(wi.NodeName ?? wi.NodeType)</h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-            Work Item <code class="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs font-mono">@wi.Id</code>
+        <h1 class="text-xl font-bold text-ink-heading">@(wi.NodeName ?? wi.NodeType)</h1>
+        <p class="text-sm text-ink-muted">
+            Work Item <code class="bg-sunken px-1.5 py-0.5 rounded text-xs font-mono">@wi.Id</code>
             @if (wi.WorkflowName != null)
             {
                 <span class="mx-1">·</span>
                 <a asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@wi.InstanceId"
-                   class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                   class="text-accent-text hover:underline">
                     @wi.WorkflowName
                 </a>
             }
@@ -42,7 +42,7 @@
         @if (wi.State == WorkItemState.Failed)
         {
             <form method="post" asp-page-handler="Retry" asp-route-id="@wi.Id">
-                <button type="submit" class="px-3 py-1.5 text-sm font-medium text-yellow-800 dark:text-yellow-200 bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 rounded-lg transition-colors">
+                <button type="submit" class="btn btn-warning-secondary btn-sm">
                     <i class="bi bi-arrow-clockwise"></i> @Localizer["Admin.WorkItems.Detail.RetryButton"]
                 </button>
             </form>
@@ -53,27 +53,27 @@
 @* Metadata cards *@
 <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
     <div class="card p-4">
-        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">State</div>
+        <div class="text-xs text-ink-muted mb-1">State</div>
         <span class="badge @stateBadge text-sm mt-1">@wi.State</span>
     </div>
     <div class="card p-4">
-        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.WorkItems.Detail.NodeTypeLabel"]</div>
-        <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">@wi.NodeType</div>
+        <div class="text-xs text-ink-muted mb-1">@Localizer["Admin.WorkItems.Detail.NodeTypeLabel"]</div>
+        <div class="text-sm font-semibold text-ink-heading">@wi.NodeType</div>
     </div>
     <div class="card p-4">
-        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.WorkItems.Detail.RetriesLabel"]</div>
-        <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">@wi.RetryCount <span class="text-gray-400 font-normal">/ @wi.MaxRetries</span></div>
+        <div class="text-xs text-ink-muted mb-1">@Localizer["Admin.WorkItems.Detail.RetriesLabel"]</div>
+        <div class="text-sm font-semibold text-ink-heading">@wi.RetryCount <span class="text-gray-400 font-normal">/ @wi.MaxRetries</span></div>
     </div>
     <div class="card p-4">
-        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.WorkItems.Detail.PriorityLabel"]</div>
-        <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">@wi.Priority</div>
+        <div class="text-xs text-ink-muted mb-1">@Localizer["Admin.WorkItems.Detail.PriorityLabel"]</div>
+        <div class="text-sm font-semibold text-ink-heading">@wi.Priority</div>
     </div>
     <div class="card p-4">
-        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.WorkItems.Detail.CreatedLabel"]</div>
-        <div class="text-sm text-gray-900 dark:text-gray-100">@wi.CreatedAt.ToString("g")</div>
+        <div class="text-xs text-ink-muted mb-1">@Localizer["Admin.WorkItems.Detail.CreatedLabel"]</div>
+        <div class="text-sm text-ink-heading">@wi.CreatedAt.ToString("g")</div>
     </div>
     <div class="card p-4">
-        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">@Localizer["Admin.WorkItems.Detail.LockedByLabel"]</div>
+        <div class="text-xs text-ink-muted mb-1">@Localizer["Admin.WorkItems.Detail.LockedByLabel"]</div>
         <div class="text-sm @(wi.LockedBy != null ? "font-semibold text-gray-900 dark:text-gray-100" : "text-gray-500")">
             @(wi.LockedBy ?? "—")
             @if (wi.LockExpirationUtc != null)
@@ -88,24 +88,24 @@
 <div class="card p-4 mb-6">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         <div>
-            <span class="text-xs text-gray-500 dark:text-gray-400">@Localizer["Admin.WorkItems.Detail.TokenIdLabel"]</span><br />
-            <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">@wi.TokenId</code>
+            <span class="text-xs text-ink-muted">@Localizer["Admin.WorkItems.Detail.TokenIdLabel"]</span><br />
+            <code class="text-xs bg-sunken px-1.5 py-0.5 rounded">@wi.TokenId</code>
         </div>
         <div>
-            <span class="text-xs text-gray-500 dark:text-gray-400">@Localizer["Admin.WorkItems.Detail.NodeIdLabel"]</span><br />
-            <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">@wi.NodeId</code>
+            <span class="text-xs text-ink-muted">@Localizer["Admin.WorkItems.Detail.NodeIdLabel"]</span><br />
+            <code class="text-xs bg-sunken px-1.5 py-0.5 rounded">@wi.NodeId</code>
         </div>
     </div>
 </div>
 
 @* Audit trail *@
 <div class="card">
-    <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-800 font-semibold text-sm">
+    <div class="px-5 py-3 border-b border-line font-semibold text-sm">
         <i class="bi bi-journal-text me-1"></i> @Localizer["Admin.WorkItems.Detail.AuditTrailHeading"] (@Model.AuditEntries.Count)
     </div>
     @if (Model.AuditEntries.Count == 0)
     {
-        <div class="p-4 text-sm text-gray-500 dark:text-gray-400">@Localizer["Admin.WorkItems.Detail.AuditEmpty"]</div>
+        <div class="p-4 text-sm text-ink-muted">@Localizer["Admin.WorkItems.Detail.AuditEmpty"]</div>
     }
     else
     {
@@ -124,11 +124,11 @@
                     @foreach (var e in Model.AuditEntries)
                     {
                         <tr>
-                            <td class="whitespace-nowrap text-gray-500 dark:text-gray-400">@e.TimeStamp.ToString("g")</td>
-                            <td><span class="badge bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700">@e.Category</span></td>
+                            <td class="whitespace-nowrap text-ink-muted">@e.TimeStamp.ToString("g")</td>
+                            <td><span class="badge badge-neutral">@e.Category</span></td>
                             <td class="font-medium">@e.EventType</td>
-                            <td class="text-gray-500 dark:text-gray-400">@(e.Actor ?? "—")</td>
-                            <td><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">@(e.Details ?? "—")</code></td>
+                            <td class="text-ink-muted">@(e.Actor ?? "—")</td>
+                            <td><code class="text-xs bg-sunken px-1 rounded">@(e.Details ?? "—")</code></td>
                         </tr>
                     }
                 </tbody>

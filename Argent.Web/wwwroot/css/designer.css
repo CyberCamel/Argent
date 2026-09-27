@@ -1,0 +1,273 @@
+/* ==========================================================================
+   Designer surfaces (form designer, domain object designer)
+   --------------------------------------------------------------------------
+   These rules used to live in inline <style> blocks inside
+   FormDesigner.razor and DomainObjectDesigner.razor. Because Razor class
+   library components have no CSS isolation by default, those blocks leaked
+   globally, and .property-section / .property-label were defined twice with
+   different values, so whichever component rendered last won. Components such
+   as FormPropertyPanel and ValidatorListEditor used those classes without
+   defining them and were therefore unstyled unless their parent happened to be
+   on the page.
+
+   Everything is now defined once, here, and driven by the shared tokens from
+   app.css. The prefix keeps these names from colliding with the rest of the UI.
+   ========================================================================== */
+
+/* ---- Property panel building blocks -------------------------------------
+   Shared by the form designer, domain object designer, property panel,
+   validator list editor and condition builder. */
+
+.property-section {
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--line-subtle);
+}
+
+.property-section:last-child {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.property-label {
+    margin-bottom: 0.4rem;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+}
+
+.input-group {
+    display: flex;
+    align-items: stretch;
+}
+
+.input-group > .form-input:not(:first-child) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.input-group > .form-input:not(:last-child) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.input-group-text {
+    display: flex;
+    align-items: center;
+    padding: 0 0.625rem;
+    font-size: var(--font-size-sm);
+    color: var(--fg-secondary);
+    background: var(--surface-sunken);
+    border: 1px solid var(--line-strong);
+}
+
+.input-group-text:first-child {
+    border-right: none;
+    border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.input-group-text:last-child {
+    border-left: none;
+    border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+/* ---- Form designer canvas ----------------------------------------------- */
+
+.fd-dropzone {
+    height: 0;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    transition: height 0.1s ease, background 0.1s ease;
+}
+
+.fd-dropzone.visible {
+    height: 10px;
+    margin: 2px 0;
+    background: var(--line-strong);
+}
+
+.fd-dropzone.visible.active {
+    background: var(--accent);
+}
+
+.fd-dropzone-inside.visible {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 34px;
+    font-size: var(--font-size-sm);
+    color: var(--fg-muted);
+    background: var(--surface-sunken);
+    border: 2px dashed var(--line-strong);
+}
+
+.fd-dropzone-inside.visible.active {
+    color: var(--accent-text);
+    background: var(--accent-subtle);
+    border-color: var(--accent);
+}
+
+.fd-dropzone-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.fd-node {
+    position: relative;
+    margin: 2px 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.fd-node.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.fd-node-container {
+    background: var(--surface-sunken);
+}
+
+.fd-node-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    font-size: var(--font-size-meta);
+    color: var(--fg-muted);
+    border-bottom: 1px dashed var(--line);
+    cursor: grab;
+    user-select: none;
+}
+
+.fd-node-header:active {
+    cursor: grabbing;
+}
+
+.fd-grip,
+.fd-type-icon {
+    color: var(--fg-muted);
+    flex-shrink: 0;
+}
+
+.fd-type-icon {
+    color: var(--accent-text);
+}
+
+.fd-node-title {
+    font-weight: 600;
+    color: var(--fg);
+}
+
+.fd-node-meta {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-micro);
+    color: var(--fg-muted);
+}
+
+.fd-node-actions {
+    display: none;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.fd-node:hover > .fd-node-header > .fd-node-actions,
+.fd-node.selected > .fd-node-header > .fd-node-actions {
+    display: inline-flex;
+}
+
+.fd-action {
+    border: none;
+    background: none;
+    padding: 0 4px;
+    font-size: var(--font-size-meta);
+    line-height: 1.4;
+    color: var(--fg-muted);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.fd-action:hover {
+    color: var(--accent-text);
+    background: var(--accent-subtle);
+}
+
+.fd-action-danger:hover {
+    color: var(--danger);
+    background: var(--danger-bg);
+}
+
+.fd-node-preview {
+    padding: 6px 10px 2px;
+    pointer-events: none;
+}
+
+.fd-container-body {
+    padding: 6px 10px;
+}
+
+.fd-container-hint {
+    padding: 1px 10px;
+    font-size: var(--font-size-micro);
+    font-style: italic;
+    color: var(--fg-muted);
+}
+
+.fd-columns {
+    display: flex;
+    gap: 8px;
+    padding: 6px 10px;
+}
+
+.fd-column {
+    flex: 1;
+    min-width: 0;
+    padding: 4px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-sm);
+}
+
+.fd-column-label {
+    margin-bottom: 2px;
+    font-size: var(--font-size-micro);
+    text-transform: uppercase;
+    color: var(--fg-muted);
+}
+
+.fd-toolbox-item {
+    cursor: grab;
+}
+
+.fd-toolbox-item:active {
+    cursor: grabbing;
+}
+
+.fd-toolbox-category {
+    margin: 8px 0 4px;
+    font-size: var(--font-size-micro);
+    font-weight: 600;
+    letter-spacing: var(--tracking-kicker);
+    text-transform: uppercase;
+    color: var(--fg-muted);
+}
+
+/* ---- Domain object designer --------------------------------------------- */
+
+.do-row {
+    cursor: pointer;
+}
+
+.do-row.selected {
+    background: var(--accent-subtle);
+}
+
+.do-key {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+}

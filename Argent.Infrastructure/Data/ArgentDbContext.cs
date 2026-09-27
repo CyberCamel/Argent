@@ -10,6 +10,7 @@ using Argent.Core.Workflows.Auditing;
 using Argent.Core.DomainObjects;
 using Argent.Core.Authorization;
 using Argent.Core.DataSources;
+using Argent.Core.Workers;
 using Argent.Core.Forms.Components.Configuration;
 using Argent.Core.Forms;
 using Argent.Infrastructure.Serialization;
@@ -69,6 +70,10 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
     public DbSet<GroupGroupMembership> GroupGroupMemberships { get; set; }
     
     public DbSet<Timer> Timers { get; set; }
+
+    public DbSet<Worker> Workers { get; set; }
+
+    public DbSet<WorkerRequest> WorkerRequests { get; set; }
 
     public DbSet<BrandingSettings> BrandingSettings { get; set; }
 
@@ -452,6 +457,74 @@ public class ArgentDbContext(DbContextOptions<ArgentDbContext> options) : Identi
             entity.Property(e => e.PrimaryHoverColor).HasMaxLength(16);
             entity.Property(e => e.FooterText).HasMaxLength(256);
             entity.Property(e => e.CustomCss).HasColumnType("nvarchar(max)");
+        });
+
+        // ----- External Workers -----
+
+        builder.Entity<Worker>(entity =>
+        {
+            entity.ToTable("Workers");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name).HasMaxLength(128);
+            entity.Property(e => e.DisplayName).HasMaxLength(256);
+            entity.Property(e => e.Endpoint).HasMaxLength(512);
+            entity.Property(e => e.ApiKeyHash).HasMaxLength(128);
+            entity.Property(e => e.CurrentSubject).HasMaxLength(256);
+            entity.Property(e => e.Subjects).HasColumnType("nvarchar(max)");
+
+            // Free-form identification the client reports, for example "Argent Python Worker 0.1".
+            // Not an enum: nothing routes on it, and a client should be able to describe itself
+            // however it likes.
+            entity.Property(e => e.Runtime).HasMaxLength(256);
+            entity.Property(e => e.Status).HasConversion<byte>();
+
+            entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_Workers_Name");
+
+            // The worker API resolves every call by presented key hash.
+            entity.HasIndex(e => e.ApiKeyHash).IsUnique().HasDatabaseName("IX_Workers_ApiKeyHash");
+
+            // The heartbeat sweep reads every worker that has ever checked in, ordered by heartbeat.
+            entity.HasIndex(e => e.LastHeartbeatAt).HasDatabaseName("IX_Workers_LastHeartbeatAt");
+
+            entity.Property(e => e.RowVersion).IsConcurrencyToken();
+        });
+
+        builder.Entity<WorkerRequest>(entity =>
+        {
+            entity.ToTable("WorkerRequests");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.WorkerName).HasMaxLength(128);
+            entity.Property(e => e.Subject).HasMaxLength(256);
+            entity.Property(e => e.Parameters).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Outputs).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.ErrorMessage).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.State).HasConversion<byte>();
+
+            // Claim path: pending work for one worker, highest priority first. Mirrors
+            // IX_WorkItems_Claim_Immediate so the claim query stays a single index seek.
+            entity.HasIndex(e => new { e.WorkerName, e.State, e.Priority, e.CreatedAt })
+                .HasDatabaseName("IX_WorkerRequests_Claim")
+                .HasFilter("[State] = 0");
+
+            // Lease sweep: claimed requests whose lease has run out.
+            entity.HasIndex(e => new { e.State, e.LeaseExpiresAt })
+                .HasDatabaseName("IX_WorkerRequests_Lease")
+                .HasFilter("[State] = 1");
+
+            // The handler's resume path looks the request up by token.
+            entity.HasIndex(e => new { e.TokenId, e.NodeId })
+                .HasDatabaseName("IX_WorkerRequests_TokenId_NodeId");
+
+            // Admin history and instance drill-down.
+            entity.HasIndex(e => e.InstanceId).HasDatabaseName("IX_WorkerRequests_InstanceId");
+
+            // Deliberately not a foreign key to Workers: a request must outlive the worker that
+            // ran it, so deregistering a worker never blocks or cascades over its history.
+            entity.HasIndex(e => e.ClaimedByWorkerId).HasDatabaseName("IX_WorkerRequests_ClaimedByWorkerId");
+
+            entity.Property(e => e.RowVersion).IsConcurrencyToken();
         });
     }
 }

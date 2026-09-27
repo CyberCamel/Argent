@@ -6,6 +6,7 @@ public class TokenExecutionContext(
     Guid instanceId,
     Guid tokenId,
     Guid nodeId,
+    Guid workItemId,
     IVariableBag variables,
     IReadOnlyList<CandidateTarget> candidateTargets,
     Guid? tokenGroupId,
@@ -17,6 +18,7 @@ public class TokenExecutionContext(
     public Guid InstanceId { get; } = instanceId;
     public Guid TokenId { get; } = tokenId;
     public Guid NodeId { get; } = nodeId;
+    public Guid WorkItemId { get; } = workItemId;
     public Guid RecordId { get; } = recordId;
     public Guid? FormId { get; } = formId;
     public string ObjectKey { get; } = objectKey;

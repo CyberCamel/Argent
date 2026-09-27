@@ -20,7 +20,7 @@ public class InclusiveGatewayEvaluatorTests
             new(Guid.NewGuid(), "Task", "[risk] = 'low'"),
         };
         var bag = new TokenVariableBag(new Dictionary<string, object?> { ["risk"] = "medium" });
-        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, bag, targets, null, null);
+        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, Guid.NewGuid(), bag, targets, null, null);
 
         var result = await new InclusiveGatewayEvaluator().ExecuteAsync(Node, ctx, default);
 
@@ -39,7 +39,7 @@ public class InclusiveGatewayEvaluatorTests
             new(Guid.NewGuid(), "Task", "[score] >= 0"),
         };
         var bag = new TokenVariableBag(new Dictionary<string, object?> { ["score"] = 75 });
-        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, bag, targets, null, null);
+        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, Guid.NewGuid(), bag, targets, null, null);
 
         var result = await new InclusiveGatewayEvaluator().ExecuteAsync(Node, ctx, default);
 
@@ -58,7 +58,7 @@ public class InclusiveGatewayEvaluatorTests
             new(Guid.NewGuid(), "Task", null), // default
         };
         var bag = new TokenVariableBag(new Dictionary<string, object?> { ["score"] = 50 });
-        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, bag, targets, null, null);
+        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, Guid.NewGuid(), bag, targets, null, null);
 
         var result = await new InclusiveGatewayEvaluator().ExecuteAsync(Node, ctx, default);
 
@@ -75,7 +75,7 @@ public class InclusiveGatewayEvaluatorTests
             new(Guid.NewGuid(), "Task", "[score] > 100"),
         };
         var bag = new TokenVariableBag(new Dictionary<string, object?> { ["score"] = 50 });
-        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, bag, targets, null, null);
+        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, Guid.NewGuid(), bag, targets, null, null);
 
         var result = await new InclusiveGatewayEvaluator().ExecuteAsync(Node, ctx, default);
 

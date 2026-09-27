@@ -42,7 +42,7 @@
             {
                 @if (Current.Operator is "in" or "notIn")
                 {
-                    <fieldset class="rounded border border-gray-300 dark:border-gray-600 p-2">
+                    <fieldset class="rounded border border-line-strong p-2">
                         <legend class="text-xs px-1">View modes</legend>
                         <div class="grid grid-cols-2 gap-1">
                             @foreach (var mode in State.Definition.ViewModes)

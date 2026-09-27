@@ -8,6 +8,7 @@
 @using Argent.Core.Workflows.Intermediates
 @using Argent.Core.Workflows.Modeler.Enums
 @using Argent.Core.Workflows.Shared
+@using Argent.Core.Workers
 @using Argent.Core.Forms
 @using Argent.WebComponents.Workflows.Modeler
 @using Argent.WebComponents.Forms.Designer
@@ -88,7 +89,49 @@
                             }
                             else if (prop.DataType == PropertyDataType.KeyValuePairs)
                             {
-                                <span class="modeler-properties-placeholder">@Localizer["ModelerPropertiesPanel.DictionaryComingSoon"]</span>
+                                @* Worker parameters have a real editor: the engine interpolates
+                                   {{variable}} placeholders in the value, so a plain string box
+                                   is not enough to author them. *@
+                                @if (Node.NodeData is WorkerActivity parameterOwner && prop.PropertyName == nameof(WorkerActivity.Parameters))
+                                {
+                                    <div class="modeler-worker-params">
+                                        @for (var i = 0; i < parameterOwner.Parameters.Count; i++)
+                                        {
+                                            var index = i;
+                                            var parameter = parameterOwner.Parameters[index];
+                                            <div class="modeler-worker-param-row">
+                                                <input class="modeler-properties-input" placeholder="key"
+                                                       value="@parameter.Key"
+                                                       disabled="@ReadOnly"
+                                                       @oninput="@(e => { parameter.Key = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
+                                                <input class="modeler-properties-input" placeholder="value or {{variable}}"
+                                                       value="@parameter.Value"
+                                                       disabled="@ReadOnly"
+                                                       @oninput="@(e => { parameter.Value = e.Value?.ToString() ?? string.Empty; State.MarkDirty(); })" />
+                                                @if (!ReadOnly)
+                                                {
+                                                    <button type="button" class="modeler-btn-icon" title="Remove parameter"
+                                                            @onclick="@(() => RemoveWorkerParameter(parameterOwner, index))">
+                                                        <i class="bi bi-x-lg"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        }
+                                        @if (!ReadOnly)
+                                        {
+                                            <div class="modeler-worker-param-add">
+                                                <button type="button" class="modeler-btn-icon" title="Add parameter"
+                                                        @onclick="@(() => AddWorkerParameter(parameterOwner))">
+                                                    <i class="bi bi-plus-lg"></i>
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="modeler-properties-placeholder">@Localizer["ModelerPropertiesPanel.DictionaryComingSoon"]</span>
+                                }
                             }
                             else if (prop.DataType == PropertyDataType.Boolean)
                             {
@@ -619,6 +662,19 @@
     }
 
     private void HandleClose() => OnClose.InvokeAsync();
+
+    private void AddWorkerParameter(WorkerActivity activity)
+    {
+        activity.Parameters.Add(new WorkerParameter());
+        State.MarkDirty();
+    }
+
+    private void RemoveWorkerParameter(WorkerActivity activity, int index)
+    {
+        if (index < 0 || index >= activity.Parameters.Count) return;
+        activity.Parameters.RemoveAt(index);
+        State.MarkDirty();
+    }
 
     private static string GetActionTypeName(ScriptAction action) => action switch
     {

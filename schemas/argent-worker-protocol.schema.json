@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://argent.dev/schemas/argent-worker-protocol.schema.json",
+  "title": "Argent worker protocol",
+  "description": "Wire contract between the Argent workflow engine and external worker processes. Workers are provisioned by an administrator at POST-adjacent admin pages, which issue an API key shown exactly once; a client only ever presents that key. There is no client-side registration. All requests and responses are camelCase JSON; all values in parameter and output maps are strings.",
+  "type": "object",
+  "$defs": {
+    "identityResponse": {
+      "type": "object",
+      "description": "What the presented key resolves to. Returned by GET /api/workers/me so a client can confirm its key at startup.",
+      "required": ["workerId", "name", "status", "concurrency", "subjects"],
+      "properties": {
+        "workerId": { "type": "string", "format": "uuid" },
+        "name": {
+          "type": "string",
+          "description": "The worker name a WorkerActivity node targets."
+        },
+        "status": { "type": "string", "enum": ["Offline", "Idle", "Busy", "Disabled"] },
+        "concurrency": { "type": "integer", "minimum": 1 },
+        "runtime": {
+          "type": ["string", "null"],
+          "maxLength": 256,
+          "description": "What the client last reported about itself, for example \"Argent Python Worker 0.1\". Free-form: nothing routes on it. Null until the client first heartbeats."
+        },
+        "subjects": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "heartbeatRequest": {
+      "type": "object",
+      "description": "Liveness, and the only channel through which a client describes itself. A client provisioned by an administrator has no registration call, so this is where it says what it is.",
+      "properties": {
+        "runtime": {
+          "type": ["string", "null"],
+          "maxLength": 256,
+          "description": "Free-form identification, for example \"Argent Python Worker 0.1\". Deliberately not an enum. Overwrites the stored value; omit to leave it unchanged."
+        },
+        "subjects": {
+          "type": ["array", "null"],
+          "items": { "type": "string" },
+          "description": "Subjects this client has handlers for. Overwrites the stored list; omit to leave it unchanged. Advertised for the admin worker list and not enforced, so a mismatch surfaces as a request that is never claimed."
+        },
+        "inFlight": { "type": "integer", "minimum": 0, "default": 0 },
+        "currentSubject": { "type": ["string", "null"] }
+      }
+    },
+    "heartbeatResponse": {
+      "type": "object",
+      "required": ["status", "name"],
+      "properties": {
+        "status": { "type": "string", "enum": ["Offline", "Idle", "Busy", "Disabled"] },
+        "name": { "type": "string" },
+        "concurrency": {
+          "type": "integer",
+          "description": "The cap the administrator set at provisioning. A claim is limited by it."
+        },
+        "serverTimeUtc": { "type": "string", "format": "date-time" }
+      }
+    },
+    "claimRequest": {
+      "type": "object",
+      "properties": {
+        "maxItems": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Requested batch size. Clamped to the worker's configured concurrency, and the authenticated key — not this body — decides which worker is claiming."
+        }
+      }
+    },
+    "task": {
+      "type": "object",
+      "description": "One claimed unit of work. Claimed at most once at a time across all clients holding the same key.",
+      "required": ["id", "instanceId", "tokenId", "nodeId", "workerName", "subject", "parameters", "attempt", "maxAttempts", "timeoutSeconds"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Stable across delivery attempts. This is the idempotency key: a request redelivered after a lost lease carries the same id."
+        },
+        "instanceId": { "type": "string", "format": "uuid" },
+        "tokenId": { "type": "string", "format": "uuid" },
+        "nodeId": { "type": "string", "format": "uuid" },
+        "workerName": { "type": "string" },
+        "subject": {
+          "type": "string",
+          "description": "Opaque task identifier chosen by the workflow author. The worker decides what it means."
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Author-supplied key/value parameters. Values may have had {{variable}} placeholders interpolated from workflow variables."
+        },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "maxAttempts": { "type": "integer", "minimum": 1 },
+        "timeoutSeconds": {
+          "type": "integer",
+          "description": "The author's hard budget. The request fails when it elapses even if the lease is still being renewed."
+        },
+        "leaseExpiresAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "completeRequest": {
+      "type": "object",
+      "required": ["succeeded"],
+      "properties": {
+        "succeeded": { "type": "boolean" },
+        "outputs": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "On success these become the token's process variables under the same keys, readable by later nodes and gateway conditions."
+        },
+        "error": {
+          "type": ["string", "null"],
+          "description": "Required when succeeded is false. Surfaced to the workflow author in the node failure message."
+        }
+      }
+    },
+    "renewLeaseRequest": {
+      "type": "object",
+      "properties": {
+        "leaseSeconds": {
+          "type": ["integer", "null"],
+          "description": "Omit to take the server default of 60 seconds."
+        }
+      }
+    },
+    "requestStatus": {
+      "type": "object",
+      "required": ["id", "state", "attempt"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "state": {
+          "type": "string",
+          "enum": ["Pending", "Claimed", "Succeeded", "Failed", "TimedOut", "Cancelled"]
+        },
+        "attempt": { "type": "integer" },
+        "leaseExpiresAt": { "type": ["string", "null"], "format": "date-time" },
+        "outputs": { "type": "object", "additionalProperties": { "type": "string" } },
+        "error": { "type": ["string", "null"] }
+      }
+    },
+    "error": {
+      "type": "object",
+      "required": ["error"],
+      "properties": { "error": { "type": "string" } }
+    }
+  },
+  "x-endpoints": [
+    { "method": "GET", "path": "/api/workers/me", "auth": "bearer", "response": "identityResponse" },
+    { "method": "POST", "path": "/api/workers/heartbeat", "auth": "bearer", "body": "heartbeatRequest", "response": "heartbeatResponse" },
+    { "method": "POST", "path": "/api/workers/requests/claim", "auth": "bearer", "body": "claimRequest", "response": { "type": "array", "items": { "$ref": "#/$defs/task" } } },
+    { "method": "POST", "path": "/api/workers/requests/{id}/renew", "auth": "bearer", "body": "renewLeaseRequest", "response": "object" },
+    { "method": "POST", "path": "/api/workers/requests/{id}/complete", "auth": "bearer", "body": "completeRequest", "response": "requestStatus" },
+    { "method": "GET", "path": "/api/workers/requests/{id}", "auth": "bearer", "response": "requestStatus" }
+  ]
+}

@@ -1,0 +1,189 @@
+@page "/Admin/Workers"
+@model Argent.Web.Pages.Admin.Workers.IndexModel
+@using Argent.Core.Workers
+@{
+    ViewData["Title"] = Localizer["Admin.Workers.Index.PageTitle"];
+
+    string StatusBadge(WorkerStatus status) => status switch
+    {
+        WorkerStatus.Idle     => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+        WorkerStatus.Busy     => "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800",
+        WorkerStatus.Offline  => "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
+        WorkerStatus.Disabled => "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-200 dark:border-red-800",
+        _                     => "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+    };
+}
+
+<partial name="~/Pages/Shared/_PageHeader.cshtml" model='new Argent.Web.Pages.Shared.PageHeaderModel {
+    Title = Localizer["Admin.Workers.Index.PageTitle"].Value,
+    Subtitle = Localizer["Admin.Workers.Index.Subtitle"].Value
+}' />
+
+@* ── A key just issued. Shown on this response only; leaving the page discards it. ── *@
+@if (!string.IsNullOrEmpty(Model.IssuedApiKey))
+{
+    <div class="alert alert-success card mb-6">
+        <div class="flex items-center gap-2 mb-2">
+            <i class="bi bi-key-fill text-success"></i>
+            <span class="font-semibold text-sm text-success">
+                @string.Format(Localizer["Admin.Workers.Index.KeyIssuedHeading"].Value, Model.IssuedApiKeyWorkerName)
+            </span>
+        </div>
+        <p class="text-xs text-success mb-3">@Localizer["Admin.Workers.Index.KeyIssuedWarning"]</p>
+        <code class="block text-xs font-mono bg-surface border border-success-border rounded px-3 py-2 break-all select-all">@Model.IssuedApiKey</code>
+        <p class="text-xs text-success mt-3 mb-1">@Localizer["Admin.Workers.Index.KeyIssuedUsage"]</p>
+        <code class="block text-xs font-mono bg-surface border border-success-border rounded px-3 py-2 break-all">ARGENT_WORKER_API_KEY=@Model.IssuedApiKey</code>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="alert alert-danger" role="alert">
+        @Model.Error
+    </div>
+}
+
+@* ── Provision a worker ── *@
+<form method="post" asp-page-handler="Provision" class="card p-4 mb-6">
+    <div class="text-sm font-semibold mb-3">@Localizer["Admin.Workers.Index.ProvisionHeading"]</div>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <div>
+            <label class="block text-xs text-ink-muted mb-1" for="NewWorkerName">@Localizer["Admin.Workers.Index.ProvisionName"]</label>
+            <input id="NewWorkerName" name="NewWorkerName" class="input-field font-mono" required
+                   placeholder="reports" value="@Model.NewWorkerName" />
+        </div>
+        <div>
+            <label class="block text-xs text-ink-muted mb-1" for="NewWorkerDisplayName">@Localizer["Admin.Workers.Index.ProvisionDisplayName"]</label>
+            <input id="NewWorkerDisplayName" name="NewWorkerDisplayName" class="input-field"
+                   placeholder="@Localizer["Admin.Workers.Index.ProvisionDisplayNamePlaceholder"]" value="@Model.NewWorkerDisplayName" />
+        </div>
+        <div>
+            <label class="block text-xs text-ink-muted mb-1" for="NewWorkerConcurrency">@Localizer["Admin.Workers.Index.ProvisionConcurrency"]</label>
+            <input id="NewWorkerConcurrency" name="NewWorkerConcurrency" type="number" min="1" max="64" class="input-field"
+                   value="@Model.NewWorkerConcurrency" />
+        </div>
+        <div>
+            <button type="submit" class="btn-action btn-action-primary w-full">
+                <i class="bi bi-plus-lg"></i> @Localizer["Admin.Workers.Index.ProvisionButton"]
+            </button>
+        </div>
+    </div>
+    <p class="text-xs text-ink-muted mt-2">@Localizer["Admin.Workers.Index.ProvisionHint"]</p>
+</form>
+
+@if (Model.Workers.Count == 0)
+{
+    <partial name="~/Pages/Shared/_EmptyState.cshtml" model='new Argent.Web.Pages.Shared.EmptyStateModel {
+        Icon = "bi-cpu",
+        Message = Localizer["Admin.Workers.Index.EmptyMessage"].Value
+    }' />
+}
+else
+{
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>@Localizer["Admin.Workers.Index.TableWorker"]</th>
+                    <th>@Localizer["Common.State"]</th>
+                    <th>@Localizer["Admin.Workers.Index.TableRuntime"]</th>
+                    <th>@Localizer["Admin.Workers.Index.TableSubjects"]</th>
+                    <th>@Localizer["Admin.Workers.Index.TableWork"]</th>
+                    <th>@Localizer["Admin.Workers.Index.TableHeartbeat"]</th>
+                    <th class="text-right">@Localizer["Common.Actions"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var worker in Model.Workers)
+                {
+                    <tr class="@(worker.Status == WorkerStatus.Disabled ? "opacity-60" : "")">
+                        <td>
+                            <div class="font-medium font-mono">@worker.Name</div>
+                            @if (!string.IsNullOrWhiteSpace(worker.DisplayName) && worker.DisplayName != worker.Name)
+                            {
+                                <div class="text-xs text-ink-muted">@worker.DisplayName</div>
+                            }
+                            @if (worker.KeyRotations > 0)
+                            {
+                                <div class="text-xs text-gray-400">@string.Format(Localizer["Admin.Workers.Index.KeyRotations"].Value, worker.KeyRotations)</div>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge @StatusBadge(worker.Status)">@worker.Status</span>
+                            @if (worker.Status == WorkerStatus.Offline && worker.ClaimedRequests > 0)
+                            {
+                                <div class="text-xs text-warning mt-1">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    @string.Format(Localizer["Admin.Workers.Index.StalledHint"].Value, worker.ClaimedRequests)
+                                </div>
+                            }
+                        </td>
+                        <td class="text-xs">
+                            @if (string.IsNullOrWhiteSpace(worker.Runtime))
+                            {
+                                <span class="text-gray-400">@Localizer["Admin.Workers.Index.NeverReported"]</span>
+                            }
+                            else
+                            {
+                                <span class="font-mono text-ink">@worker.Runtime</span>
+                            }
+                        </td>
+                        <td>
+                            @if (worker.Subjects.Count == 0)
+                            {
+                                <span class="text-gray-400 text-sm">—</span>
+                            }
+                            else
+                            {
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach (var subject in worker.Subjects)
+                                    {
+                                        <span class="badge badge-neutral">@subject</span>
+                                    }
+                                </div>
+                            }
+                        </td>
+                        <td class="text-sm">
+                            <div>@worker.InFlight / @worker.Concurrency @Localizer["Admin.Workers.Index.InFlightSuffix"]</div>
+                            <div class="text-xs text-ink-muted">
+                                @string.Format(Localizer["Admin.Workers.Index.OutstandingFormat"].Value, worker.ClaimedRequests, worker.PendingRequests)
+                            </div>
+                        </td>
+                        <td class="text-xs text-ink-muted whitespace-nowrap">
+                            @(worker.LastHeartbeatAt?.ToString("g") ?? "—")
+                            @if (!string.IsNullOrWhiteSpace(worker.CurrentSubject))
+                            {
+                                <div class="font-mono">@worker.CurrentSubject</div>
+                            }
+                        </td>
+                        <td class="text-right whitespace-nowrap">
+                            <a class="btn-action btn-action-primary" asp-page="/Admin/WorkerRequests/Index"
+                               asp-route-workerName="@worker.Name" title="@Localizer["Common.View"]">
+                                <i class="bi bi-list-task"></i>
+                            </a>
+                            <form method="post" asp-page-handler="RotateKey" asp-route-id="@worker.Id" class="inline">
+                                <button type="submit" class="btn-action btn-action-secondary"
+                                        title="@Localizer["Admin.Workers.Index.RotateKey"]">
+                                    <i class="bi bi-key"></i>
+                                </button>
+                            </form>
+                            <form method="post" asp-page-handler="ToggleRevoked" asp-route-id="@worker.Id" class="inline">
+                                <button type="submit" class="btn-action btn-action-secondary"
+                                        title="@(worker.Status == WorkerStatus.Disabled ? Localizer["Admin.Workers.Index.Restore"] : Localizer["Admin.Workers.Index.Revoke"])">
+                                    <i class="bi bi-@(worker.Status == WorkerStatus.Disabled ? "play" : "hand-index-thumb")"></i>
+                                </button>
+                            </form>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@worker.Id" class="inline"
+                                  onsubmit="return confirm('@Localizer["Admin.Workers.Index.DeleteConfirm"]');">
+                                <button type="submit" class="btn-action btn-action-secondary"
+                                        title="@Localizer["Admin.Workers.Index.Delete"]">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

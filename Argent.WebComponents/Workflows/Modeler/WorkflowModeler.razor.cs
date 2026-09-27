@@ -638,6 +638,34 @@ public partial class WorkflowModeler : IAsyncDisposable
     {
         if (_mode == Mode.Idle && _pendingNodeDesc == null) return;
 
+        // Releasing a toolbox drag over the canvas is the natural way to place a node,
+        // and it is the only path that can work when the press started outside the canvas:
+        // the canvas never received a pointerdown for that gesture, so arming happened on
+        // the toolbox and there is no second click to commit it.
+        if (_pendingNodeDesc != null)
+        {
+            var (px, py) = await ToWorldAsync(e.ClientX, e.ClientY);
+            PlaceNodeFromToolbox(px, py);
+            return;
+        }
+
+        await FinishActiveGestureAsync(e);
+    }
+
+    /// <summary>
+    /// The pointer left the canvas. This also fires while a toolbox drag is being carried
+    /// out of the canvas, so it must never place the pending node - the user can still drag
+    /// back in. A pending node is deliberately left armed. Any gesture that was genuinely
+    /// in progress is finished exactly as a release over the canvas would finish it.
+    /// </summary>
+    private async Task OnPointerLeave(PointerEventArgs e)
+    {
+        if (_mode == Mode.Idle) return;
+        await FinishActiveGestureAsync(e);
+    }
+
+    private async Task FinishActiveGestureAsync(PointerEventArgs e)
+    {
         // Apply the release position even if the browser emitted no final move.
         if (_mode is Mode.DraggingNodes or Mode.SpaceTool or Mode.DraggingPool or Mode.SegmentDrag)
         {

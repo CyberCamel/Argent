@@ -37,10 +37,10 @@ else
                             @g.Name
                             @if (g.IsSystem)
                             {
-                                <span class="badge bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 ms-1">@Localizer["Admin.Groups.Index.SystemBadge"]</span>
+                                <span class="badge badge-accent ms-1">@Localizer["Admin.Groups.Index.SystemBadge"]</span>
                             }
                         </td>
-                        <td class="text-sm text-gray-500 dark:text-gray-400">@g.Description</td>
+                        <td class="text-sm text-ink-muted">@g.Description</td>
                         <td>
                             @if (g.IsSystem)
                             {
@@ -48,7 +48,7 @@ else
                             }
                             else
                             {
-                                <span class="badge bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">@g.MemberCount</span>
+                                <span class="badge badge-neutral">@g.MemberCount</span>
                             }
                         </td>
                         <td class="text-right">

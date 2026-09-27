@@ -546,6 +546,174 @@ namespace Argent.Infrastructure.Migrations
                     b.ToTable("Positions");
                 });
 
+            modelBuilder.Entity("Argent.Core.Workers.Worker", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ApiKeyHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<int>("Concurrency")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CurrentSubject")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Endpoint")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<int>("InFlight")
+                        .HasColumnType("int");
+
+                    b.Property<int>("KeyRotations")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastHeartbeatAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTime>("RegisteredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("RowVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Runtime")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<byte>("Status")
+                        .HasColumnType("tinyint");
+
+                    b.Property<string>("Subjects")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApiKeyHash")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Workers_ApiKeyHash");
+
+                    b.HasIndex("LastHeartbeatAt")
+                        .HasDatabaseName("IX_Workers_LastHeartbeatAt");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Workers_Name");
+
+                    b.ToTable("Workers", (string)null);
+                });
+
+            modelBuilder.Entity("Argent.Core.Workers.WorkerRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("Attempt")
+                        .HasColumnType("tinyint");
+
+                    b.Property<DateTime?>("ClaimedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ClaimedByWorkerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("InstanceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("LeaseExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte>("MaxAttempts")
+                        .HasColumnType("tinyint");
+
+                    b.Property<Guid>("NodeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Outputs")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Parameters")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<short>("Priority")
+                        .HasColumnType("smallint");
+
+                    b.Property<Guid>("RowVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("State")
+                        .HasColumnType("tinyint");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("TimeoutSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TokenId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("WorkItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("WorkerName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClaimedByWorkerId")
+                        .HasDatabaseName("IX_WorkerRequests_ClaimedByWorkerId");
+
+                    b.HasIndex("InstanceId")
+                        .HasDatabaseName("IX_WorkerRequests_InstanceId");
+
+                    b.HasIndex("State", "LeaseExpiresAt")
+                        .HasDatabaseName("IX_WorkerRequests_Lease")
+                        .HasFilter("[State] = 1");
+
+                    b.HasIndex("TokenId", "NodeId")
+                        .HasDatabaseName("IX_WorkerRequests_TokenId_NodeId");
+
+                    b.HasIndex("WorkerName", "State", "Priority", "CreatedAt")
+                        .HasDatabaseName("IX_WorkerRequests_Claim")
+                        .HasFilter("[State] = 0");
+
+                    b.ToTable("WorkerRequests", (string)null);
+                });
+
             modelBuilder.Entity("Argent.Core.Workflows.Auditing.WorkflowJournalEntry", b =>
                 {
                     b.Property<Guid>("Id")

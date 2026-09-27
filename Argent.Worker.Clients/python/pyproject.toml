@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "argent-worker"
+dynamic = ["version"]
+description = "Python client for Argent workflow workers"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Argent" }]
+keywords = ["workflow", "worker", "argent"]
+classifiers = [
+    "Development Status :: 0.3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Distributed Computing",
+]
+
+# No runtime dependencies: the client speaks HTTP over the standard library, so it can be
+# dropped into any environment without an install step.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/argent/argent"
+
+[tool.hatch.version]
+# Single source of truth for the version, shared with argent_worker/__version__ and the runtime
+# string the client reports to the server.
+path = "src/argent_worker/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/argent_worker"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

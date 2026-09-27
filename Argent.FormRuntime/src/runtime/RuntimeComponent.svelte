@@ -164,23 +164,132 @@
 {/if}
 
 <style>
-  .argent-layout { display: grid; gap: 1rem; margin: 0 0 1rem; padding: 0; border: 0; }
-  .argent-row { grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
-  .argent-field { display: grid; gap: 0.375rem; min-width: 0; }
-  label { font-weight: 600; }
-  input:not([type='checkbox']), select { box-sizing: border-box; width: 100%; min-height: 2.75rem; padding: 0.625rem 0.75rem; border: 1px solid var(--argent-border, #9ca3af); border-radius: 0.375rem; font: inherit; color: var(--argent-input-text, #111827); background: var(--argent-input-background, white); }
-  input[type='date']:not(:disabled):not(:read-only) { cursor: pointer; }
-  input:focus-visible, select:focus-visible { outline: 3px solid var(--argent-focus, #4f46e5); outline-offset: 2px; }
-  [aria-invalid='true'] { border-color: var(--argent-error, #b91c1c) !important; }
-  .argent-checkbox { display: flex; align-items: center; gap: 0.625rem; }
-  .argent-description { margin: 0; color: var(--argent-muted, #4b5563); font-size: 0.875rem; }
-  .argent-errors { margin: 0; padding-left: 1.25rem; color: var(--argent-error, #b91c1c); }
-  [role='tablist'] { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--argent-border, #9ca3af); }
-  [role='tab'] { padding: 0.625rem 0.875rem; border: 0; border-bottom: 3px solid transparent; background: transparent; color: inherit; font: inherit; cursor: pointer; }
-  [role='tab'][aria-selected='true'] { border-bottom-color: var(--argent-primary, #4f46e5); font-weight: 700; }
-  [role='tab']:focus-visible, summary:focus-visible { outline: 3px solid var(--argent-focus, #4f46e5); outline-offset: 2px; }
-  [role='tabpanel'] { padding-top: 1rem; }
-  details { border: 1px solid var(--argent-border, #9ca3af); border-radius: 0.375rem; padding: 0.75rem; }
-  summary { cursor: pointer; font-weight: 700; }
-  details > :global(.argent-layout), details > :global(.argent-field) { margin-top: 1rem; }
+  .argent-layout {
+    display: grid;
+    gap: 1rem;
+    margin: 0 0 1rem;
+    padding: 0;
+    border: 0;
+  }
+
+  .argent-row {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  }
+
+  .argent-field {
+    display: grid;
+    gap: 0.375rem;
+    min-width: 0;
+  }
+
+  label {
+    font-weight: 500;
+  }
+
+  input:not([type='checkbox']),
+  select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 2.75rem;           /* 44px touch target */
+    padding: 0.5rem 0.625rem;
+    border: 1px solid var(--argent-border, #c3cbd2);
+    border-radius: var(--argent-radius, 0.3125rem);
+    font: inherit;
+    color: var(--argent-input-text, #2a343d);
+    background: var(--argent-input-background, #fff);
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  input:hover:not(:disabled):not([readonly]),
+  select:hover:not(:disabled) {
+    border-color: var(--argent-muted, #55626d);
+  }
+
+  input[type='date']:not(:disabled):not(:read-only) {
+    cursor: pointer;
+  }
+
+  input:focus-visible,
+  select:focus-visible {
+    outline: none;
+    border-color: var(--argent-focus, #4f46e5);
+    box-shadow: 0 0 0 3px var(--argent-focus, #4f46e5);
+  }
+
+  [aria-invalid='true'] {
+    border-color: var(--argent-error, #b3261e) !important;
+  }
+
+  .argent-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-height: 2.75rem;
+  }
+
+  .argent-checkbox input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--argent-primary, #4f46e5);
+  }
+
+  .argent-description {
+    margin: 0;
+    color: var(--argent-muted, #55626d);
+    font-size: 0.875rem;
+  }
+
+  .argent-errors {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: var(--argent-error, #b3261e);
+  }
+
+  [role='tablist'] {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--argent-border, #c3cbd2);
+  }
+
+  [role='tab'] {
+    min-height: 2.75rem;
+    padding: 0.5rem 0.875rem;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  [role='tab'][aria-selected='true'] {
+    border-bottom-color: var(--argent-primary, #4f46e5);
+    font-weight: 600;
+  }
+
+  [role='tab']:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid var(--argent-focus, #4f46e5);
+    outline-offset: 2px;
+  }
+
+  [role='tabpanel'] {
+    padding-top: 1rem;
+  }
+
+  details {
+    border: 1px solid var(--argent-border, #c3cbd2);
+    border-radius: var(--argent-radius, 0.3125rem);
+    padding: 0.75rem 1rem;
+  }
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  details > :global(.argent-layout),
+  details > :global(.argent-field) {
+    margin-top: 1rem;
+  }
 </style>

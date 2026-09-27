@@ -17,7 +17,7 @@ public class JintActivityHandlerTests
         Guid recordId = default,
         Guid? formId = null,
         string objectKey = "") =>
-        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
             new TokenVariableBag(vars), [], null, null,
             recordId, formId, objectKey);
 

@@ -51,7 +51,7 @@
                     <i class="bi @(isBound ? "bi-check-circle-fill text-green-600" : "bi-circle text-gray-400")"></i>
                     <span>@property.DisplayName</span>
                     <code class="text-xs text-gray-500">@property.Key</code>
-                    <span class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300">
+                    <span class="badge badge-neutral">
                         @property.Type@(property.IsCollection ? "[]" : string.Empty)
                     </span>
                     @if (property.Required)

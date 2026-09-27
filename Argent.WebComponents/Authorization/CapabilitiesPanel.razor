@@ -6,7 +6,7 @@
 
 @if (_loading)
 {
-    <div class="text-gray-500 dark:text-gray-400">@Localizer["CapabilitiesPanel.Loading"]</div>
+    <div class="text-ink-muted">@Localizer["CapabilitiesPanel.Loading"]</div>
 }
 else
 {
@@ -17,8 +17,8 @@ else
             <table class="cap-table w-full text-sm">
                 <thead>
                     <tr>
-                        <th class="text-left font-semibold text-gray-500 dark:text-gray-400 pb-2" style="width:140px">@Localizer["CapabilitiesPanel.ActionHeader"]</th>
-                        <th class="text-left font-semibold text-gray-500 dark:text-gray-400 pb-2">@Localizer["CapabilitiesPanel.WhoHeader"]</th>
+                        <th class="text-left font-semibold text-ink-muted pb-2" style="width:140px">@Localizer["CapabilitiesPanel.ActionHeader"]</th>
+                        <th class="text-left font-semibold text-ink-muted pb-2">@Localizer["CapabilitiesPanel.WhoHeader"]</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -26,7 +26,7 @@ else
                     {
                         <tr>
                             <td class="cap-action-cell">
-                                <i class="bi @ActionIcon(action) mr-1 text-gray-500 dark:text-gray-400"></i>
+                                <i class="bi @ActionIcon(action) mr-1 text-ink-muted"></i>
                                 @ActionLabel(action)
                             </td>
                             <td>
@@ -65,14 +65,14 @@ else
                                                 }
                                                 @if (!FilteredSubjects.Any())
                                                 {
-                                                    <span class="text-gray-500 dark:text-gray-400 text-sm px-2">@Localizer["CapabilitiesPanel.NoResults"]</span>
+                                                    <span class="text-ink-muted text-sm px-2">@Localizer["CapabilitiesPanel.NoResults"]</span>
                                                 }
                                             </div>
                                         </div>
                                     }
                                     else
                                     {
-                                        <button class="cap-add-btn text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors px-2 py-0.5"
+                                        <button class="cap-add-btn btn btn-secondary btn-sm"
                                                 @onclick="() => OpenAdd(section.ResourceType, action)">
                                             <i class="bi bi-plus"></i>
                                         </button>

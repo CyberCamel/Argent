@@ -11,9 +11,22 @@
     var primaryHoverColor = (branding?.IsEnabled ?? true) ? (branding?.PrimaryHoverColor ?? "#4338ca") : "#4338ca";
     var footerText = branding?.FooterText;
     var customCss = (branding?.IsEnabled ?? true) ? branding?.CustomCss : null;
+
+    var currentPath = Context.Request.Path.Value ?? "/";
+
+    // "/Admin/Groups" must not light up for "/Admin/Groups/Edit/{id}", but
+    // "/Admin/Groups/Edit/..." should light up for the Groups section.
+    string NavActive(string page)
+    {
+        var exact = page == "/"
+            ? currentPath == "/"
+            : string.Equals(currentPath, page, StringComparison.OrdinalIgnoreCase);
+        var nested = page != "/" && currentPath.StartsWith(page + "/", StringComparison.OrdinalIgnoreCase);
+        return exact || nested ? "active" : "";
+    }
 }
 <!DOCTYPE html>
-<html lang="en" x-data="theme()" x-init="init" :class="dark ? 'dark' : ''">
+<html lang="@System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName" x-data="theme()" x-init="init" :class="dark ? 'dark' : ''">
 <head>
     <base href="/" />
     <component type="typeof(Microsoft.AspNetCore.Components.Web.HeadOutlet)" render-mode="ServerPrerendered" />
@@ -25,8 +38,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/modeler.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/designer.css" asp-append-version="true" />
     @if (!string.IsNullOrEmpty(faviconUrl))
     {
         <link rel="icon" type="image/x-icon" href="@faviconUrl">
@@ -41,161 +54,171 @@
         }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col font-sans antialiased">
-    <header>
-        <nav class="bg-gray-900 border-b border-white/10"
-             x-data="{ mobileOpen: false }">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex items-center justify-between h-14">
-                    <div class="flex items-center gap-6">
-                        <a asp-page="/Index" class="flex items-center gap-2 text-white font-semibold tracking-tight text-lg">
-                            @if (!string.IsNullOrEmpty(logoUrl))
-                            {
-                                <img src="@logoUrl" alt="@siteName" class="h-7 w-auto" />
-                            }
-                            else
-                            {
-                                <i class="bi bi-diamond-fill" style="color: @primaryColor"></i>
-                            }
-                            @siteName
-                        </a>
-                        <div class="hidden md:flex items-center gap-1">
-                            <a asp-page="/Index" class="nav-link">@Localizer["Nav.Home"]</a>
-                            <a asp-page="/Tasks/Index" class="nav-link">@Localizer["Nav.MyTasks"]</a>
-                            <a asp-page="/Workflows/Index" class="nav-link">@Localizer["Nav.Workflows"]</a>
-                            <a asp-page="/Forms/Index" class="nav-link">@Localizer["Nav.Forms"]</a>
-                            <a asp-page="/DomainObjects/Index" class="nav-link">@Localizer["Nav.DomainObjects"]</a>
-                            @if (User.IsInRole("SuperAdmin"))
-                            {
-                                <div class="relative" x-data="{ open: false }" @@click.outside="open = false">
-                                    <button @@click="open = !open" class="nav-link flex items-center gap-1">
-                                        @Localizer["Nav.Admin"] <i class="bi bi-chevron-down text-xs"></i>
-                                    </button>
-                                    <div x-show="open" x-cloak
-                                         class="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
-                                        <a asp-page="/DataSources/Index" class="nav-dropdown-item">
-                                            <i class="bi bi-hdd-network w-5 text-gray-400"></i>@Localizer["Nav.DataSources"]
-                                        </a>
-                                        <a asp-page="/Admin/WorkflowInstances/Index" class="nav-dropdown-item">
-                                            <i class="bi bi-diagram-3 w-5 text-gray-400"></i>@Localizer["Nav.Instances"]
-                                        </a>
-                                        <a asp-page="/Admin/Audit/Index" class="nav-dropdown-item">
-                                            <i class="bi bi-journal-text w-5 text-gray-400"></i>@Localizer["Nav.Audit"]
-                                        </a>
-                                        <a asp-page="/Admin/Capabilities" class="nav-dropdown-item">
-                                            <i class="bi bi-shield-check w-5 text-gray-400"></i>@Localizer["Nav.Capabilities"]
-                                        </a>
-                                        <a asp-page="/Admin/Groups/Index" class="nav-dropdown-item">
-                                            <i class="bi bi-people w-5 text-gray-400"></i>@Localizer["Nav.Groups"]
-                                        </a>
-                                        <a asp-page="/Admin/Branding" class="nav-dropdown-item">
-                                            <i class="bi bi-palette w-5 text-gray-400"></i>@Localizer["Nav.Branding"]
-                                        </a>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button @@click="toggle()" class="nav-icon-btn" title="@Localizer["Nav.ToggleDarkMode"]">
-                            <template x-if="!dark">
-                                <i class="bi bi-moon-stars"></i>
-                            </template>
-                            <template x-if="dark">
-                                <i class="bi bi-sun"></i>
-                            </template>
+<body class="min-h-screen flex flex-col">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:shadow-md">@Localizer["Nav.SkipToContent"]</a>
+
+    @* x-data lives on the header, not the inner bar: the mobile panel is a sibling of
+       <nav> rather than a descendant, so a scope on <nav> would leave mobileOpen
+       unresolvable there. Alpine walks up the tree, so theme() above still applies. *@
+    <header class="app-header" x-data="{ mobileOpen: false }">
+        <nav class="app-header-inner" aria-label="@Localizer["Nav.Primary"]">
+            <a asp-page="/Index" class="app-brand">
+                @if (!string.IsNullOrEmpty(logoUrl))
+                {
+                    <img src="@logoUrl" alt="" />
+                }
+                else
+                {
+                    <i class="bi bi-diamond-fill" style="color: @primaryColor" aria-hidden="true"></i>
+                }
+                <span>@siteName</span>
+            </a>
+
+            <div class="app-nav">
+                <a asp-page="/Index" class="nav-link @NavActive("/")">@Localizer["Nav.Home"]</a>
+                <a asp-page="/Tasks/Index" class="nav-link @NavActive("/Tasks")">@Localizer["Nav.MyTasks"]</a>
+                <a asp-page="/Workflows/Index" class="nav-link @NavActive("/Workflows")">@Localizer["Nav.Workflows"]</a>
+                <a asp-page="/Forms/Index" class="nav-link @NavActive("/Forms")">@Localizer["Nav.Forms"]</a>
+                <a asp-page="/DomainObjects/Index" class="nav-link @NavActive("/DomainObjects")">@Localizer["Nav.DomainObjects"]</a>
+                @if (User.IsInRole("SuperAdmin"))
+                {
+                    <div class="relative" x-data="{ open: false }" @@click.outside="open = false">
+                        <button type="button" @@click="open = !open" :aria-expanded="open" class="nav-link">
+                            @Localizer["Nav.Admin"] <i class="bi bi-chevron-down" style="font-size:.7rem" aria-hidden="true"></i>
                         </button>
-                        @{
-                            var currentCulture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-                            var alternateCulture = currentCulture == "sv" ? "en" : "sv";
-                            var alternateLabel = currentCulture == "sv" ? "EN" : "SV";
-                        }
-                        <a href="/SetCulture?culture=@alternateCulture&returnUrl=@Uri.EscapeDataString(Context.Request.Path + Context.Request.QueryString)" class="nav-icon-btn text-xs font-bold tracking-wider" title="@alternateLabel">
-                            @alternateLabel
-                        </a>
-                        @if (User.Identity?.IsAuthenticated ?? false)
-                        {
-                            <div class="relative" x-data="{ open: false }" @@click.outside="open = false">
-                                <button @@click="open = !open"
-                                        class="flex items-center gap-2 text-white/70 hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-white/10">
-                                    <span class="avatar avatar-sm">@((User.FindFirst("FirstName")?.Value ?? User.Identity.Name)?[0])</span>
-                                    <span class="hidden sm:inline text-sm font-medium">@(User.FindFirst("FirstName")?.Value ?? User.Identity.Name)</span>
-                                    <i class="bi bi-chevron-down text-xs"></i>
-                                </button>
-                                <div x-show="open" x-cloak
-                                     class="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
-                                    <a asp-page="/Profile" class="nav-dropdown-item">
-                                        <i class="bi bi-person w-5 text-gray-400"></i>@Localizer["Nav.MyProfile"]
-                                    </a>
-                                    <hr class="my-1 border-gray-200 dark:border-gray-700">
-                                    <form asp-page="/Account/Logout" method="post">
-                                        <button type="submit" class="nav-dropdown-item text-red-600 dark:text-red-400 w-full text-left">
-                                            <i class="bi bi-box-arrow-right w-5 text-gray-400"></i>@Localizer["Nav.Logout"]
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <a asp-page="/Login" class="text-sm font-medium text-white/70 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/10">
-                                <i class="bi bi-person me-1"></i>@Localizer["Nav.Login"]
+                        <div x-show="open" x-cloak class="nav-menu left-0">
+                            <span class="nav-menu-label">@Localizer["Nav.Admin"]</span>
+                            <a asp-page="/DataSources/Index" class="nav-dropdown-item">
+                                <i class="bi bi-hdd-network" aria-hidden="true"></i>@Localizer["Nav.DataSources"]
                             </a>
-                        }
-                        <button @@click="mobileOpen = !mobileOpen" class="md:hidden nav-icon-btn" aria-label="Toggle navigation">
-                            <i class="bi bi-list text-xl"></i>
-                        </button>
-                    </div>
-                </div>
-                <div x-show="mobileOpen" x-cloak class="md:hidden pb-3 border-t border-white/10 mt-2 pt-3 space-y-1">
-                    <a asp-page="/Index" class="nav-link-mobile">@Localizer["Nav.Home"]</a>
-                    <a asp-page="/Tasks/Index" class="nav-link-mobile">@Localizer["Nav.MyTasks"]</a>
-                    <a asp-page="/Workflows/Index" class="nav-link-mobile">@Localizer["Nav.Workflows"]</a>
-                    <a asp-page="/Forms/Index" class="nav-link-mobile">@Localizer["Nav.Forms"]</a>
-                    <a asp-page="/DomainObjects/Index" class="nav-link-mobile">@Localizer["Nav.DomainObjects"]</a>
-                    @if (User.IsInRole("SuperAdmin"))
-                    {
-                        <div class="pt-2 border-t border-white/10">
-                            <div class="text-xs font-semibold text-white/50 uppercase tracking-wider px-3 pb-1">@Localizer["Nav.Admin"]</div>
-                            <a asp-page="/DataSources/Index" class="nav-link-mobile">@Localizer["Nav.DataSources"]</a>
-                            <a asp-page="/Admin/WorkflowInstances/Index" class="nav-link-mobile">@Localizer["Nav.Instances"]</a>
-                            <a asp-page="/Admin/Audit/Index" class="nav-link-mobile">@Localizer["Nav.Audit"]</a>
-                            <a asp-page="/Admin/Capabilities" class="nav-link-mobile">@Localizer["Nav.Capabilities"]</a>
-                            <a asp-page="/Admin/Groups/Index" class="nav-link-mobile">@Localizer["Nav.Groups"]</a>
-                            <a asp-page="/Admin/Branding" class="nav-link-mobile">@Localizer["Nav.Branding"]</a>
+                            <a asp-page="/Admin/WorkflowInstances/Index" class="nav-dropdown-item">
+                                <i class="bi bi-diagram-3" aria-hidden="true"></i>@Localizer["Nav.Instances"]
+                            </a>
+                            <a asp-page="/Admin/Workers/Index" class="nav-dropdown-item">
+                                <i class="bi bi-cpu" aria-hidden="true"></i>@Localizer["Nav.Workers"]
+                            </a>
+                            <a asp-page="/Admin/WorkerRequests/Index" class="nav-dropdown-item">
+                                <i class="bi bi-inbox" aria-hidden="true"></i>@Localizer["Nav.WorkerRequests"]
+                            </a>
+                            <a asp-page="/Admin/Audit/Index" class="nav-dropdown-item">
+                                <i class="bi bi-journal-text" aria-hidden="true"></i>@Localizer["Nav.Audit"]
+                            </a>
+                            <a asp-page="/Admin/Capabilities" class="nav-dropdown-item">
+                                <i class="bi bi-shield-check" aria-hidden="true"></i>@Localizer["Nav.Capabilities"]
+                            </a>
+                            <a asp-page="/Admin/Groups/Index" class="nav-dropdown-item">
+                                <i class="bi bi-people" aria-hidden="true"></i>@Localizer["Nav.Groups"]
+                            </a>
+                            <a asp-page="/Admin/Branding" class="nav-dropdown-item">
+                                <i class="bi bi-palette" aria-hidden="true"></i>@Localizer["Nav.Branding"]
+                            </a>
                         </div>
-                    }
-                </div>
+                    </div>
+                }
+            </div>
+
+            <div class="app-header-tools">
+                <button type="button" @@click="toggle()" class="nav-icon-btn" title="@Localizer["Nav.ToggleDarkMode"]" aria-label="@Localizer["Nav.ToggleDarkMode"]">
+                    <template x-if="!dark">
+                        <i class="bi bi-moon-stars" aria-hidden="true"></i>
+                    </template>
+                    <template x-if="dark">
+                        <i class="bi bi-sun" aria-hidden="true"></i>
+                    </template>
+                </button>
+                @{
+                    var currentCulture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+                    var alternateCulture = currentCulture == "sv" ? "en" : "sv";
+                    var alternateLabel = currentCulture == "sv" ? "EN" : "SV";
+                }
+                <a href="/SetCulture?culture=@alternateCulture&returnUrl=@Uri.EscapeDataString(Context.Request.Path + Context.Request.QueryString)"
+                   class="nav-icon-btn"
+                   style="font-size:.6875rem; font-weight:600; letter-spacing:.06em"
+                   title="@Localizer["Nav.ToggleLanguage"]"
+                   aria-label="@Localizer["Nav.ToggleLanguage"]"
+                   hreflang="@alternateCulture">@alternateLabel</a>
+                @if (User.Identity?.IsAuthenticated ?? false)
+                {
+                    <div class="relative" x-data="{ open: false }" @@click.outside="open = false">
+                        <button type="button" @@click="open = !open" :aria-expanded="open" class="nav-user-btn">
+                            <span class="avatar avatar-sm" aria-hidden="true">@((User.FindFirst("FirstName")?.Value ?? User.Identity.Name)?[0])</span>
+                            <span class="hidden sm:inline">@(User.FindFirst("FirstName")?.Value ?? User.Identity.Name)</span>
+                            <i class="bi bi-chevron-down" style="font-size:.7rem" aria-hidden="true"></i>
+                        </button>
+                        <div x-show="open" x-cloak class="nav-menu right-0">
+                            <a asp-page="/Profile" class="nav-dropdown-item">
+                                <i class="bi bi-person" aria-hidden="true"></i>@Localizer["Nav.MyProfile"]
+                            </a>
+                            <hr class="nav-menu-sep" />
+                            <form asp-page="/Account/Logout" method="post">
+                                <button type="submit" class="nav-dropdown-item is-danger">
+                                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>@Localizer["Nav.Logout"]
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <a asp-page="/Login" class="nav-link">@Localizer["Nav.Login"]</a>
+                }
+                <button type="button" @@click="mobileOpen = !mobileOpen" :aria-expanded="mobileOpen"
+                        class="nav-icon-btn md:hidden" aria-label="@Localizer["Nav.ToggleNavigation"]" aria-controls="mobile-nav">
+                    <i class="bi bi-list" style="font-size:1.25rem" aria-hidden="true"></i>
+                </button>
             </div>
         </nav>
+
+        <div id="mobile-nav" x-show="mobileOpen" x-cloak class="md:hidden" style="border-top:1px solid var(--shell-border)">
+            <div class="mx-auto w-full flex flex-col gap-0.5" style="max-width:80rem; padding:.75rem 1rem 1rem">
+                <a asp-page="/Index" class="nav-link-mobile @NavActive("/")">@Localizer["Nav.Home"]</a>
+                <a asp-page="/Tasks/Index" class="nav-link-mobile @NavActive("/Tasks")">@Localizer["Nav.MyTasks"]</a>
+                <a asp-page="/Workflows/Index" class="nav-link-mobile @NavActive("/Workflows")">@Localizer["Nav.Workflows"]</a>
+                <a asp-page="/Forms/Index" class="nav-link-mobile @NavActive("/Forms")">@Localizer["Nav.Forms"]</a>
+                <a asp-page="/DomainObjects/Index" class="nav-link-mobile @NavActive("/DomainObjects")">@Localizer["Nav.DomainObjects"]</a>
+                @if (User.IsInRole("SuperAdmin"))
+                {
+                    <span class="nav-menu-label" style="padding-top:.75rem">@Localizer["Nav.Admin"]</span>
+                    <a asp-page="/DataSources/Index" class="nav-link-mobile">@Localizer["Nav.DataSources"]</a>
+                    <a asp-page="/Admin/WorkflowInstances/Index" class="nav-link-mobile">@Localizer["Nav.Instances"]</a>
+                    <a asp-page="/Admin/Workers/Index" class="nav-link-mobile">@Localizer["Nav.Workers"]</a>
+                    <a asp-page="/Admin/WorkerRequests/Index" class="nav-link-mobile">@Localizer["Nav.WorkerRequests"]</a>
+                    <a asp-page="/Admin/Audit/Index" class="nav-link-mobile">@Localizer["Nav.Audit"]</a>
+                    <a asp-page="/Admin/Capabilities" class="nav-link-mobile">@Localizer["Nav.Capabilities"]</a>
+                    <a asp-page="/Admin/Groups/Index" class="nav-link-mobile">@Localizer["Nav.Groups"]</a>
+                    <a asp-page="/Admin/Branding" class="nav-link-mobile">@Localizer["Nav.Branding"]</a>
+                }
+            </div>
+        </div>
     </header>
 
     @if (ViewData["IsFullWidth"] is bool fullWidth && fullWidth == true)
     {
-        <div class="w-full flex-1 flex flex-col">
+        @* No min-h-0 here on purpose. This wrapper is the flex item that gives the
+           full-bleed designers (workflow modeler, form designer) a non-zero height to
+           resolve `height: 100%` against. Its automatic minimum size is what stops the
+           collapse propagating up from .modeler-canvas / .modeler-canvas-col, which set
+           min-height: 0 internally. Adding min-h-0 here collapses the canvas to zero,
+           which breaks canvas hit-testing and the screen-to-world conversion. *@
+        <div class="w-full flex-1 flex flex-col" id="main-content">
             @RenderBody()
         </div>
     }
     else
     {
-        <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col py-6">
-            <main class="flex-1">
-                @RenderBody()
-            </main>
+        <div class="w-full flex-1 flex flex-col" id="main-content">
+            <div class="mx-auto w-full flex-1" style="max-width:80rem; padding:1.5rem 1rem 2.5rem">
+                <main class="app-page">
+                    @RenderBody()
+                </main>
+            </div>
         </div>
     }
 
-    <footer class="border-t border-gray-200 dark:border-gray-800 py-4 mt-auto">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            @if (!string.IsNullOrEmpty(footerText))
-            {
-                <span class="text-gray-400 text-sm">@footerText</span>
-            }
-            else
-            {
-                <span class="text-gray-400 text-sm">&copy; 2026 Argent</span>
-            }
-            <a asp-area="" asp-page="/Privacy" class="text-gray-400 text-sm hover:text-gray-600 dark:hover:text-gray-300 transition-colors">@Localizer["Nav.Privacy"]</a>
+    <footer class="app-footer">
+        <div class="app-footer-inner">
+            <p class="app-footer-text">@(string.IsNullOrEmpty(footerText) ? $"© {DateTime.Now.Year} {siteName}" : footerText)</p>
+            <a asp-area="" asp-page="/Privacy" class="app-footer-link">@Localizer["Nav.Privacy"]</a>
         </div>
     </footer>
 

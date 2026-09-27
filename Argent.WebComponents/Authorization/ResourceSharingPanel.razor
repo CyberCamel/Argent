@@ -5,7 +5,7 @@
 @inject IResourceOwnershipService OwnershipService
 @inject IStringLocalizer<SharedResource> Localizer
 
-<button class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors" @onclick="Open">
+<button class="inline-flex items-center gap-1 btn btn-secondary btn-sm" @onclick="Open">
     <i class="bi bi-shield-lock mr-1"></i>@Localizer["ResourceSharingPanel.ManageAccess"]
 </button>
 
@@ -16,7 +16,7 @@
     <div class="rsp-modal" @onclick:stopPropagation>
         <div class="rsp-header">
             <span class="font-semibold">@Localizer["ResourceSharingPanel.ShareAccess"]</span>
-            <button class="bg-transparent border-none text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer text-lg leading-none p-1" @onclick="Close">&times;</button>
+            <button class="bg-transparent border-none text-ink-muted hover:text-ink cursor-pointer text-lg leading-none p-1" @onclick="Close">&times;</button>
         </div>
 
         @if (_loading)
@@ -46,7 +46,7 @@
                         }
                         @if (!Filtered.Any())
                         {
-                            <div class="text-gray-500 dark:text-gray-400 text-sm px-1">@Localizer["ResourceSharingPanel.NoResults"]</div>
+                            <div class="text-ink-muted text-sm px-1">@Localizer["ResourceSharingPanel.NoResults"]</div>
                         }
                         else if (Filtered.Count() > MaxSubjectRows)
                         {

@@ -51,8 +51,8 @@ else
                             <span class="badge @stateStyles">@inst.State</span>
                         </td>
                         <td>@inst.TokenCount</td>
-                        <td class="text-sm text-gray-500 dark:text-gray-400">@inst.StartTime.ToString("g")</td>
-                        <td class="text-sm text-gray-500 dark:text-gray-400">@(inst.EndTime?.ToString("g") ?? "—")</td>
+                        <td class="text-sm text-ink-muted">@inst.StartTime.ToString("g")</td>
+                        <td class="text-sm text-ink-muted">@(inst.EndTime?.ToString("g") ?? "—")</td>
                         <td class="text-right">
                             <a class="btn-action btn-action-primary" asp-page="/Admin/WorkflowInstances/Detail" asp-route-id="@inst.InstanceId" title="@Localizer["Common.View"]">
                                 <i class="bi bi-eye-fill"></i>

@@ -15,12 +15,12 @@
 @if (!_loaded)
 {
     <div class="modeler-instance-loading">
-        <span class="inline-block w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin text-gray-500 dark:text-gray-400 mr-2"></span> Loading diagram…
+        <span class="inline-block w-4 h-4 border-2 border-line-strong border-t-accent rounded-full animate-spin text-ink-muted mr-2"></span> Loading diagram…
     </div>
 }
 else if (_nodes.Count == 0)
 {
-    <div class="modeler-instance-loading text-gray-500 dark:text-gray-400">No workflow diagram available for this instance.</div>
+    <div class="modeler-instance-loading text-ink-muted">No workflow diagram available for this instance.</div>
 }
 else
 {

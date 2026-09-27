@@ -5,16 +5,16 @@
 {
     <tr>
         <td>
-            <a href="/Users/View/@user.Id" class="font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
+            <a href="/Users/View/@user.Id" class="font-medium text-accent-text hover:underline">
                 @user.FirstName @user.LastName
             </a>
         </td>
-        <td class="text-gray-500 dark:text-gray-400">@user.Email</td>
+        <td class="text-ink-muted">@user.Email</td>
         <td>
             <div class="flex flex-wrap gap-1">
                 @foreach (var role in user.Roles)
                 {
-                    <span class="badge bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">@role</span>
+                    <span class="badge badge-neutral">@role</span>
                 }
             </div>
         </td>

@@ -32,7 +32,7 @@ public class RestActivityHandlerTests
     }
 
     private static TokenExecutionContext Context(Dictionary<string, object?> vars) =>
-        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
             new TokenVariableBag(vars), [], null, null);
 
     private static IHttpClientFactory Factory(CapturingHandler handler)

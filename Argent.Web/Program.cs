@@ -106,6 +106,7 @@ builder.Services.AddScoped<IGroupService, EfGroupService>();
 
 // --- Workflow (web-side services only; engine runs in Argent.Engine) ---
 builder.Services.AddArgentWorkflowExecution();
+builder.Services.AddArgentWorkers();
 builder.Services.AddArgentDomainObjects();
 builder.Services.AddArgentDataSources();
 builder.Services.AddScoped<IWorkflowInstanceService, WorkflowInstanceService>();
@@ -158,6 +159,7 @@ app.MapGet("/api/antiforgery/token", (IAntiforgery antiforgery, HttpContext ctx)
 
 app.MapDesignerApi();
 app.MapRuntimeDataApi();
+app.MapWorkerApi();
 
 app.MapRazorComponents<Program>()
     .AddInteractiveServerRenderMode()

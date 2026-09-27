@@ -93,13 +93,73 @@
 {/if}
 
 <style>
-  form { display: grid; gap: 1rem; width: 100%; max-width: var(--argent-form-max-width, 100%); color: var(--argent-text, inherit); font-family: var(--argent-font-family, system-ui, sans-serif); }
-  h1 { margin: 0 0 0.5rem; font-size: 1.75rem; line-height: 1.2; }
-  button { justify-self: start; min-height: 2.75rem; padding: 0.625rem 1rem; border: 0; border-radius: 0.375rem; background: var(--argent-primary, #4f46e5); color: white; font: inherit; font-weight: 700; cursor: pointer; }
-  button:focus-visible { outline: 3px solid var(--argent-focus, #4f46e5); outline-offset: 2px; }
-  button[data-appearance='secondary'] { background: var(--argent-secondary, #e5e7eb); color: var(--argent-secondary-text, #111827); }
-  button[data-appearance='danger'] { background: var(--argent-danger, #b91c1c); }
-  button:disabled { opacity: 0.6; cursor: wait; }
-  .argent-form-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-  .argent-error-summary { color: var(--argent-error, #b91c1c); }
+  form {
+    display: grid;
+    gap: 1rem;
+    width: 100%;
+    max-width: var(--argent-form-max-width, 100%);
+    color: var(--argent-text, #2a343d);
+    font-family: var(--argent-font-family, system-ui, sans-serif);
+  }
+
+  h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.014em;
+  }
+
+  button {
+    justify-self: start;
+    min-height: 2.75rem;           /* 44px touch target */
+    padding: 0.5rem 1rem;
+    border: 1px solid transparent;
+    border-radius: var(--argent-radius, 0.3125rem);
+    background: var(--argent-primary, #4f46e5);
+    color: #fff;
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+  }
+
+  button:hover:not(:disabled) {
+    filter: brightness(0.92);
+  }
+
+  button:focus-visible {
+    outline: 2px solid var(--argent-focus, #4f46e5);
+    outline-offset: 2px;
+  }
+
+  button[data-appearance='secondary'] {
+    background: var(--argent-secondary, #eef1f3);
+    border-color: var(--argent-border, #c3cbd2);
+    color: var(--argent-secondary-text, #2a343d);
+  }
+
+  button[data-appearance='secondary']:hover:not(:disabled) {
+    filter: none;
+    background: var(--argent-input-background, #fff);
+  }
+
+  button[data-appearance='danger'] {
+    background: var(--argent-danger, #b3261e);
+  }
+
+  button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .argent-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .argent-error-summary {
+    color: var(--argent-error, #b3261e);
+  }
 </style>

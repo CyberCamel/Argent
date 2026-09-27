@@ -1,5 +1,6 @@
 using Argent.Core.Workflows;
 using Argent.Core.Workflows.Activities;
+using Argent.Core.Workers;
 using Argent.Core.Workflows.Modeler;
 
 namespace Argent.WebComponents.Workflows.Modeler.Validation;
@@ -13,6 +14,7 @@ public class WorkflowValidator
         _validationResult = new();
         EnsureAllNodesCanReachAnEndEvent(wf);
         EnsureUserActivitiesHaveAssignees(wf);
+        EnsureWorkerActivitiesAreRoutable(wf);
         return _validationResult;
     }
 
@@ -58,6 +60,38 @@ public class WorkflowValidator
         {
             if (node.LaneRoleId == null)
                 _validationResult!.AddError(node, "User task must be placed in a role lane");
+        }
+    }
+
+    /// <summary>
+    /// A worker node that names no worker, or no subject, can never be dispatched. These are
+    /// design errors rather than runtime surprises, so they block publishing instead of failing
+    /// the token halfway through a live instance.
+    /// </summary>
+    public void EnsureWorkerActivitiesAreRoutable(WorkflowDefinition wf)
+    {
+        foreach (var node in wf.Nodes.OfType<WorkerActivity>())
+        {
+            if (string.IsNullOrWhiteSpace(node.WorkerName))
+            {
+                _validationResult!.AddError(node, "Worker activity must name the worker that should run it");
+            }
+
+            if (string.IsNullOrWhiteSpace(node.Subject))
+            {
+                _validationResult!.AddError(node, "Worker activity must name a subject the worker has a handler for");
+            }
+
+            foreach (var parameter in node.Parameters)
+            {
+                if (string.IsNullOrWhiteSpace(parameter.Key))
+                    _validationResult!.AddWarning(node, "A worker parameter has no key and will not be sent");
+            }
+
+            if (node.MaxAttempts is < 1 or > 10)
+            {
+                _validationResult!.AddWarning(node, "Attempts should be between 1 and 10");
+            }
         }
     }
 }

@@ -36,6 +36,10 @@ public static class EngineExecutionExtensions
         services.AddTransient<INodeHandler, ScriptActivityHandler>();
         services.AddTransient<INodeHandler, CatchingTimerHandler>();
         services.AddTransient<INodeHandler, TimerBoundaryEventHandler>();
+        services.AddTransient<INodeHandler, WorkerActivityHandler>();
+
+        services.AddArgentWorkers();
+        services.AddArgentWorkerMaintenance();
 
         services.AddHostedService<WorkflowEngine>();
 

@@ -163,6 +163,7 @@ public class TokenRunner : ITokenRunner
                 instanceId,
                 claimed.TokenId,
                 claimed.NodeId,
+                claimed.WorkItemId,
                 new TokenVariableBag(enrichedVariables),
                 candidates,
                 currentToken.GroupId,

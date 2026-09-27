@@ -9,13 +9,13 @@
 }
 
 <div class="flex flex-col h-full">
-    <div class="border-b bg-white dark:bg-gray-900 px-3 py-2 flex items-center gap-3">
-        <h1 class="mb-0 text-lg font-semibold text-gray-900 dark:text-gray-100">@Model.WorkflowName</h1>
+    <div class="border-b bg-surface px-3 py-2 flex items-center gap-3">
+        <h1 class="mb-0 text-lg font-semibold text-ink-heading">@Model.WorkflowName</h1>
         @if (!string.IsNullOrEmpty(Model.WorkflowDescription))
         {
-            <span class="text-gray-500 dark:text-gray-400 text-sm">- @Model.WorkflowDescription</span>
+            <span class="text-ink-muted text-sm">- @Model.WorkflowDescription</span>
         }
-        <span class="ml-auto px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">@Localizer["Workflows.View.Badge"]</span>
+        <span class="badge badge-neutral">@Localizer["Workflows.View.Badge"]</span>
     </div>
     <div class="flex-1 flex" style="height: calc(100vh - 106px);">
         <component type="typeof(WorkflowModeler)" render-mode="WebAssembly"

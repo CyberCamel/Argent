@@ -20,7 +20,7 @@ public class ParallelGatewayEvaluatorTests
             new(Guid.NewGuid(), "Task", null),
         };
         var bag = new TokenVariableBag();
-        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, bag, candidates, null, null);
+        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, Guid.NewGuid(), bag, candidates, null, null);
 
         var result = await new ParallelGatewayEvaluator().ExecuteAsync(Node, ctx, default);
 
@@ -36,7 +36,7 @@ public class ParallelGatewayEvaluatorTests
     {
         var candidates = new List<CandidateTarget>();
         var bag = new TokenVariableBag();
-        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, bag, candidates, null, null);
+        var ctx = new TokenExecutionContext(Guid.NewGuid(), Guid.NewGuid(), Node.Id, Guid.NewGuid(), bag, candidates, null, null);
 
         var result = await new ParallelGatewayEvaluator().ExecuteAsync(Node, ctx, default);
 

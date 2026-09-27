@@ -1,53 +1,41 @@
 /* ---- Modeler ---- */
 
-/* ── Modeler theme variables (light mode default) ──────────────── */
+/* ── Modeler tokens ─────────────────────────────────────────────────────
+   The modeler is a dense, always-saturated surface, so it gets its own
+   aliases, but every value resolves to the shared design-system tokens in
+   app.css. Nothing here is a hard-coded colour, which is what keeps the
+   modeler and the surrounding chrome in step across both themes. */
 :root {
-    --md-bg: #ffffff;
-    --md-bg-raised: #f9fafb;
-    --md-canvas-bg: #f3f4f6;
-    --md-hover-bg: #f3f4f6;
-    --md-active-bg: #e5e7eb;
+    --md-bg: var(--surface);
+    --md-bg-raised: var(--surface-sunken);
+    --md-canvas-bg: var(--canvas);
+    --md-hover-bg: var(--surface-hover);
+    --md-active-bg: var(--surface-active);
 
-    --md-text: #1f2937;
-    --md-text-secondary: #374151;
-    --md-muted: #6b7280;
-    --md-text-dim: #9ca3af;
+    --md-text: var(--fg);
+    --md-text-secondary: var(--fg-secondary);
+    --md-muted: var(--fg-muted);
+    --md-text-dim: var(--fg-muted);
 
-    --md-border: #d1d5db;
-    --md-border-strong: #9ca3af;
+    --md-border: var(--line);
+    --md-border-strong: var(--line-strong);
 
-    --md-node-stroke: #9ca3af;
-    --md-grid-dot: #d1d5db;
-    --md-pool-header: #e5e7eb;
+    --md-node-stroke: var(--line-strong);
+    --md-grid-dot: var(--line);
+    --md-pool-header: var(--surface-active);
 
-    --md-switch-bg: #d1d5db;
-    --md-switch-knob: #9ca3af;
-    --md-switch-knob-checked: #ffffff;
+    --md-switch-bg: var(--line-strong);
+    --md-switch-knob: var(--fg-muted);
+    --md-switch-knob-checked: var(--surface);
 }
 
-/* ── Modeler theme variables (dark mode override) ───────────────── */
+/* Only the handful of tokens that genuinely need to differ per theme. */
 .dark {
-    --md-bg: #1f2937;
-    --md-bg-raised: #111827;
-    --md-canvas-bg: #1f2937;
-    --md-hover-bg: #374151;
-    --md-active-bg: #4b5563;
-
-    --md-text: #f3f4f6;
-    --md-text-secondary: #d1d5db;
-    --md-muted: #6b7280;
-    --md-text-dim: #9ca3af;
-
-    --md-border: #374151;
-    --md-border-strong: #4b5563;
-
-    --md-node-stroke: #4b5563;
-    --md-grid-dot: #444;
-    --md-pool-header: #1e2433;
-
-    --md-switch-bg: #374151;
-    --md-switch-knob: #6b7280;
-    --md-switch-knob-checked: #1f2937;
+    --md-canvas-bg: #0a0e13;
+    --md-bg-raised: #10161c;
+    --md-node-stroke: #3d4750;
+    --md-grid-dot: #1c242c;
+    --md-pool-header: #111820;
 }
 
 .modeler-layout {
@@ -110,7 +98,7 @@
     align-items: center;
     gap: 8px;
     padding: 6px 8px;
-    border-radius: 6px;
+    border-radius: var(--radius);
     cursor: grab;
     transition: background 0.15s;
     user-select: none;
@@ -194,7 +182,7 @@
     border: none;
     color: var(--md-muted);
     padding: 4px 6px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 0.875rem;
     line-height: 1;
@@ -220,16 +208,16 @@
     transition: color 0.2s;
 }
 .modeler-save-status.clean {
-    color: #4ade80;
+    color: var(--success);
 }
 .modeler-save-status.dirty {
-    color: #fbbf24;
+    color: var(--warning);
 }
 .modeler-save-status.saving {
-    color: #818cf8;
+    color: var(--accent);
 }
 .modeler-save-status.failed {
-    color: #f87171;
+    color: var(--danger);
 }
 
 /* A failed autosave keeps the unsaved work in the model and offers a retry. */
@@ -239,9 +227,9 @@
     gap: 8px;
     padding: 6px 12px;
     font-size: 0.75rem;
-    color: #fecaca;
-    background: rgba(239, 68, 68, 0.12);
-    border-bottom: 1px solid rgba(239, 68, 68, 0.35);
+    color: var(--danger);
+    background: var(--danger-bg);
+    border-bottom: 1px solid var(--danger-border);
 }
 .modeler-save-error span {
     flex: 1;
@@ -252,7 +240,7 @@
     gap: 2px;
     padding: 2px;
     background: var(--md-bg-raised);
-    border-radius: 6px;
+    border-radius: var(--radius);
 }
 
 /* Relative wrapper so a dropdown can hang below a toolbar button. */
@@ -294,7 +282,7 @@
     color: var(--md-text);
     background: none;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
 }
 .modeler-menu-item:hover {
@@ -334,7 +322,7 @@
     color: var(--md-text);
     background: var(--md-canvas-bg);
     border: 1px solid var(--md-border);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     padding: 1px 5px;
 }
 
@@ -343,7 +331,7 @@
     border: none;
     color: var(--md-muted);
     padding: 5px 10px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 0.75rem;
     font-weight: 500;
@@ -375,8 +363,9 @@
 .modeler-error-item:focus-visible,
 .modeler-canvas:focus-visible,
 .modeler-shortcut-row kbd:focus-visible {
-    outline: 2px solid #818cf8;
+    outline: 2px solid var(--accent);
     outline-offset: 1px;
+    border-radius: var(--radius-sm);
 }
 
 .modeler-zoom-label {
@@ -434,7 +423,7 @@
 
 .modeler-sidebar-tab-active {
     color: var(--md-text) !important;
-    border-bottom: 2px solid #818cf8 !important;
+    border-bottom: 2px solid var(--accent) !important;
 }
 
 .modeler-sidebar-content {
@@ -443,48 +432,11 @@
     padding: 12px;
 }
 
-.modeler-sidebar-content .card {
-    background: var(--md-bg) !important;
-    border-color: var(--md-border) !important;
-    color: var(--md-text) !important;
-}
-
-.modeler-sidebar-content .card-header {
-    background: var(--md-bg) !important;
-    border-color: var(--md-border) !important;
-    color: var(--md-text) !important;
-}
-
-.modeler-sidebar-content .alert-danger {
-    background: rgba(248, 113, 113, 0.1) !important;
-    border-color: #f87171 !important;
-}
-
-.modeler-sidebar-content .alert-warning {
-    background: rgba(251, 146, 60, 0.1) !important;
-    border-color: #fb923c !important;
-}
-
-.modeler-sidebar-content .list-group-item {
-    background: transparent !important;
-    border-color: var(--md-border) !important;
-    color: var(--md-text) !important;
-}
-
-.modeler-sidebar-content .text-danger-emphasis {
-    color: #f87171 !important;
-}
-
-.modeler-sidebar-content .text-warning-emphasis {
-    color: #fb923c !important;
-}
-
-.modeler-sidebar-content .text-muted {
-    color: var(--md-muted) !important;
-}
-
+/* No Bootstrap is loaded anywhere in this application. These rules used to
+   re-skin Bootstrap class names inside the sidebar; they were dead weight and
+   have been removed. Sidebar components now use the shared primitives. */
 .modeler-sidebar-content .bi-heart-pulse {
-    color: #818cf8 !important;
+    color: var(--accent) !important;
 }
 
 .modeler-sidebar-content pre {
@@ -512,7 +464,7 @@
     align-items: center;
     gap: 4px;
     padding: 5px 12px;
-    border-radius: 6px;
+    border-radius: var(--radius);
     font-size: 0.75rem;
     font-weight: 500;
     border: 1px solid var(--md-border-strong);
@@ -523,8 +475,8 @@
 }
 
 .json-viewer-compile:hover {
-    background: rgba(129, 140, 248, 0.15);
-    border-color: #818cf8;
+    background: color-mix(in oklab, var(--accent) 15%, transparent);
+    border-color: var(--accent);
     color: var(--md-text);
 }
 
@@ -557,7 +509,7 @@
 
 .modeler-resizer:hover,
 .modeler-resizer:active {
-    background: #818cf855;
+    background: color-mix(in oklab, var(--accent) 30%, transparent);
 }
 
 .modeler-canvas {
@@ -585,7 +537,7 @@
 }
 
 .modeler-space-guide {
-    stroke: #f87171;
+    stroke: var(--danger);
     stroke-width: 2;
     stroke-dasharray: 6 4;
     pointer-events: none;
@@ -598,8 +550,8 @@
 }
 
 .modeler-rubber-band {
-    fill: rgba(129, 140, 248, 0.12);
-    stroke: #818cf8;
+    fill: color-mix(in oklab, var(--accent) 12%, transparent);
+    stroke: var(--accent);
     stroke-width: 1;
     stroke-dasharray: 4 2;
     pointer-events: none;
@@ -612,14 +564,14 @@
 }
 
 .modeler-node-highlighted .modeler-node-shape {
-    stroke: #fbbf24 !important;
+    stroke: var(--warning) !important;
     stroke-width: 3 !important;
-    filter: drop-shadow(0 0 8px rgba(249, 226, 175, 0.5));
+    filter: drop-shadow(0 0 8px color-mix(in oklab, var(--warning) 40%, transparent));
 }
 
 .modeler-node-highlighted.modeler-node-selected .modeler-node-shape {
-    stroke: #818cf8 !important;
-    filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.5));
+    stroke: var(--accent) !important;
+    filter: drop-shadow(0 0 8px color-mix(in oklab, var(--accent) 50%, transparent));
 }
 
 .modeler-error-item {
@@ -638,11 +590,11 @@
 }
 
 .modeler-error-item-danger {
-    color: #f87171;
+    color: var(--danger);
 }
 
 .modeler-error-item-warning {
-    color: #fb923c;
+    color: var(--warning);
 }
 
 .modeler-error-node {
@@ -694,19 +646,19 @@
 .modeler-version-badge {
     display: inline-block;
     padding: 1px 8px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-size: 0.7rem;
     font-weight: 600;
 }
 
 .modeler-version-badge-draft {
-    background: rgba(129, 140, 248, 0.15);
-    color: #818cf8;
+    background: color-mix(in oklab, var(--accent) 15%, transparent);
+    color: var(--accent);
 }
 
 .modeler-version-badge-published {
-    background: rgba(74, 222, 128, 0.15);
-    color: #4ade80;
+    background: var(--success-bg);
+    color: var(--success);
 }
 
 .modeler-version-sep {
@@ -719,15 +671,15 @@
     align-items: center;
     gap: 6px;
     padding: 6px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius);
     font-size: 0.78rem;
     font-weight: 500;
 }
 
 .modeler-version-banner-readonly {
-    color: #fb923c;
-    background: rgba(251, 146, 60, 0.1);
-    border: 1px solid rgba(251, 146, 60, 0.25);
+    color: var(--warning);
+    background: var(--warning-bg);
+    border: 1px solid var(--warning-border);
 }
 
 .modeler-version-subtitle {
@@ -757,18 +709,18 @@
     gap: 10px;
     cursor: pointer;
     padding: 6px 8px 6px 4px;
-    border-radius: 6px;
+    border-radius: var(--radius);
     transition: background 0.15s;
     position: relative;
 }
 
 .modeler-version-node:hover {
-    background: rgba(75, 85, 99, 0.4);
+    background: var(--md-hover-bg);
 }
 
 .modeler-version-node-active {
-    background: rgba(129, 140, 248, 0.1);
-    border: 1px solid rgba(129, 140, 248, 0.25);
+    background: color-mix(in oklab, var(--accent) 10%, transparent);
+    border: 1px solid color-mix(in oklab, var(--accent) 25%, transparent);
 }
 
 .modeler-version-dot {
@@ -784,9 +736,9 @@
 }
 
 .modeler-version-dot-active {
-    background: #818cf8;
-    border-color: #818cf8;
-    box-shadow: 0 0 6px rgba(129, 140, 248, 0.4);
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 6px color-mix(in oklab, var(--accent) 40%, transparent);
 }
 
 .modeler-version-dot-inactive {
@@ -848,7 +800,7 @@
     flex: 1;
     background: var(--md-bg);
     border: 1px solid var(--md-border-strong);
-    border-radius: 6px;
+    border-radius: var(--radius);
     padding: 6px 10px;
     color: var(--md-text);
     font-size: 0.82rem;
@@ -858,7 +810,7 @@
 }
 
 .modeler-version-publish-input:focus {
-    border-color: #818cf8;
+    border-color: var(--accent);
 }
 
 .modeler-version-publish-input::placeholder {
@@ -867,25 +819,25 @@
 
 .modeler-version-publish-error {
     font-size: 0.72rem;
-    color: #f87171;
+    color: var(--danger);
     padding-left: 18px;
 }
 
 .modeler-version-badge-deployed {
-    background: rgba(74, 222, 128, 0.25);
-    color: #4ade80;
-    border: 1px solid rgba(74, 222, 128, 0.4);
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid var(--success-border);
 }
 
 .modeler-version-node-deployed {
-    background: rgba(74, 222, 128, 0.06);
-    border: 1px solid rgba(74, 222, 128, 0.15);
+    background: var(--success-bg);
+    border: 1px solid var(--success-border);
 }
 
 .modeler-version-dot-deployed {
-    background: #4ade80;
-    border-color: #4ade80;
-    box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+    background: var(--success);
+    border-color: var(--success);
+    box-shadow: 0 0 8px color-mix(in oklab, var(--success) 45%, transparent);
 }
 
 .modeler-version-action-btn {
@@ -893,7 +845,7 @@
     align-items: center;
     gap: 4px;
     padding: 2px 10px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-size: 0.72rem;
     font-weight: 500;
     border: 1px solid var(--md-border-strong);
@@ -911,13 +863,13 @@
 }
 
 .modeler-version-action-btn-primary {
-    background: rgba(129, 140, 248, 0.15);
-    border-color: #818cf8;
-    color: #818cf8;
+    background: color-mix(in oklab, var(--accent) 15%, transparent);
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 .modeler-version-action-btn-primary:hover {
-    background: rgba(129, 140, 248, 0.25);
+    background: color-mix(in oklab, var(--accent) 25%, transparent);
 }
 
 .modeler-version-action-btn-primary:disabled {
@@ -926,13 +878,13 @@
 }
 
 .modeler-version-action-btn-danger {
-    background: rgba(248, 113, 113, 0.12);
-    border-color: #f87171;
-    color: #f87171;
+    background: color-mix(in oklab, var(--danger) 12%, transparent);
+    border-color: var(--danger);
+    color: var(--danger);
 }
 
 .modeler-version-action-btn-danger:hover {
-    background: rgba(248, 113, 113, 0.25);
+    background: color-mix(in oklab, var(--danger) 25%, transparent);
 }
 
 .modeler-version-diff {
@@ -941,8 +893,8 @@
     gap: 6px;
     margin-top: 6px;
     padding: 8px 10px;
-    background: rgba(75, 85, 99, 0.15);
-    border-radius: 6px;
+    background: var(--md-bg-raised);
+    border-radius: var(--radius);
     font-size: 0.75rem;
 }
 
@@ -974,15 +926,15 @@
 }
 
 .modeler-version-diff-added {
-    color: #4ade80;
+    color: var(--success);
 }
 
 .modeler-version-diff-removed {
-    color: #f87171;
+    color: var(--danger);
 }
 
 .modeler-version-diff-modified {
-    color: #fbbf24;
+    color: var(--warning);
 }
 
 .modeler-version-publish-inline {
@@ -1002,7 +954,7 @@
 }
 
 .modeler-node-selected .modeler-node-shape {
-    stroke: #818cf8;
+    stroke: var(--accent);
     stroke-width: 6;
 }
 
@@ -1018,7 +970,8 @@
 .modeler-node-shape.node-start   { fill: #22c55e; stroke: #16a34a; }
 .modeler-node-shape.node-end     { fill: #ef4444; stroke: #dc2626; }
 .modeler-node-shape.node-user    { fill: #3b82f6; stroke: #2563eb; }
-.modeler-node-shape.node-script  { fill: #a855f7; stroke: #9333ea; }
+.modeler-node-shape.node-script  { fill: var(--accent); stroke: var(--accent); }
+.modeler-node-shape.node-worker  { fill: #0d9488; stroke: #0f766e; }
 .modeler-node-shape.node-timer   { fill: #f97316; stroke: #ea580c; }
 .modeler-node-shape.node-boundary-timer {
     fill: #eab308;
@@ -1095,12 +1048,12 @@
 }
 
 .modeler-conn:hover .modeler-conn-path {
-    color: #818cf8;
+    color: var(--accent);
     stroke-width: 2.5;
 }
 
 .modeler-conn-selected .modeler-conn-path {
-    color: #818cf8;
+    color: var(--accent);
     stroke-width: 2.5;
 }
 
@@ -1112,13 +1065,13 @@
 
 /* Preview of the connection a dragged node would be inserted into. */
 .modeler-conn-insert-target .modeler-conn-path {
-    color: #4ade80;
+    color: var(--success);
     stroke-width: 3;
 }
 
 .modeler-draft-path {
     fill: none;
-    color: #f87171;
+    color: var(--danger);
     stroke: currentColor;
     stroke-width: 2;
     stroke-linejoin: round;
@@ -1129,25 +1082,25 @@
 
 /* A drop on a valid target turns the draft green. */
 .modeler-draft-valid {
-    color: #4ade80;
+    color: var(--success);
 }
 
 .modeler-drop-target {
     fill: none;
-    stroke: #4ade80;
+    stroke: var(--success);
     stroke-width: 2;
     stroke-dasharray: 5 4;
     pointer-events: none;
 }
 
 .modeler-node-drop-target .modeler-node-shape {
-    stroke: #4ade80;
+    stroke: var(--success);
     stroke-width: 3;
 }
 
 /* Axis guide shown while a connector segment is being moved. */
 .modeler-segment-guide {
-    stroke: #818cf8;
+    stroke: var(--accent);
     stroke-width: 1;
     stroke-dasharray: 4 4;
     opacity: 0.7;
@@ -1159,7 +1112,7 @@
 .modeler-cursor-ew  { cursor: ew-resize; }
 
 .modeler-waypoint {
-    fill: #818cf8;
+    fill: var(--accent);
     stroke: var(--md-canvas-bg);
     stroke-width: 2;
     cursor: move;
@@ -1171,12 +1124,12 @@
 }
 
 .modeler-waypoint-endpoint {
-    fill: #fbbf24;
+    fill: var(--warning);
     cursor: grab;
 }
 
 .modeler-anchor {
-    fill: #818cf8;
+    fill: var(--accent);
     stroke: var(--md-canvas-bg);
     stroke-width: 2;
     cursor: crosshair;
@@ -1195,7 +1148,7 @@
 }
 
 .modeler-pending-node .modeler-node-shape {
-    stroke: #818cf8;
+    stroke: var(--accent);
     stroke-width: 2;
     stroke-dasharray: 5 3;
 }
@@ -1239,7 +1192,7 @@
 }
 
 .modeler-properties-type {
-    color: #818cf8;
+    color: var(--accent);
     font-weight: 600;
 }
 
@@ -1256,7 +1209,7 @@
     border: none;
     color: var(--md-muted);
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 0.75rem;
     line-height: 1;
@@ -1341,7 +1294,7 @@
 .modeler-properties-input {
     background: var(--md-bg-raised);
     border: 1px solid var(--md-border);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     color: var(--md-text);
     font-size: 0.8125rem;
     padding: 6px 10px;
@@ -1353,7 +1306,7 @@
 }
 
 .modeler-properties-input:focus {
-    border-color: #818cf8;
+    border-color: var(--accent);
 }
 
 .modeler-properties-textarea {
@@ -1384,7 +1337,7 @@
     justify-content: center;
     gap: 6px;
     border: 1px solid var(--md-border);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 0.78rem;
     font-weight: 600;
@@ -1480,13 +1433,13 @@
 }
 
 .modeler-code-editor-button-primary {
-    border-color: #6366f1;
-    background: #6366f1;
+    border-color: var(--accent);
+    background: var(--accent);
     color: #fff;
 }
 
 .modeler-code-editor-button-primary:hover {
-    background: #4f46e5;
+    background: var(--accent);
 }
 
 .modeler-properties-placeholder {
@@ -1533,7 +1486,7 @@
 }
 
 .modeler-properties-switch input:checked + .modeler-properties-switch-slider {
-    background: #818cf8;
+    background: var(--accent);
 }
 
 .modeler-properties-switch input:checked + .modeler-properties-switch-slider::before {
@@ -1549,13 +1502,13 @@
 
 .modeler-snap-highlight {
     fill: none;
-    stroke: #818cf8;
+    stroke: var(--accent);
     stroke-width: 1.5;
     stroke-dasharray: 4 3;
 }
 
 .modeler-snap-line {
-    stroke: #818cf8;
+    stroke: var(--accent);
     stroke-width: 1;
     opacity: 0.7;
 }
@@ -1567,9 +1520,9 @@
 }
 
 .modeler-node-active .modeler-node-shape {
-    stroke: #4ade80 !important;
+    stroke: var(--success) !important;
     stroke-width: 2.5 !important;
-    filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.5));
+    filter: drop-shadow(0 0 6px color-mix(in oklab, var(--success) 45%, transparent));
 }
 
 /* Instance viewer — container */
@@ -1600,17 +1553,17 @@
     font-size: 0.72rem;
     font-weight: 600;
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
 }
 
 .modeler-instance-legend-active {
-    background: rgba(74, 222, 128, 0.15);
-    color: #4ade80;
-    border: 1px solid rgba(74, 222, 128, 0.35);
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid var(--success-border);
 }
 
 .modeler-instance-legend-visited {
-    background: rgba(243, 244, 246, 0.1);
+    background: var(--md-bg-raised);
     color: var(--md-text);
     border: 1px solid var(--md-border-strong);
 }
@@ -1647,13 +1600,13 @@
 }
 
 .modeler-conn-label-action {
-    fill: #a78bfa;
+    fill: var(--accent);
 }
 
 /* ── Connection editor panel ─────────────────────────────────────── */
 .modeler-conn-condition-wrap {
     background: var(--md-bg-raised);
-    border-radius: 6px;
+    border-radius: var(--radius);
     padding: 10px;
     margin-top: 4px;
 }
@@ -1674,7 +1627,7 @@
 .modeler-script-action {
     background: var(--md-bg);
     border: 1px solid var(--md-border);
-    border-radius: 6px;
+    border-radius: var(--radius);
     padding: 8px 10px;
     margin-bottom: 6px;
 }
@@ -1691,11 +1644,11 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #a855f7;
+    color: var(--accent);
 }
 
 .modeler-script-action-remove {
-    color: #f87171;
+    color: var(--danger);
 }
 
 .modeler-script-action-add {
@@ -1709,11 +1662,42 @@
     flex: 1;
 }
 
+/* ── Worker parameter editor ─────────────────────────────────────── */
+.modeler-worker-params {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.modeler-worker-param-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.modeler-worker-param-row .modeler-properties-input {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--md-mono, monospace);
+    font-size: 0.7rem;
+}
+
+.modeler-worker-param-row button {
+    flex-shrink: 0;
+    color: var(--danger);
+}
+
+.modeler-worker-param-add {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 2px;
+}
+
 /* ── Timer config editor ─────────────────────────────────────────── */
 .modeler-timer-toggle {
     display: flex;
     border: 1px solid var(--md-border);
-    border-radius: 6px;
+    border-radius: var(--radius);
     overflow: hidden;
 }
 
@@ -1733,7 +1717,7 @@
 }
 
 .modeler-timer-toggle-btn.active {
-    background: #7c3aed;
+    background: var(--accent);
     color: #fff;
     font-weight: 600;
 }
@@ -1748,67 +1732,6 @@
     flex-shrink: 0;
 }
 
-.modeler-cron-builder {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 6px;
-}
-
-.modeler-cron-field {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
-}
-
-.modeler-cron-field-label {
-    font-size: 0.6rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--md-muted);
-    margin-bottom: 2px;
-}
-
-.modeler-cron-field-input {
-    width: 100%;
-    background: var(--md-bg);
-    border: 1px solid var(--md-border);
-    border-radius: 4px;
-    color: var(--md-text);
-    font-size: 0.75rem;
-    font-family: monospace;
-    text-align: center;
-    padding: 3px 2px;
-    outline: none;
-}
-
-.modeler-cron-field-input:focus {
-    border-color: #7c3aed;
-}
-
-.modeler-cron-raw {
-    font-family: monospace !important;
-    font-size: 0.8rem !important;
-    letter-spacing: 0.05em;
-}
-
-.modeler-cron-feedback {
-    margin-top: 4px;
-    font-size: 0.72rem;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.modeler-cron-preview {
-    color: #4ade80;
-}
-
-.modeler-cron-error {
-    color: #f87171;
-}
 
 /* ── Pool / Swimlane ──────────────────────────────────────────── */
 
@@ -1821,7 +1744,7 @@
 }
 
 .pool-group.pool-selected > .pool-bg {
-    stroke: #818cf8;
+    stroke: var(--accent);
     stroke-width: 2;
 }
 
@@ -1850,8 +1773,8 @@
 }
 
 .swimlane-group.lane-selected > .swimlane-bg {
-    fill: rgba(129,140,248,0.06);
-    stroke: #818cf8;
+    fill: color-mix(in oklab, var(--accent) 6%, transparent);
+    stroke: var(--accent);
 }
 
 .swimlane-header {
@@ -1871,7 +1794,7 @@
 }
 
 .swimlane-role-badge {
-    fill: #818cf8;
+    fill: var(--accent);
     font-size: 10px;
     font-weight: 600;
     user-select: none;
@@ -1967,4 +1890,224 @@
     .modeler-properties {
         max-height: 40%;
     }
+}
+
+/* ── Cron visual editor (CronExpressionEditor) ───────────────────────────
+   Rendered inside the modeler properties panel. Was previously defined in
+   site.css with a hard-coded dark palette, which meant it rendered as a dark
+   island inside the light theme. Now driven by the shared token set. */
+
+.cve {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 4px;
+}
+
+.cve-mode-bar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 6px;
+}
+
+.cve-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: transparent;
+    border: 1px solid var(--md-border);
+    border-radius: var(--radius-sm);
+    color: var(--md-muted);
+    font-size: 0.72rem;
+    font-family: inherit;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.cve-mode-btn:hover {
+    border-color: var(--md-border-strong);
+    color: var(--md-text);
+}
+
+.cve-mode-btn.active {
+    background: var(--accent-subtle);
+    border-color: var(--accent-border);
+    color: var(--accent-text);
+    font-weight: 600;
+}
+
+.cve-complex-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.68rem;
+    color: var(--warning);
+    margin-left: 4px;
+}
+
+.cve-body {
+    display: flex;
+    flex-direction: column;
+    background: var(--md-bg);
+    border: 1px solid var(--md-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.cve-row {
+    display: flex;
+    align-items: flex-start;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--md-border);
+}
+
+.cve-row:last-child {
+    border-bottom: none;
+}
+
+.cve-row-label {
+    width: 42px;
+    flex-shrink: 0;
+    padding-top: 3px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--md-muted);
+}
+
+.cve-row-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.cve-opt {
+    padding: 2px 8px;
+    background: var(--md-bg-raised);
+    border: 1px solid var(--md-border);
+    border-radius: var(--radius-sm);
+    color: var(--md-text-secondary);
+    font-size: 0.72rem;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.cve-opt:hover {
+    border-color: var(--accent-border);
+    color: var(--md-text);
+}
+
+.cve-opt.active {
+    background: var(--accent-subtle);
+    border-color: var(--accent-border);
+    color: var(--accent-text);
+    font-weight: 600;
+}
+
+.cve-num {
+    width: 46px;
+    background: var(--md-bg);
+    border: 1px solid var(--md-border);
+    border-radius: var(--radius-sm);
+    color: var(--md-text);
+    font-size: 0.75rem;
+    font-family: inherit;
+    text-align: center;
+    padding: 2px 4px;
+    outline: none;
+}
+
+.cve-num:focus {
+    border-color: var(--accent);
+    box-shadow: var(--ring-accent);
+}
+
+.cve-num:disabled {
+    opacity: 0.4;
+}
+
+.cve-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.cve-chips-hours {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+}
+
+.cve-chip {
+    min-width: 28px;
+    padding: 2px 5px;
+    background: var(--md-bg-raised);
+    border: 1px solid var(--md-border);
+    border-radius: var(--radius-sm);
+    color: var(--md-muted);
+    font-size: 0.68rem;
+    font-weight: 500;
+    font-family: var(--font-mono);
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.cve-chip:hover {
+    border-color: var(--md-border-strong);
+    color: var(--md-text);
+}
+
+.cve-chip.active {
+    background: var(--accent-subtle);
+    border-color: var(--accent-border);
+    color: var(--accent-text);
+    font-weight: 700;
+}
+
+.cve-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.cve-expr {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--md-bg);
+    border: 1px solid var(--md-border);
+    border-radius: var(--radius-sm);
+    color: var(--md-text);
+    font-size: 0.78rem;
+    font-family: var(--font-mono);
+    letter-spacing: 0.06em;
+    padding: 5px 8px;
+    outline: none;
+}
+
+.cve-expr:focus {
+    border-color: var(--accent);
+    box-shadow: var(--ring-accent);
+}
+
+.cve-preview {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    color: var(--success);
+}
+
+.cve-preview-error {
+    color: var(--danger);
 }

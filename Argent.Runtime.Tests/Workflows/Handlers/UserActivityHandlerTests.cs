@@ -11,7 +11,7 @@ namespace Argent.Runtime.Tests.Workflows.Handlers;
 public class UserActivityHandlerTests
 {
     private static TokenExecutionContext Context(Guid instanceId, Guid tokenId, Guid nodeId) =>
-        new(instanceId, tokenId, nodeId, new TokenVariableBag([]), [], null, null);
+        new(instanceId, tokenId, nodeId, Guid.NewGuid(), new TokenVariableBag([]), [], null, null);
 
     private static UserActivityHandler MakeHandler(ITaskInboxService manager)
     {

@@ -61,6 +61,51 @@
   <data name="Admin.WorkItems.Detail.RetriesLabel" xml:space="preserve"><value>Retries</value></data>
   <data name="Admin.WorkItems.Detail.RetryButton" xml:space="preserve"><value>Retry</value></data>
   <data name="Admin.WorkItems.Detail.TokenIdLabel" xml:space="preserve"><value>Token ID</value></data>
+  <data name="Admin.WorkerRequests.Index.OverdueHint" xml:space="preserve"><value>past the {0}s budget</value></data>
+  <data name="Admin.WorkerRequests.Index.PageTitle" xml:space="preserve"><value>Worker Requests</value></data>
+  <data name="Admin.WorkerRequests.Index.EmptyMessage" xml:space="preserve"><value>No worker requests match this filter.</value></data>
+  <data name="Admin.WorkerRequests.Index.FilterAll" xml:space="preserve"><value>All</value></data>
+  <data name="Admin.WorkerRequests.Index.FilterApply" xml:space="preserve"><value>Apply</value></data>
+  <data name="Admin.WorkerRequests.Index.FilterWorker" xml:space="preserve"><value>Worker</value></data>
+  <data name="Admin.WorkerRequests.Index.CancelButton" xml:space="preserve"><value>Cancel this request and release the token</value></data>
+  <data name="Admin.WorkerRequests.Index.LeasePrefix" xml:space="preserve"><value>lease to</value></data>
+  <data name="Admin.WorkerRequests.Index.Subtitle" xml:space="preserve"><value>Work the workflow engine has handed to external workers</value></data>
+  <data name="Admin.WorkerRequests.Index.TableAttempts" xml:space="preserve"><value>Attempts</value></data>
+  <data name="Admin.WorkerRequests.Index.TableCreated" xml:space="preserve"><value>Created</value></data>
+  <data name="Admin.WorkerRequests.Index.TableInstance" xml:space="preserve"><value>Instance</value></data>
+  <data name="Admin.WorkerRequests.Index.TableSubject" xml:space="preserve"><value>Subject</value></data>
+  <data name="Admin.WorkerRequests.Index.TableWorker" xml:space="preserve"><value>Worker</value></data>
+  <data name="Admin.Workers.Index.Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Admin.Workers.Index.DeleteConfirm" xml:space="preserve"><value>Delete this worker registration? Its request history is kept.</value></data>
+  <data name="Admin.Workers.Index.KeyIssuedHeading" xml:space="preserve"><value>API key issued for '{0}'</value></data>
+  <data name="Admin.Workers.Index.KeyIssuedUsage" xml:space="preserve"><value>Start the worker with:</value></data>
+  <data name="Admin.Workers.Index.KeyIssuedWarning" xml:space="preserve"><value>This is the only time the key is shown. Copy it now — only a hash is stored, so it cannot be displayed again. Use Rotate key to issue a replacement.</value></data>
+  <data name="Admin.Workers.Index.KeyRotations" xml:space="preserve"><value>key rotated {0}×</value></data>
+  <data name="Admin.Workers.Index.NeverReported" xml:space="preserve"><value>not yet reported</value></data>
+  <data name="Admin.Workers.Index.ProvisionButton" xml:space="preserve"><value>Provision</value></data>
+  <data name="Admin.Workers.Index.ProvisionConcurrency" xml:space="preserve"><value>Concurrency</value></data>
+  <data name="Admin.Workers.Index.ProvisionDisplayName" xml:space="preserve"><value>Display name</value></data>
+  <data name="Admin.Workers.Index.ProvisionDisplayNamePlaceholder" xml:space="preserve"><value>optional</value></data>
+  <data name="Admin.Workers.Index.ProvisionHeading" xml:space="preserve"><value>Provision a worker</value></data>
+  <data name="Admin.Workers.Index.ProvisionHint" xml:space="preserve"><value>The worker is created here, not by the client. It authenticates with the key issued below, and reports its runtime and subjects on each heartbeat.</value></data>
+  <data name="Admin.Workers.Index.ProvisionName" xml:space="preserve"><value>Worker name</value></data>
+  <data name="Admin.Workers.Index.Restore" xml:space="preserve"><value>Restore this worker</value></data>
+  <data name="Admin.Workers.Index.Revoke" xml:space="preserve"><value>Revoke this worker's key</value></data>
+  <data name="Admin.Workers.Index.RotateKey" xml:space="preserve"><value>Issue a new API key</value></data>
+  <data name="Admin.Workers.Index.EmptyMessage" xml:space="preserve"><value>No workers are registered. Start a worker client to register one.</value></data>
+  <data name="Admin.Workers.Index.InFlightSuffix" xml:space="preserve"><value>in flight</value></data>
+  <data name="Admin.Workers.Index.OutstandingFormat" xml:space="preserve"><value>{0} claimed, {1} pending</value></data>
+  <data name="Admin.Workers.Index.PageTitle" xml:space="preserve"><value>Workers</value></data>
+  <data name="Admin.Workers.Index.StalledHint" xml:space="preserve"><value>{0} request(s) held by a worker that is offline</value></data>
+  <data name="Admin.Workers.Index.Subtitle" xml:space="preserve"><value>External worker processes registered with this deployment</value></data>
+  <data name="Admin.Workers.Index.TableHeartbeat" xml:space="preserve"><value>Last heartbeat</value></data>
+  <data name="Admin.Workers.Index.TableRuntime" xml:space="preserve"><value>Runtime</value></data>
+  <data name="Admin.Workers.Index.TableSubjects" xml:space="preserve"><value>Subjects</value></data>
+  <data name="Admin.Workers.Index.TableWork" xml:space="preserve"><value>Work</value></data>
+  <data name="Admin.Workers.Index.TableWorker" xml:space="preserve"><value>Worker</value></data>
+  <data name="Admin.Workers.Index.ToggleStatus" xml:space="preserve"><value>Disable or re-enable this worker</value></data>
+  <data name="Nav.WorkerRequests" xml:space="preserve"><value>Worker Requests</value></data>
+  <data name="Nav.Workers" xml:space="preserve"><value>Workers</value></data>
   <data name="Admin.WorkflowInstances.Detail.ActiveTokensLabel" xml:space="preserve"><value>Active Tokens</value></data>
   <data name="Admin.WorkflowInstances.Detail.AuditEmpty" xml:space="preserve"><value>No audit entries.</value></data>
   <data name="Admin.WorkflowInstances.Detail.CancelButton" xml:space="preserve"><value>Cancel</value></data>
@@ -134,6 +179,9 @@
   <data name="Common.Actions" xml:space="preserve"><value>Actions</value></data>
   <data name="Common.Back" xml:space="preserve"><value>Back</value></data>
   <data name="Common.Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Common.Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Common.Optional" xml:space="preserve"><value>Optional</value></data>
+  <data name="Common.Required" xml:space="preserve"><value>Required</value></data>
   <data name="Common.Clear" xml:space="preserve"><value>Clear</value></data>
   <data name="Common.Delete" xml:space="preserve"><value>Delete</value></data>
   <data name="Common.Description" xml:space="preserve"><value>Description</value></data>
@@ -146,6 +194,7 @@
   <data name="Common.NoItems" xml:space="preserve"><value>No items found.</value></data>
   <data name="Common.Preview" xml:space="preserve"><value>Preview</value></data>
   <data name="Common.Reset" xml:space="preserve"><value>Reset</value></data>
+  <data name="Common.Remove" xml:space="preserve"><value>Remove</value></data>
   <data name="Common.Save" xml:space="preserve"><value>Save</value></data>
   <data name="Common.Search" xml:space="preserve"><value>Search</value></data>
   <data name="Common.State" xml:space="preserve"><value>State</value></data>
@@ -501,6 +550,10 @@
   <data name="Nav.MyProfile" xml:space="preserve"><value>My Profile</value></data>
   <data name="Nav.MyTasks" xml:space="preserve"><value>My Tasks</value></data>
   <data name="Nav.Privacy" xml:space="preserve"><value>Privacy</value></data>
+  <data name="Nav.SkipToContent" xml:space="preserve"><value>Skip to main content</value></data>
+  <data name="Nav.Primary" xml:space="preserve"><value>Primary</value></data>
+  <data name="Nav.ToggleLanguage" xml:space="preserve"><value>Switch language</value></data>
+  <data name="Nav.ToggleNavigation" xml:space="preserve"><value>Toggle navigation</value></data>
   <data name="Nav.ToggleDarkMode" xml:space="preserve"><value>Toggle dark mode</value></data>
   <data name="Nav.Workflows" xml:space="preserve"><value>Workflows</value></data>
   <data name="PermissionEditor.Allow" xml:space="preserve"><value>Allow</value></data>

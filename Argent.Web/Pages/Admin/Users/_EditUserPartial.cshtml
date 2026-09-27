@@ -4,7 +4,7 @@
 <form hx-post="/UserAdministration/Edit"
       hx-target="#modalBody"
       hx-swap="innerHTML">
-    <div asp-validation-summary="ModelOnly" class="text-sm text-red-600 dark:text-red-400 mb-3"></div>
+    <div asp-validation-summary="ModelOnly" class="text-sm text-danger mb-3"></div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
@@ -33,13 +33,13 @@
 
     <div class="mb-3">
         <label class="form-label">@Localizer["Users.View.RolesLabel"]</label>
-        <div class="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div class="flex flex-wrap gap-2 p-3 bg-sunken rounded-lg border border-line">
             @foreach (var role in Model.AvailableRoles)
             {
-                <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                <label class="flex items-center gap-1.5 text-sm text-ink cursor-pointer">
                     <input type="checkbox" name="Roles" value="@role"
                            @(Model.Roles.Contains(role) ? "checked" : "")
-                           class="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500" />
+                           class="rounded border-line-strong text-indigo-600 focus:ring-indigo-500" />
                     @role
                 </label>
             }
@@ -47,6 +47,6 @@
     </div>
 
     <div class="text-right mt-4">
-        <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm">@Localizer["Admin.Users.EditPartial.SaveButton"]</button>
+        <button type="submit" class="btn btn-primary">@Localizer["Admin.Users.EditPartial.SaveButton"]</button>
     </div>
 </form>

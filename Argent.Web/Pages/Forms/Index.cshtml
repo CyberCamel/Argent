@@ -38,8 +38,8 @@ else
                 {
                     <tr>
                         <td class="font-medium">@form.Name</td>
-                        <td class="text-gray-500 dark:text-gray-400">@form.Description</td>
-                        <td class="text-sm text-gray-500 dark:text-gray-400">@form.UpdatedAt.ToString("g")</td>
+                        <td class="text-ink-muted">@form.Description</td>
+                        <td class="text-sm text-ink-muted">@form.UpdatedAt.ToString("g")</td>
                         <td class="text-right">
                             <div class="flex items-center justify-end gap-1">
                                 <a class="btn-action btn-action-secondary" href="/Forms/Edit/@form.Id" title="@Localizer["Common.Edit"]">

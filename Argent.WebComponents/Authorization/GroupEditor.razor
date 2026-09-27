@@ -3,13 +3,13 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager NavManager
 @inject IStringLocalizer<SharedResource> Localizer
 
-<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+<div class="bg-surface rounded-xl border border-line">
     <div class="p-4">
         <h5 class="font-bold mb-3">@(GroupId == null ? Localizer["GroupEditor.TitleNew"] : Localizer["GroupEditor.TitleEdit"])</h5>
 
         @if (_isSystem)
         {
-            <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
+            <div class="alert alert-warning gap-2">
                 <i class="bi bi-shield-lock-fill"></i>
                 <span>@Localizer["GroupEditor.SystemGroupMessage"]</span>
             </div>
@@ -18,16 +18,16 @@
         {
             @if (!string.IsNullOrEmpty(_error))
             {
-                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-800 dark:text-red-200">@_error</div>
+                <div class="alert alert-danger">@_error</div>
             }
 
             <div class="mb-3">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">@Localizer["Common.Name"]</label>
+                <label class="block text-sm font-medium text-ink mb-1">@Localizer["Common.Name"]</label>
                 <input type="text" class="form-input" @bind="Name" placeholder="@Localizer["GroupEditor.NamePlaceholder"]" />
             </div>
 
             <div class="mb-3">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">@Localizer["Common.Description"]</label>
+                <label class="block text-sm font-medium text-ink mb-1">@Localizer["Common.Description"]</label>
                 <textarea class="form-input" @bind="Description" rows="2"></textarea>
             </div>
 
@@ -39,16 +39,16 @@
                             Options="_groupOptions" Selected="_selectedGroups" />
 
             <div class="flex gap-2">
-                <button class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" @onclick="Save" disabled="@_saving">
+                <button class="btn btn-primary btn-sm" @onclick="Save" disabled="@_saving">
                     @(_saving ? Localizer["GroupEditor.Saving"] : Localizer["GroupEditor.SaveGroup"])
                 </button>
-                <a class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors" href="/Admin/Groups">@Localizer["Common.Cancel"]</a>
+                <a class="btn btn-secondary btn-sm" href="/Admin/Groups">@Localizer["Common.Cancel"]</a>
             </div>
         }
 
         @if (_isSystem)
         {
-            <a class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors" href="/Admin/Groups">@Localizer["Common.Back"]</a>
+            <a class="btn btn-secondary btn-sm" href="/Admin/Groups">@Localizer["Common.Back"]</a>
         }
     </div>
 </div>

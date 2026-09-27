@@ -61,6 +61,51 @@
   <data name="Admin.WorkItems.Detail.RetriesLabel" xml:space="preserve"><value>Försök</value></data>
   <data name="Admin.WorkItems.Detail.RetryButton" xml:space="preserve"><value>Försök igen</value></data>
   <data name="Admin.WorkItems.Detail.TokenIdLabel" xml:space="preserve"><value>Token-ID</value></data>
+  <data name="Admin.WorkerRequests.Index.OverdueHint" xml:space="preserve"><value>över {0}s budgeten</value></data>
+  <data name="Admin.WorkerRequests.Index.PageTitle" xml:space="preserve"><value>Worker-begäranden</value></data>
+  <data name="Admin.WorkerRequests.Index.EmptyMessage" xml:space="preserve"><value>Inga worker-begäranden matchar filtret.</value></data>
+  <data name="Admin.WorkerRequests.Index.FilterAll" xml:space="preserve"><value>Alla</value></data>
+  <data name="Admin.WorkerRequests.Index.FilterApply" xml:space="preserve"><value>Verkställ</value></data>
+  <data name="Admin.WorkerRequests.Index.FilterWorker" xml:space="preserve"><value>Worker</value></data>
+  <data name="Admin.WorkerRequests.Index.CancelButton" xml:space="preserve"><value>Avbryt begärdet och släpp token</value></data>
+  <data name="Admin.WorkerRequests.Index.LeasePrefix" xml:space="preserve"><value>leasing till</value></data>
+  <data name="Admin.WorkerRequests.Index.Subtitle" xml:space="preserve"><value>Arbete som workflow-motorn har lämnat till externa workers</value></data>
+  <data name="Admin.WorkerRequests.Index.TableAttempts" xml:space="preserve"><value>Försök</value></data>
+  <data name="Admin.WorkerRequests.Index.TableCreated" xml:space="preserve"><value>Skapad</value></data>
+  <data name="Admin.WorkerRequests.Index.TableInstance" xml:space="preserve"><value>Instans</value></data>
+  <data name="Admin.WorkerRequests.Index.TableSubject" xml:space="preserve"><value>Ämne</value></data>
+  <data name="Admin.WorkerRequests.Index.TableWorker" xml:space="preserve"><value>Worker</value></data>
+  <data name="Admin.Workers.Index.Delete" xml:space="preserve"><value>Ta bort</value></data>
+  <data name="Admin.Workers.Index.DeleteConfirm" xml:space="preserve"><value>Ta bort denna worker-registrering? Begärandehistoriken behålls.</value></data>
+  <data name="Admin.Workers.Index.KeyIssuedHeading" xml:space="preserve"><value>API-nyckel utfärdad till '{0}'</value></data>
+  <data name="Admin.Workers.Index.KeyIssuedUsage" xml:space="preserve"><value>Starta workern med:</value></data>
+  <data name="Admin.Workers.Index.KeyIssuedWarning" xml:space="preserve"><value>Detta är enda gången nyckeln visas. Kopiera den nu — endast en hash lagras, så den kan inte visas igen. Använd Rotera nyckel för att utfärda en ersättning.</value></data>
+  <data name="Admin.Workers.Index.KeyRotations" xml:space="preserve"><value>nyckel roterad {0}×</value></data>
+  <data name="Admin.Workers.Index.NeverReported" xml:space="preserve"><value>ej rapporterad än</value></data>
+  <data name="Admin.Workers.Index.ProvisionButton" xml:space="preserve"><value>Provisionera</value></data>
+  <data name="Admin.Workers.Index.ProvisionConcurrency" xml:space="preserve"><value>Parallellitet</value></data>
+  <data name="Admin.Workers.Index.ProvisionDisplayName" xml:space="preserve"><value>Visningsnamn</value></data>
+  <data name="Admin.Workers.Index.ProvisionDisplayNamePlaceholder" xml:space="preserve"><value>valfritt</value></data>
+  <data name="Admin.Workers.Index.ProvisionHeading" xml:space="preserve"><value>Provisionera en worker</value></data>
+  <data name="Admin.Workers.Index.ProvisionHint" xml:space="preserve"><value>Workern skapas här, inte av klienten. Den autentiserar med nyckeln nedan och rapporterar sin runtime och ämnen vid varje heartbeat.</value></data>
+  <data name="Admin.Workers.Index.ProvisionName" xml:space="preserve"><value>Workernamn</value></data>
+  <data name="Admin.Workers.Index.Restore" xml:space="preserve"><value>Äterställ denna worker</value></data>
+  <data name="Admin.Workers.Index.Revoke" xml:space="preserve"><value>Återkalla denna workers nyckel</value></data>
+  <data name="Admin.Workers.Index.RotateKey" xml:space="preserve"><value>Utfärda en ny API-nyckel</value></data>
+  <data name="Admin.Workers.Index.EmptyMessage" xml:space="preserve"><value>Inga workers är registrerade. Starta en worker-klient för att registrera en.</value></data>
+  <data name="Admin.Workers.Index.InFlightSuffix" xml:space="preserve"><value>pågående</value></data>
+  <data name="Admin.Workers.Index.OutstandingFormat" xml:space="preserve"><value>{0} claimed, {1} väntande</value></data>
+  <data name="Admin.Workers.Index.PageTitle" xml:space="preserve"><value>Workers</value></data>
+  <data name="Admin.Workers.Index.StalledHint" xml:space="preserve"><value>{0} begärande(n) hålls av en worker som är offline</value></data>
+  <data name="Admin.Workers.Index.Subtitle" xml:space="preserve"><value>Externa worker-processer registrerade i den här installationen</value></data>
+  <data name="Admin.Workers.Index.TableHeartbeat" xml:space="preserve"><value>Senaste heartbeat</value></data>
+  <data name="Admin.Workers.Index.TableRuntime" xml:space="preserve"><value>Runtime</value></data>
+  <data name="Admin.Workers.Index.TableSubjects" xml:space="preserve"><value>Ämnen</value></data>
+  <data name="Admin.Workers.Index.TableWork" xml:space="preserve"><value>Arbete</value></data>
+  <data name="Admin.Workers.Index.TableWorker" xml:space="preserve"><value>Worker</value></data>
+  <data name="Admin.Workers.Index.ToggleStatus" xml:space="preserve"><value>Inaktivera eller aktivera den här workern</value></data>
+  <data name="Nav.WorkerRequests" xml:space="preserve"><value>Worker-begäranden</value></data>
+  <data name="Nav.Workers" xml:space="preserve"><value>Workers</value></data>
   <data name="Admin.WorkflowInstances.Detail.ActiveTokensLabel" xml:space="preserve"><value>Aktiva tokens</value></data>
   <data name="Admin.WorkflowInstances.Detail.AuditEmpty" xml:space="preserve"><value>Inga revisionsposter.</value></data>
   <data name="Admin.WorkflowInstances.Detail.CancelButton" xml:space="preserve"><value>Avbryt</value></data>
@@ -134,6 +179,9 @@
   <data name="Common.Actions" xml:space="preserve"><value>Åtgärder</value></data>
   <data name="Common.Back" xml:space="preserve"><value>Tillbaka</value></data>
   <data name="Common.Cancel" xml:space="preserve"><value>Avbryt</value></data>
+  <data name="Common.Close" xml:space="preserve"><value>Stäng</value></data>
+  <data name="Common.Optional" xml:space="preserve"><value>Valfritt</value></data>
+  <data name="Common.Required" xml:space="preserve"><value>Obligatoriskt</value></data>
   <data name="Common.Clear" xml:space="preserve"><value>Rensa</value></data>
   <data name="Common.Delete" xml:space="preserve"><value>Ta bort</value></data>
   <data name="Common.Description" xml:space="preserve"><value>Beskrivning</value></data>
@@ -146,6 +194,7 @@
   <data name="Common.NoItems" xml:space="preserve"><value>Inga objekt hittades.</value></data>
   <data name="Common.Preview" xml:space="preserve"><value>Förhandsvisning</value></data>
   <data name="Common.Reset" xml:space="preserve"><value>Återställ</value></data>
+  <data name="Common.Remove" xml:space="preserve"><value>Ta bort</value></data>
   <data name="Common.Save" xml:space="preserve"><value>Spara</value></data>
   <data name="Common.Search" xml:space="preserve"><value>Sök</value></data>
   <data name="Common.State" xml:space="preserve"><value>Status</value></data>
@@ -501,6 +550,10 @@
   <data name="Nav.MyProfile" xml:space="preserve"><value>Min profil</value></data>
   <data name="Nav.MyTasks" xml:space="preserve"><value>Mina uppgifter</value></data>
   <data name="Nav.Privacy" xml:space="preserve"><value>Integritet</value></data>
+  <data name="Nav.SkipToContent" xml:space="preserve"><value>Hoppa till huvudinnehållet</value></data>
+  <data name="Nav.Primary" xml:space="preserve"><value>Huvudmeny</value></data>
+  <data name="Nav.ToggleLanguage" xml:space="preserve"><value>Byt språk</value></data>
+  <data name="Nav.ToggleNavigation" xml:space="preserve"><value>Växla meny</value></data>
   <data name="Nav.ToggleDarkMode" xml:space="preserve"><value>Växla mörkt läge</value></data>
   <data name="Nav.Workflows" xml:space="preserve"><value>Arbetsflöden</value></data>
   <data name="PermissionEditor.Allow" xml:space="preserve"><value>Tillåt</value></data>

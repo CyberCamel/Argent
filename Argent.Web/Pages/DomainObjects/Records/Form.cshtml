@@ -10,16 +10,16 @@
 }
 
 <div class="max-w-2xl mx-auto">
-    <nav class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
-        <a href="/DomainObjects" class="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Domain Objects</a>
-        <span class="text-gray-300 dark:text-gray-600">/</span>
-        <a href="/DomainObjects/@Model.Key/Records" class="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">@Model.Definition.DisplayName</a>
-        <span class="text-gray-300 dark:text-gray-600">/</span>
-        <span class="text-gray-900 dark:text-gray-100 font-medium">@(Model.IsEdit ? "Edit" : "New")</span>
+    <nav class="flex items-center gap-1.5 text-sm text-ink-muted mb-3">
+        <a href="/DomainObjects" class="hover:text-ink transition-colors">Domain Objects</a>
+        <span class="text-ink-muted">/</span>
+        <a href="/DomainObjects/@Model.Key/Records" class="hover:text-ink transition-colors">@Model.Definition.DisplayName</a>
+        <span class="text-ink-muted">/</span>
+        <span class="text-ink-heading font-medium">@(Model.IsEdit ? "Edit" : "New")</span>
     </nav>
 
-    <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">@(Model.IsEdit ? "Edit Record" : "New Record")</h1>
-    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">@Model.Definition.DisplayName</p>
+    <h1 class="text-xl font-bold text-ink-heading mb-1">@(Model.IsEdit ? "Edit Record" : "New Record")</h1>
+    <p class="text-sm text-ink-muted mb-6">@Model.Definition.DisplayName</p>
 
     <div class="card">
         <div class="p-6">
@@ -63,11 +63,11 @@
 
                                 case DomainPropertyType.Boolean:
                                     <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" class="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                                        <input type="checkbox" class="rounded border-line-strong text-indigo-600 focus:ring-indigo-500"
                                                name="FormValues[@prop.Key]"
                                                value="true"
                                                checked="@(currentVal == "true")" />
-                                        <span class="text-sm text-gray-500 dark:text-gray-400">@(prop.Description ?? prop.DisplayName)</span>
+                                        <span class="text-sm text-ink-muted">@(prop.Description ?? prop.DisplayName)</span>
                                     </label>
                                     break;
 
@@ -125,10 +125,10 @@
                 </div>
 
                 <div class="flex items-center gap-3 mt-6">
-                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm inline-flex items-center gap-1">
+                    <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-lg"></i>@(Model.IsEdit ? Localizer["DomainObjects.Records.Form.SubmitEdit"] : Localizer["DomainObjects.Records.Form.SubmitCreate"])
                     </button>
-                    <a class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors" href="/DomainObjects/@Model.Key/Records">@Localizer["Common.Cancel"]</a>
+                    <a class="btn btn-secondary" href="/DomainObjects/@Model.Key/Records">@Localizer["Common.Cancel"]</a>
                 </div>
             </form>
         </div>
