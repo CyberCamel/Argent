@@ -334,7 +334,7 @@
                     <div class="modeler-properties-field">
                         <label class="modeler-properties-label">Timezone</label>
                         <select class="modeler-properties-input"
-                                @onchange="@(e => { cron.TimeZoneId = e.Value?.ToString() ?? "UTC"; State.MarkDirty(); })">
+                                @onchange="@(e => State.ApplyEdits("Timer timezone", (cron, nameof(CronTimerDefinition.TimeZoneId), e.Value?.ToString() ?? "UTC")))">
                             @foreach (var tz in s_timeZones)
                             {
                                 <option value="@tz.Id" selected="@(cron.TimeZoneId == tz.Id)">@tz.Label</option>
@@ -491,34 +491,31 @@
 
     private async Task OnStartEventObjectKeyChanged(StartEvent startEvent, string? key)
     {
-        startEvent.ObjectKey = key ?? string.Empty;
-        startEvent.FormId = null;
+        State.ApplyEdits("Domain object",
+            (startEvent, nameof(StartEvent.ObjectKey), key ?? string.Empty),
+            (startEvent, nameof(StartEvent.FormId), null));
         _loadedFormsKey = string.Empty;
         await RefreshAvailableFormsAsync();
-        State.MarkDirty();
     }
 
-    private void SetStartEventForm(StartEvent startEvent, string? formIdStr)
-    {
-        startEvent.FormId = Guid.TryParse(formIdStr, out var id) ? id : null;
-        State.MarkDirty();
-    }
+    private void SetStartEventForm(StartEvent startEvent, string? formIdStr) =>
+        State.ApplyEdits("Start form",
+            (startEvent, nameof(StartEvent.FormId), Guid.TryParse(formIdStr, out var id) ? id : null));
 
     private async Task SetUserActivityForm(UserActivity activity, string? formIdStr)
     {
-        if (Guid.TryParse(formIdStr, out var id))
-            activity.UX = new FormExperience { FormId = id };
-        else
-            activity.UX = new RedirectExperience("https://example.com");
+        UserExperience ux = Guid.TryParse(formIdStr, out var id)
+            ? new FormExperience { FormId = id }
+            : new RedirectExperience("https://example.com");
+        State.ApplyEdits("Task form", (activity, nameof(UserActivity.UX), ux));
         await RefreshViewModesAsync();
-        State.MarkDirty();
     }
 
     private void SetUserActivityViewMode(UserActivity activity, string? viewMode)
     {
         if (activity.UX is not FormExperience form) return;
-        activity.UX = form with { ViewMode = string.IsNullOrWhiteSpace(viewMode) ? null : viewMode };
-        State.MarkDirty();
+        var updated = form with { ViewMode = string.IsNullOrWhiteSpace(viewMode) ? null : viewMode };
+        State.ApplyEdits("View mode", (activity, nameof(UserActivity.UX), updated));
     }
 
     // ── Timer helpers ────────────────────────────────────────────────
@@ -533,9 +530,15 @@
     private void OnTimerTypeChanged(NodeBase node, bool useCron)
     {
         TimerDefinition next = useCron ? new CronTimerDefinition() : new RelativeTimerDefinition();
-        if (node is CatchingTimerEvent e1) e1.Definition = next;
-        else if (node is TimerBoundaryEvent e2) e2.Definition = next;
-        State.MarkDirty();
+        switch (node)
+        {
+            case CatchingTimerEvent timer:
+                State.ApplyEdits("Timer schedule", (timer, nameof(CatchingTimerEvent.Definition), next));
+                break;
+            case TimerBoundaryEvent boundary:
+                State.ApplyEdits("Timer schedule", (boundary, nameof(TimerBoundaryEvent.Definition), next));
+                break;
+        }
     }
 
     private void OpenJintEditor(JintActivity activity)
@@ -555,8 +558,7 @@
     {
         if (_editingJint == null) return;
 
-        _editingJint.Code = _jintDraftCode;
-        State.MarkDirty();
+        State.ApplyEdits("Script", (_editingJint, nameof(JintActivity.Code), _jintDraftCode));
         CloseJintEditor();
     }
 
@@ -571,18 +573,49 @@
 
     // ── Generic property helper ──────────────────────────────────────
 
+    // ── Undoable edits ─────────────────────────────────────────────
+    //
+    // Every property change goes through DesignerService.ApplyEdits so it becomes one
+    // history entry. Consecutive keystrokes in the same field collapse into a single entry.
+
+    private void SetTitle(string title) => State.ApplyEdits("Node name", (Node, nameof(DesignerNode.Title), title));
+
+    private void SetDescription(string description) =>
+        State.ApplyEdits("Node description", (Node, nameof(DesignerNode.Description), description));
+
+    private void SetActionField(ScriptAction action, string property, object? value) =>
+        State.ApplyEdits("Script action", (action, property, value));
+
+    private void SetRelativeAmount(RelativeTimerDefinition timer, string? value)
+    {
+        if (int.TryParse(value, out var seconds) && seconds >= 0)
+            State.ApplyEdits("Timer delay", (timer, nameof(RelativeTimerDefinition.Amount), seconds));
+    }
+
+    private void SetRelativeUnit(RelativeTimerDefinition timer, string? value)
+    {
+        if (Enum.TryParse<TimerUnit>(value, out var unit))
+            State.ApplyEdits("Timer unit", (timer, nameof(RelativeTimerDefinition.Unit), unit));
+    }
+
+    private void SetTimerAnchor(RelativeTimerDefinition timer, bool useField, string? fieldKey) =>
+        State.ApplyEdits("Timer anchor",
+            (timer, nameof(RelativeTimerDefinition.UseField), useField),
+            (timer, nameof(RelativeTimerDefinition.FieldKey), useField ? fieldKey : null));
+
     private void UpdateValue(PropertyInfo prop, object? val)
     {
         if (Node == null) return;
+
+        object? value = val;
         if (prop.PropertyType == typeof(int) && int.TryParse(val?.ToString(), out var i))
-            prop.SetValue(Node.NodeData, i);
+            value = i;
         else if (prop.PropertyType == typeof(double) && double.TryParse(val?.ToString(), out var d))
-            prop.SetValue(Node.NodeData, d);
+            value = d;
         else if (prop.PropertyType == typeof(TimeSpan) && int.TryParse(val?.ToString(), out var seconds))
-            prop.SetValue(Node.NodeData, TimeSpan.FromSeconds(seconds));
-        else
-            prop.SetValue(Node.NodeData, val);
-        State.MarkDirty();
+            value = TimeSpan.FromSeconds(seconds);
+
+        State.ApplyEdits(prop.Name, (Node.NodeData, prop.Name, value));
     }
 
     private void HandleClose() => OnClose.InvokeAsync();
@@ -604,14 +637,18 @@
             _ => null
         };
         if (newAction == null) return;
-        activity.Actions.Add(newAction);
+
+        // Replacing the list wholesale keeps adding and removing reversible.
+        var updated = new List<ScriptAction>(activity.Actions) { newAction };
+        State.ApplyEdits("Add action", (activity, nameof(ScriptActivity.Actions), updated));
         _newActionType = string.Empty;
-        State.MarkDirty();
     }
 
     private void RemoveAction(ScriptActivity activity, int index)
     {
-        activity.Actions.RemoveAt(index);
-        State.MarkDirty();
+        if (index < 0 || index >= activity.Actions.Count) return;
+        var updated = new List<ScriptAction>(activity.Actions);
+        updated.RemoveAt(index);
+        State.ApplyEdits("Remove action", (activity, nameof(ScriptActivity.Actions), updated));
     }
 }

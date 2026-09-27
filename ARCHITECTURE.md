@@ -30,6 +30,33 @@ Argent is a .NET 10 application for defining domain data, designing forms and wo
 
 The Blazor workflow designer (`WorkflowModeler` and `DesignerService` in `Argent.WebComponents/Workflows/Modeler`) edits a `WorkflowDefinition`. It loads and saves through `IWorkflowDesignerStore`: the server uses [`EfWorkflowDesignerStore`](Argent.Runtime/Workflows/Stores/EfWorkflowDesignerStore.cs), while WebAssembly uses an HTTP-backed implementation. Drafts are mutable; publishing creates a version, and deploying makes a version eligible for new instances. The same pattern is used for form definitions by `FormDesignerService` and [`EfFormDesignerStore`](Argent.Runtime/Forms/Stores/EfFormDesignerStore.cs), and for domain object definitions by [`DomainObjectDefinitionService`](Argent.Runtime/DomainObjects/DomainObjectDefinitionService.cs). [`DesignerApi`](Argent.Web/Api/DesignerApi.cs) exposes these operations to the browser.
 
+## Workflow modeler
+
+The modeler is split so that interaction rules, routing and the component markup stay separate. `WorkflowModeler.razor` renders; `WorkflowModeler.razor.cs` holds the pointer and keyboard handling; the rules live in services that are testable without a browser.
+
+| Piece | Responsibility |
+| --- | --- |
+| `Interaction/ModelerInteractionController` | One gesture = begin, update, commit, cancel. Captures geometry, routing and selection once at the start; one completed gesture becomes one undo entry; cancelling restores the capture. Autosave is suspended while a gesture is open. |
+| `Interaction/DesignerSnapshot` | The complete restorable canvas state: object membership, geometry, per-connection routing and route intent, and selection. |
+| `Interaction/GeometryEditor` | Every geometry gesture in one place: node, group, pool, resize and space-tool operations, all measured from the gesture baseline so repeated pointer positions cannot drift. Boundary events follow their parent exactly once. |
+| `Undo/DesignerHistory` | The modeler-wide undo/redo stack. Geometry and structural changes restore a snapshot; property edits are recorded per property and consecutive edits of one field collapse into a single step. |
+| `Routing/ElasticRouter` | Rebuilds a connection from the user's stored route intent so a manually bent path stretches instead of being replaced. Falls back to a valid automatic route when the intent cannot be honoured, keeping the intent so it returns when the geometry allows. Rendering only reads `DesignerConnection.RouteSuspended`; it never recomputes geometry. |
+| `Routing/RoutingService` | The automatic orthogonal router and the shared port/anchor helpers. |
+| `Editing/*` | Structural and clipboard operations: splitting a connection, reconnecting an endpoint, copy/paste/duplicate with identity remapping, alignment and distribution. |
+| `Navigation/CanvasNavigation` | Zoom to cursor, fit to content and focus, shared with the read-only instance overview so both behave the same. |
+
+### Route intent
+
+Connections carry a stable `Id` and an optional `ConnectionRoute` in
+[`Argent.Core/Workflows/Modeler/ConnectionRoute.cs`](Argent.Core/Workflows/Modeler/ConnectionRoute.cs). The route records the port sides the user preferred, the direction structure of the path they edited, and the axis lines they positioned — a vertical line by its `x`, a horizontal line by its `y`. Calculated waypoints are never persisted.
+
+Constraints are matched to lines by ordinal *and* only applied while the stored structure still matches, so inserting or removing a bend can never silently apply a constraint to an unrelated segment. When the intent cannot produce a valid route the canvas shows a valid automatic route instead and the intent is retained; the user's route returns as soon as the geometry allows it again. Connections and route intent travel with the definition, so drafts, published versions, the instance overview, duplication and copy/paste all reproduce the same layout. Definitions written before route metadata existed load as automatic with no migration.
+
+### Performance
+
+Native routing measurements live in `Argent.WebComponents.Tests`. Browser behaviour — pointer-to-render latency, frame intervals and release-time work — is gated separately by the Playwright suite in [`tests/modeler-perf`](tests/modeler-perf/README.md), which records the reference hardware with every result. A .NET microbenchmark is not evidence of frame pacing in WebAssembly, and an event-rate cap is not an acceptable substitute for the gate.
+
+
 ### Records and forms
 
 A published domain object definition describes record fields and validation. [`DomainObjectStore`](Argent.Runtime/DomainObjects/DomainObjectStore.cs) reads and writes records in the managed JSON record store, and can query configured external data sources. [`DataSourceRunner`](Argent.Runtime/DataSources/DataSourceRunner.cs) dispatches SQL, REST, or SOAP requests to the matching provider.

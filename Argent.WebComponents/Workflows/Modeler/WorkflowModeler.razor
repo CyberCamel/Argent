@@ -3,31 +3,28 @@
 @using Argent.Core.Authorization
 @using Argent.Core.Workflows
 @using Argent.WebComponents.Workflows.Modeler
+@using Argent.WebComponents.Workflows.Modeler.Editing
+@using Argent.WebComponents.Workflows.Modeler.Interaction
 @using Argent.WebComponents.Workflows.Modeler.Routing
-@using Argent.Core.Workflows
 @using Argent.Core.Workflows.Activities
 @using Argent.Core.Workflows.BoundaryEvents
 @using Argent.Core.Workflows.Intermediates
 @using Microsoft.JSInterop
 @using Argent.WebComponents.Workflows.Modeler.Utils
-@implements IAsyncDisposable
-@inject DesignerService State
-@inject IWorkflowNodeRegistry Registry
-@inject IJSRuntime JS
-@inject NavigationManager Nav
-@inject IResourceOwnershipService OwnershipService
 @inject IStringLocalizer<SharedResource> Localizer
 
-<div class="modeler-layout">
+<div class="modeler-layout"
+     @onkeydown="OnKeyDown"
+     @onkeyup="OnKeyUp">
     @if (EffectiveReadOnly)
     {
         <div class="modeler-toolbox modeler-toolbox-readonly">
             <div class="modeler-toolbox-header">
-                <span class="modeler-toolbox-title">Viewing old version</span>
+                <span class="modeler-toolbox-title">Viewing @State.LoadedVersionId.HasValue ? "version" : "draft"</span>
             </div>
             <div class="modeler-toolbox-list">
                 <p class="modeler-toolbox-readonly-msg">
-                    <i class="bi bi-eye-fill"></i> This version is read-only.
+                    <i class="bi bi-eye-fill"></i> This workflow is read-only. Editing is disabled.
                 </p>
             </div>
         </div>
@@ -65,14 +62,53 @@
             <div class="modeler-toolbar-left">
                 <div class="modeler-tool-group">
                     <button class="modeler-tool-btn @(_activeTool == ActiveTool.Select ? "modeler-tool-btn-active" : "")"
-                            @onclick="() => _activeTool = ActiveTool.Select" title="Select (V)">
+                            @onclick="() => SetTool(ActiveTool.Select)" title="Select and move (V)">
                         <i class="bi bi-hand-index-thumb"></i> Select
                     </button>
                     <button class="modeler-tool-btn @(_activeTool == ActiveTool.AddSpace ? "modeler-tool-btn-active" : "")"
-                            @onclick="() => _activeTool = ActiveTool.AddSpace" title="Add/Remove Space">
+                            @onclick="() => SetTool(ActiveTool.AddSpace)" title="Add or remove space (S)">
                         <i class="bi bi-arrows-expand"></i> Space
                     </button>
                 </div>
+                @if (!EffectiveReadOnly)
+                {
+                    <span class="modeler-toolbar-sep"></span>
+                    <div class="modeler-tool-group">
+                        <button class="modeler-btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo"
+                                disabled="@(!State.History.CanUndo)" @onclick="Undo">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                        <button class="modeler-btn-icon" title="Redo (Ctrl+Y)" aria-label="Redo"
+                                disabled="@(!State.History.CanRedo)" @onclick="Redo">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                    <div class="modeler-tool-wrap">
+                        <button class="modeler-btn-icon" title="Align and distribute the selection"
+                                aria-label="Align and distribute" @onclick="() => _showArrange = !_showArrange">
+                            <i class="bi bi-distribute-vertical"></i>
+                        </button>
+                        @if (_showArrange)
+                        {
+                            <div class="modeler-menu">
+                                <div class="modeler-menu-title">Align</div>
+                                @foreach (var (mode, icon, label) in ArrangeOptions)
+                                {
+                                    <button class="modeler-menu-item" @onclick="() => ApplyAlign(mode)">
+                                        <i class="bi @icon"></i> @label
+                                    </button>
+                                }
+                                <div class="modeler-menu-title">Distribute</div>
+                                <button class="modeler-menu-item" @onclick="() => ApplyDistribute(DistributeMode.Horizontal)">
+                                    <i class="bi bi-distribute-horizontal"></i> Horizontally
+                                </button>
+                                <button class="modeler-menu-item" @onclick="() => ApplyDistribute(DistributeMode.Vertical)">
+                                    <i class="bi bi-distribute-vertical"></i> Vertically
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
                 <span class="modeler-toolbar-sep"></span>
                 <span class="modeler-toolbar-title">@State.CurrentWorkflowName</span>
                 @if (!string.IsNullOrEmpty(State.CurrentWorkflowDescription))
@@ -84,11 +120,11 @@
             <div class="modeler-toolbar-right">
                 @if (!EffectiveReadOnly)
                 {
-                    <button class="modeler-btn-icon" title="Save" aria-label="Save" @onclick="HandleSave">
+                    <button class="modeler-btn-icon" title="Save (Ctrl+S)" aria-label="Save" @onclick="HandleSave">
                         <i class="bi bi-save-fill"></i>
                     </button>
-                    <span class="modeler-save-status @(State.HasUnsavedChanges ? "dirty" : "clean")" title="@(State.HasUnsavedChanges ? "Unsaved changes" : "Saved")">
-                        <i class="bi @(State.HasUnsavedChanges ? "bi-circle-fill" : "bi-check-circle-fill")"></i>
+                    <span class="modeler-save-status @SaveStatusClass" title="@SaveStatusTitle">
+                        <i class="bi @SaveStatusIcon"></i>
                     </span>
                     <button class="modeler-btn-icon" title="Compile" aria-label="Compile" @onclick="HandleCompile">
                         <i class="bi bi-gear-fill"></i>
@@ -101,24 +137,61 @@
                     }
                     <span class="modeler-toolbar-sep"></span>
                 }
-                <button class="modeler-btn-icon" title="Fit to screen" aria-label="Fit to screen" @onclick="FitToScreen">
-                    <i class="bi bi-arrows-angle-contract"></i>
+                @if (State.SelectedConnection is { } routedConnection && !EffectiveReadOnly)
+                {
+                    <button class="modeler-btn-icon" aria-label="Reset routing"
+                            title="Reset routing to automatic"
+                            disabled="@(!ElasticRouter.HasIntent(routedConnection))"
+                            @onclick="() => HandleResetRouting(routedConnection)">
+                        <i class="bi bi-signpost-split"></i>
+                    </button>
+                }
+                <button class="modeler-btn-icon" title="Zoom out" aria-label="Zoom out" @onclick="() => ZoomBy(1 / 1.2)">
+                    <i class="bi bi-dash-lg"></i>
                 </button>
                 <span class="modeler-zoom-label">@(Math.Round(Session.Zoom * 100))%</span>
+                <button class="modeler-btn-icon" title="Zoom in" aria-label="Zoom in" @onclick="() => ZoomBy(1.2)">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+                <button class="modeler-btn-icon" title="Fit to screen (Ctrl+0)" aria-label="Fit to screen" @onclick="FitToScreen">
+                    <i class="bi bi-arrows-angle-contract"></i>
+                </button>
+                <button class="modeler-btn-icon" title="Focus the selection" aria-label="Focus the selection"
+                        disabled="@(State.SelectedNodes.Count == 0)" @onclick="FocusSelection">
+                    <i class="bi bi-crosshair"></i>
+                </button>
+                <button class="modeler-btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"
+                        aria-expanded="@(_showShortcuts ? "true" : "false")"
+                        @onclick="() => _showShortcuts = !_showShortcuts">
+                    <i class="bi bi-keyboard"></i>
+                </button>
             </div>
         </div>
+        @if (State.SaveState == SaveState.Failed && !string.IsNullOrEmpty(State.LastSaveError))
+        {
+            <div class="modeler-save-error" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <span>Saving failed: @State.LastSaveError. Your changes are still here.</span>
+                <button class="modeler-btn-icon" title="Retry saving" aria-label="Retry saving" @onclick="HandleSave">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+        }
         <div class="modeler-body">
             <div class="modeler-canvas-col">
-            <div @ref="_canvasContainer" class="modeler-canvas @(_activeTool == ActiveTool.AddSpace ? "modeler-cursor-space" : "")"
+            <div @ref="_canvasContainer"
+                 class="modeler-canvas @(_activeTool == ActiveTool.AddSpace ? "modeler-cursor-space" : "") @(_mode == Mode.Panning || _mode == Mode.TemporaryPan ? "modeler-cursor-pan" : "") @(_activeSegmentAxis == 'V' ? "modeler-cursor-ns" : _activeSegmentAxis == 'H' ? "modeler-cursor-ew" : "")"
                  tabindex="0"
+                 role="application"
+                 aria-label="Workflow diagram"
                  @onpointerdown="OnPointerDown"
-                 @onpointermove="OnPointerMove"
+                 @onmodelerpointermove="_pointerMoveCallback"
                  @onpointerup="OnPointerUp"
                  @onpointerleave="OnPointerUp"
-                 @onpointercancel="OnPointerUp"
+                 @onpointercancel="OnPointerCancel"
                  @onwheel="OnMouseWheel"
                  @onwheel:preventDefault
-                 @onkeydown="OnKeyDown"
+                 @onblur="OnCanvasBlur"
                  @oncontextmenu:preventDefault>
 
                 <svg viewBox="@Session.ViewBox" width="100%" height="100%" style="display: block;">
@@ -143,15 +216,21 @@
                         if (wps.Count < 2) continue;
                         var isSel = State.SelectedConnection == conn;
                         var path = RoutingService.WaypointsToSvgPath(wps);
-                        var isGwConn = conn.Source.NodeData is ExclusiveGateway or InclusiveGateway;
                         var isUserActivity = conn.Source.NodeData is UserActivity;
                         var isDefault = conn.EngineConnection.IsDefault;
                         var connLabel = GetConnectionLabel(conn);
-
-                        <g class="modeler-conn @(isSel ? "modeler-conn-selected" : "") @(isDefault ? "modeler-conn-default" : "")"
+                        var hitWidth = 14.0 / Session.Zoom;
+                        var routingSuspended = conn.RouteSuspended;
+                        var isInsertTarget = ReferenceEquals(_insertionTarget, conn);
+                        var connClasses = "modeler-conn"
+                            + (isSel ? " modeler-conn-selected" : "")
+                            + (isDefault ? " modeler-conn-default" : "")
+                            + (routingSuspended ? " modeler-conn-routing-suspended" : "")
+                            + (isInsertTarget ? " modeler-conn-insert-target" : "");
+                        <g class="@connClasses"
                            @onpointerdown:stopPropagation>
 
-                            <path d="@path" stroke="transparent" stroke-width="14" fill="none"
+                            <path d="@path" stroke="transparent" stroke-width="@hitWidth" fill="none"
                                   style="cursor: pointer;"
                                   @onpointerdown="e => OnConnectionPointerDown(e, conn)" />
 
@@ -160,24 +239,29 @@
 
                             @if (!string.IsNullOrEmpty(connLabel))
                             {
-                                var mid = wps.Count / 2;
-                                var lx = (wps[mid - 1].X + wps[mid].X) / 2.0;
-                                var ly = (wps[mid - 1].Y + wps[mid].Y) / 2.0 - 8;
-                                var connLabelCls = isDefault
+                                var anchor = GetLabelAnchor(wps);
+                                var half = LabelHalfWidth(connLabel);
+                                var labelClass = isDefault
                                     ? "modeler-conn-label modeler-conn-label-default"
                                     : isUserActivity
                                         ? "modeler-conn-label modeler-conn-label-action"
                                         : "modeler-conn-label";
-                                <svg:text x="@lx" y="@ly" class="@connLabelCls">@connLabel</svg:text>
+                                @* The plate keeps the label readable over connectors, bends and
+                                   arrowheads after a reroute. *@
+                                <g class="modeler-conn-label-plate"
+                                   transform="translate(@anchor.X.ToString("F2", CultureInfo.InvariantCulture), @anchor.Y.ToString("F2", CultureInfo.InvariantCulture))">
+                                    <rect x="@(-half)" y="-11" width="@(half * 2)" height="16" rx="4" class="modeler-conn-label-bg" />
+                                    <text x="0" y="0" text-anchor="middle" class="@labelClass">@connLabel</text>
+                                </g>
                             }
 
-                            @if (isSel)
+                            @if (isSel && !EffectiveReadOnly)
                             {
                                 for (int i = 0; i < wps.Count; i++)
                                 {
                                     var idx = i; // the loop variable is shared across iterations; lambdas must capture a copy
                                     var isEndpoint = idx == 0 || idx == wps.Count - 1;
-                                    <circle cx="@wps[idx].X" cy="@wps[idx].Y" r="5"
+                                    <circle cx="@wps[idx].X" cy="@wps[idx].Y" r="@(5.0 / Session.Zoom)"
                                             class="modeler-waypoint @(isEndpoint ? "modeler-waypoint-endpoint" : "")"
                                             @onpointerdown:stopPropagation
                                             @onpointerdown="e => OnWaypointPointerDown(e, conn, idx)" />
@@ -198,7 +282,33 @@
                                 _draftConnection.FixedNode, _draftConnection.FixedDir,
                                 _draftConnection.MouseX, _draftConnection.MouseY,
                                 _draftConnection.TargetHint);
-                        <path d="@draftPath" class="modeler-draft-path" marker-end="url(#g2-arrowhead)" />
+                        <path d="@draftPath"
+                              class="modeler-draft-path @(_draftConnection.TargetHint != null ? "modeler-draft-valid" : "")"
+                              marker-end="url(#g2-arrowhead)" />
+                    }
+
+                    @* Outline of the node a connection would attach to on release *@
+                    @if (_draftConnection?.TargetHint is DesignerNode dropHint)
+                    {
+                        <rect x="@dropHint.X" y="@dropHint.Y" width="@dropHint.Width" height="@dropHint.Height"
+                              class="modeler-drop-target" />
+                    }
+
+                    @* Axis the dragged segment is allowed to move on *@
+                    @if (_activeSegmentAxis is 'H' or 'V' && _segmentGuide is { } segmentGuide)
+                    {
+                        if (_activeSegmentAxis == 'H')
+                        {
+                            <line class="modeler-segment-guide"
+                                  x1="@Session.PanX" y1="@segmentGuide"
+                                  x2="@(Session.PanX + Session.CanvasWidth / Session.Zoom)" y2="@segmentGuide" />
+                        }
+                        else
+                        {
+                            <line class="modeler-segment-guide"
+                                  x1="@segmentGuide" y1="@Session.PanY"
+                                  x2="@segmentGuide" y2="@(Session.PanY + Session.CanvasHeight / Session.Zoom)" />
+                        }
                     }
 
                     @* Pending node preview *@
@@ -230,40 +340,40 @@
                     @if (_snapResult?.TargetNode != null)
                     {
                         <g class="modeler-snap-guides">
-                            <rect x="@(_snapResult.TargetNode.X - _snapHighlightPadding)"
-                                  y="@(_snapResult.TargetNode.Y - _snapHighlightPadding)"
-                                  width="@(_snapResult.TargetNode.Width + _snapHighlightPadding * 2)"
-                                  height="@(_snapResult.TargetNode.Height + _snapHighlightPadding * 2)"
+                            <rect x="@(_snapResult.TargetNode.X - SnapHighlightPadding)"
+                                  y="@(_snapResult.TargetNode.Y - SnapHighlightPadding)"
+                                  width="@(_snapResult.TargetNode.Width + SnapHighlightPadding * 2)"
+                                  height="@(_snapResult.TargetNode.Height + SnapHighlightPadding * 2)"
                                   class="modeler-snap-highlight" />
 
-                            @if (_snapResult.XSnapAxis != null && _activeNode != null)
+                            @if (_snapResult.XSnapAxis != null && _anchorNode != null)
                             {
                                 double x = _snapResult.XSnapAxis switch
                                 {
                                     SnapAxis.Start => _snapResult.SnappedX,
-                                    SnapAxis.Center => _snapResult.SnappedX + _activeNode.Width / 2,
-                                    SnapAxis.End => _snapResult.SnappedX + _activeNode.Width,
+                                    SnapAxis.Center => _snapResult.SnappedX + _anchorNode.Width / 2,
+                                    SnapAxis.End => _snapResult.SnappedX + _anchorNode.Width,
                                     _ => _snapResult.SnappedX
                                 };
 
                                 double top = Math.Min(_snapResult.SnappedY, _snapResult.TargetNode.Y) - 1000;
-                                double bottom = Math.Max(_snapResult.SnappedY + _activeNode.Height, _snapResult.TargetNode.Y + _snapResult.TargetNode.Height) + 1000;
+                                double bottom = Math.Max(_snapResult.SnappedY + _anchorNode.Height, _snapResult.TargetNode.Y + _snapResult.TargetNode.Height) + 1000;
 
                                 <line x1="@x" y1="@top" x2="@x" y2="@bottom" class="modeler-snap-line" />
                             }
 
-                            @if (_snapResult.YSnapAxis != null && _activeNode != null)
+                            @if (_snapResult.YSnapAxis != null && _anchorNode != null)
                             {
                                 double y = _snapResult.YSnapAxis switch
                                 {
                                     SnapAxis.Start => _snapResult.SnappedY,
-                                    SnapAxis.Center => _snapResult.SnappedY + _activeNode.Height / 2,
-                                    SnapAxis.End => _snapResult.SnappedY + _activeNode.Height,
+                                    SnapAxis.Center => _snapResult.SnappedY + _anchorNode.Height / 2,
+                                    SnapAxis.End => _snapResult.SnappedY + _anchorNode.Height,
                                     _ => _snapResult.SnappedY
                                 };
 
                                 double left = Math.Min(_snapResult.SnappedX, _snapResult.TargetNode.X) - 20;
-                                double right = Math.Max(_snapResult.SnappedX + _activeNode.Width, _snapResult.TargetNode.X + _snapResult.TargetNode.Width) + 20;
+                                double right = Math.Max(_snapResult.SnappedX + _anchorNode.Width, _snapResult.TargetNode.X + _snapResult.TargetNode.Width) + 20;
 
                                 <line x1="@left" y1="@y" x2="@right" y2="@y" class="modeler-snap-line" />
                             }
@@ -381,17 +491,20 @@
                             @{
                                 var orderedLanes = State.Lanes.Where(l => l.Pool == pool).OrderBy(l => l.Data.Order).ToList();
                             }
-                            @for (int li = 0; li < orderedLanes.Count - 1; li++)
+                            @if (!EffectiveReadOnly)
                             {
-                                var topLane = orderedLanes[li];
-                                var botLane = orderedLanes[li + 1];
-                                var divY = topLane.Y + topLane.Height;
-                                var captureTop = topLane;
-                                var captureBot = botLane;
-                                <line class="swimlane-divider-handle"
-                                      x1="@((pool.X + headerW).ToString("F2", CultureInfo.InvariantCulture))" y1="@divY.ToString("F2", CultureInfo.InvariantCulture)"
-                                      x2="@((pool.X + pool.Width).ToString("F2", CultureInfo.InvariantCulture))" y2="@divY.ToString("F2", CultureInfo.InvariantCulture)"
-                                      @onpointerdown="e => OnLaneDividerPointerDown(e, captureTop, captureBot)" @onpointerdown:stopPropagation />
+                                @for (int li = 0; li < orderedLanes.Count - 1; li++)
+                                {
+                                    var topLane = orderedLanes[li];
+                                    var botLane = orderedLanes[li + 1];
+                                    var divY = topLane.Y + topLane.Height;
+                                    var captureTop = topLane;
+                                    var captureBot = botLane;
+                                    <line class="swimlane-divider-handle"
+                                          x1="@((pool.X + headerW).ToString("F2", CultureInfo.InvariantCulture))" y1="@divY.ToString("F2", CultureInfo.InvariantCulture)"
+                                          x2="@((pool.X + pool.Width).ToString("F2", CultureInfo.InvariantCulture))" y2="@divY.ToString("F2", CultureInfo.InvariantCulture)"
+                                          @onpointerdown="e => OnLaneDividerPointerDown(e, captureTop, captureBot)" @onpointerdown:stopPropagation />
+                                }
                             }
 
                             @* Pool resize handles — right edge, bottom edge, SE corner *@
@@ -422,13 +535,14 @@
                     @* Nodes *@
                     @foreach (var node in State.Nodes)
                     {
-                        var isSel = _selectedNodes.Contains(node);
-
+                        var isSel = State.SelectedNodes.Contains(node);
                         var isHighlighted = _highlightedNodeId.HasValue && node.NodeData.Id == _highlightedNodeId.Value;
+                        var isDropTarget = ReferenceEquals(_draftConnection?.TargetHint, node);
+                        var handleSize = 4.0 / Session.Zoom;
 
                         @* Pointer-down on nodes is handled by the canvas hit-test in OnPointerDown;
                            a second handler here would race it across the JS-interop awaits. *@
-                        <g class="modeler-node @(isSel ? "modeler-node-selected" : "") @(isHighlighted ? "modeler-node-highlighted" : "")"
+                        <g class="modeler-node @(isSel ? "modeler-node-selected" : "") @(isHighlighted ? "modeler-node-highlighted" : "") @(isDropTarget ? "modeler-node-drop-target" : "")"
                            transform="translate(@node.X.ToString("F2", CultureInfo.InvariantCulture), @node.Y.ToString("F2", CultureInfo.InvariantCulture))"
                            @ondblclick="() => OnNodeDoubleClick(node)">
 
@@ -521,59 +635,75 @@
                             }
 
                             @* Anchors *@
-                            @if (!EffectiveReadOnly && isSel)
+                            @if (!EffectiveReadOnly && (isSel || isDropTarget))
                             {
                                 var anchors = AnchorService.GetAnchors(node);
                                 foreach (var a in anchors)
                                 {
-                                    <circle cx="@(a.X - node.X)" cy="@(a.Y - node.Y)" r="6"
+                                    var anchorDir = a.dir;
+                                    <circle cx="@(a.X - node.X)" cy="@(a.Y - node.Y)" r="@(6.0 / Session.Zoom)"
                                             class="modeler-anchor"
                                             @onpointerdown:stopPropagation
-                                            @onpointerdown="e => OnAnchorPointerDown(e, node, a.dir)" />
+                                            @onpointerdown="e => OnAnchorPointerDown(e, node, anchorDir)" />
                                 }
                             }
 
                             @* Resize handles *@
                             @if (!EffectiveReadOnly && isSel && node.Shape != NodeShape.Circle)
                             {
-                                <rect x="0" y="-4" width="@node.Width" height="8" fill="transparent"
+                                var h = handleSize;
+                                <rect x="0" y="@(-h)" width="@node.Width" height="@(h * 2)" fill="transparent"
                                       style="cursor: ns-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.Top)" />
-                                <rect x="@(node.Width - 4)" y="0" width="8" height="@node.Height" fill="transparent"
+                                      @onpointerdown="e => OnResizeStart(e, node, GeometryEditor.ResizeEdges.TopEdge)" />
+                                <rect x="@(node.Width - h)" y="0" width="@(h * 2)" height="@node.Height" fill="transparent"
                                       style="cursor: ew-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.Right)" />
-                                <rect x="0" y="@(node.Height - 4)" width="@node.Width" height="8" fill="transparent"
+                                      @onpointerdown="e => OnResizeStart(e, node, GeometryEditor.ResizeEdges.RightEdge)" />
+                                <rect x="0" y="@(node.Height - h)" width="@node.Width" height="@(h * 2)" fill="transparent"
                                       style="cursor: ns-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.Bottom)" />
-                                <rect x="-4" y="0" width="8" height="@node.Height" fill="transparent"
+                                      @onpointerdown="e => OnResizeStart(e, node, GeometryEditor.ResizeEdges.BottomEdge)" />
+                                <rect x="@(-h)" y="0" width="@(h * 2)" height="@node.Height" fill="transparent"
                                       style="cursor: ew-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.Left)" />
+                                      @onpointerdown="e => OnResizeStart(e, node, GeometryEditor.ResizeEdges.LeftEdge)" />
 
-                                <rect x="-5" y="-5" width="10" height="10" fill="transparent"
+                                <rect x="@(-h)" y="@(-h)" width="@(h * 2)" height="@(h * 2)" fill="transparent"
                                       style="cursor: nwse-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.TopLeft)" />
-                                <rect x="@(node.Width - 5)" y="-5" width="10" height="10" fill="transparent"
+                                      @onpointerdown="e => OnResizeStart(e, node, GeometryEditor.ResizeEdges.TopLeft)" />
+                                <rect x="@(node.Width - h)" y="@(-h)" width="@(h * 2)" height="@(h * 2)" fill="transparent"
                                       style="cursor: nesw-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.TopRight)" />
-                                <rect x="-5" y="@(node.Height - 5)" width="10" height="10" fill="transparent"
+                                      @onpointerdown="e => OnResizeStart(e, node, GeometryEditor.ResizeEdges.TopRight)" />
+                                <rect x="@(-h)" y="@(node.Height - h)" width="@(h * 2)" height="@(h * 2)" fill="transparent"
                                       style="cursor: nesw-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.BottomLeft)" />
-                                <rect x="@(node.Width - 5)" y="@(node.Height - 5)" width="10" height="10" fill="transparent"
+                                      @onpointerdown="e => OnResizeStart(e, node, GeometryEditor.ResizeEdges.BottomLeft)" />
+                                <rect x="@(node.Width - h)" y="@(node.Height - h)" width="@(h * 2)" height="@(h * 2)" fill="transparent"
                                       style="cursor: nwse-resize;"
                                       @onpointerdown:stopPropagation
-                                      @onpointerdown="e => OnResizeStart(e, node, ResizeDir.BottomRight)" />
+                                      @onpointerdown="e => OnResizeStart(e, node, GeometryEditor.ResizeEdges.BottomRight)" />
                             }
                         </g>
                     }
                 </svg>
 
+                @if (_showShortcuts)
+                {
+                    <div class="modeler-shortcuts" role="dialog" aria-label="Keyboard shortcuts">
+                        <div class="modeler-shortcuts-title">Keyboard shortcuts</div>
+                        @foreach (var (keys, description) in ShortcutHelp)
+                        {
+                            <div class="modeler-shortcut-row">
+                                <kbd>@keys</kbd>
+                                <span>@description</span>
+                            </div>
+                        }
+                        <button class="modeler-menu-item" @onclick="() => _showShortcuts = false">Close</button>
+                    </div>
+                }
             </div>
 
             @if (_editingNode != null)
@@ -616,1440 +746,10 @@
                  data-resize-axis="x"
                  data-resize-invert="true"
                  data-resize-min="200"></div>
-            <ModelerSidebar State="@State" OnHoverNode="OnSidebarHoverNode" OnVersionLoaded="OnVersionLoaded" />
+            <ModelerSidebar State="@State"
+                            OnHoverNode="OnSidebarHoverNode"
+                            OnVersionLoaded="OnVersionLoaded"
+                            OnFocusNode="FocusNode" />
         </div>
     </div>
 </div>
-
-@code {
-    [Parameter] public ClaimsPrincipal? User { get; set; }
-    [Parameter] public Guid? WorkflowId { get; set; }
-    [Parameter] public bool IsViewMode { get; set; }
-
-    private bool EffectiveReadOnly => IsViewMode || State.IsReadOnlyVersion;
-
-    private ElementReference _canvasContainer;
-    private DotNetObjectReference<WorkflowModeler>? _dotNetRef;
-    private ModelerSession Session { get; } = new();
-
-    // Tools
-    private enum ActiveTool { Select, AddSpace }
-    private ActiveTool _activeTool = ActiveTool.Select;
-    private HashSet<DesignerNode> _selectedNodes = new();
-    private Guid? _highlightedNodeId;
-
-    // Modes
-    private enum Mode { Idle, Panning, Selecting, Dragging, Connecting, Resizing, WaypointDrag, SegmentDrag, SpaceTool, DraggingPool, ResizingLane, ResizingPool }
-    private Mode _mode = Mode.Idle;
-
-    // Pending node from toolbox
-    private NodeTypeDescriptor? _pendingNodeDesc;
-    private double _pendingNodeX, _pendingNodeY;
-    private double _pendingNodeW = 160, _pendingNodeH = 80;
-    private NodeShape _pendingNodeShape;
-    private string _pendingNodeCss = "";
-    private string _pendingNodeTitle = "";
-
-    // Drag / pan
-    private DesignerNode? _activeNode;
-    private DesignerNode? _editingNode;
-    private DesignerConnection? _activeConnection;
-    private double _startMouseX, _startMouseY;
-    private double _startPanX, _startPanY;
-    private double _startNodeX, _startNodeY;
-    private double _startNodeW, _startNodeH;
-    private double _prevNodeX, _prevNodeY;
-
-    // Connection draft
-    private ConnectionDraft? _draftConnection;
-    private DesignerConnection? _rerouteOriginal;
-
-    // Waypoint drag
-    private int _draggedWpIdx = -1;
-
-    // Segment drag
-    private int _segmentIdx = -1;
-    private double _dragStartX, _dragStartY;
-
-    // Space tool
-    private double _spaceStartX, _spaceStartY;
-    private double _spaceCursorX, _spaceCursorY;
-    private bool _spaceIsHorizontal;
-    private bool _spaceDirectionLocked;
-    private Dictionary<DesignerNode, (double X, double Y)>? _nodeOrigins;
-
-    // Rubber band selection
-    private double _selStartX, _selStartY;
-    private double _selEndX, _selEndY;
-
-    // Resize
-    [Flags] private enum ResizeDir
-    {
-        None = 0, Top = 1, Bottom = 2, Left = 4, Right = 8,
-        TopLeft = Top | Left, TopRight = Top | Right,
-        BottomLeft = Bottom | Left, BottomRight = Bottom | Right
-    }
-    private ResizeDir _resizeDir = ResizeDir.None;
-    private const double ResizeMinW = 80;
-    private const double ResizeMinH = 50;
-
-    // Pool / lane drag
-    private DesignerPool? _activePool;
-    private double _startPoolX, _startPoolY;
-    private HashSet<DesignerNode> _poolDraggedNodes = [];
-    // Pool resize
-    private bool _poolResizingWidth, _poolResizingHeight;
-    // Lane resize (drag divider between two lanes)
-    private DesignerLane? _topLane, _botLane;
-    private double _laneResizeStartY, _topLaneStartH, _botLaneStartY, _botLaneStartH;
-
-    // Snap
-    private SnapResult? _snapResult;
-    private const double _snapHighlightPadding = 4;
-
-    // Auto-save
-    private Timer? _autoSaveTimer;
-    private bool _autoSaving;
-
-    protected override void OnInitialized() => State.OnChange += StateHasChanged;
-
-    protected override async Task OnInitializedAsync()
-    {
-        State.UserId = User?.Identity?.Name ?? "Unknown";
-        if (WorkflowId.HasValue)
-            await State.LoadWorkflowAsync(WorkflowId.Value);
-        _autoSaveTimer = new Timer(AutoSaveTick, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            _dotNetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("Modeler.init", _canvasContainer, _dotNetRef);
-            await JS.InvokeVoidAsync("Modeler.syncClocks");
-        }
-    }
-
-    [JSInvokable]
-    public void OnCanvasResized(double width, double height)
-    {
-        Session.CanvasWidth = width;
-        Session.CanvasHeight = height;
-        State.Notify();
-    }
-
-    private void AutoSaveTick(object? state)
-    {
-        if (_autoSaving) return;
-        if (EffectiveReadOnly) return;
-        if (State.CurrentWorkflowId == null) return; // never silently create a workflow
-        if (_mode != Mode.Idle) return;              // don't save mid-drag
-        if (!State.HasUnsavedChanges) return;
-
-        _autoSaving = true;
-        _ = InvokeAsync(async () =>
-        {
-            try
-            {
-                State.Compile();
-                await State.SaveDraftAsync();
-                StateHasChanged();
-            }
-            finally
-            {
-                _autoSaving = false;
-            }
-        });
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _autoSaveTimer?.Dispose();
-        State.OnChange -= StateHasChanged;
-        if (_dotNetRef != null)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("Modeler.destroy", _canvasContainer);
-            }
-            catch (JSDisconnectedException)
-            {
-                // Circuit already torn down; nothing to clean up client-side.
-            }
-            _dotNetRef.Dispose();
-        }
-    }
-
-    private Task<BoundingRect> GetCanvasRect() =>
-        JS.InvokeAsync<BoundingRect>("Modeler.getDimensions", _canvasContainer).AsTask();
-
-    private async Task<(double X, double Y)> ToWorldAsync(double clientX, double clientY)
-    {
-        var dims = await GetCanvasRect();
-        return Session.ScreenToWorld(clientX, clientY, dims.Left, dims.Top);
-    }
-
-    // ======================== POOL / LANE ========================
-
-    private void HandleAddPool()
-    {
-        if (EffectiveReadOnly) return;
-        var cx = Session.PanX + Session.CanvasWidth / Session.Zoom / 2;
-        var cy = Session.PanY + Session.CanvasHeight / Session.Zoom / 2;
-        var pool = State.AddPool(cx - 420, cy - 200);
-        State.Select(pool);
-    }
-
-    private async Task OnPoolHeaderPointerDown(PointerEventArgs e, DesignerPool pool)
-    {
-        if (EffectiveReadOnly) return;
-        if (_mode != Mode.Idle) return;
-
-        if (_pendingNodeDesc != null)
-        {
-            var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
-            PlaceNodeFromToolbox(wx, wy);
-            return;
-        }
-
-        State.Select(pool);
-        _startMouseX = e.ClientX;
-        _startMouseY = e.ClientY;
-        _activePool = pool;
-        _startPoolX = pool.X;
-        _startPoolY = pool.Y;
-        _poolDraggedNodes = [..State.Nodes.Where(n => IsNodeInPool(n, pool))];
-        _mode = Mode.DraggingPool;
-        State.Notify();
-    }
-
-    private async Task OnLaneHeaderPointerDown(PointerEventArgs e, DesignerLane lane)
-    {
-        if (EffectiveReadOnly) return;
-        if (_mode != Mode.Idle) return;
-
-        if (_pendingNodeDesc != null)
-        {
-            var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
-            PlaceNodeFromToolbox(wx, wy);
-            return;
-        }
-
-        State.Select(lane);
-        State.Notify();
-    }
-
-    private async Task OnPoolResizePointerDown(PointerEventArgs e, DesignerPool pool, bool resizeW, bool resizeH)
-    {
-        if (EffectiveReadOnly || _mode != Mode.Idle) return;
-
-        if (_pendingNodeDesc != null)
-        {
-            var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
-            PlaceNodeFromToolbox(wx, wy);
-            return;
-        }
-
-        State.Select(pool);
-        _startMouseX = e.ClientX;
-        _startMouseY = e.ClientY;
-        _activePool = pool;
-        _startNodeW = pool.Width;
-        _startNodeH = pool.Height;
-        _poolResizingWidth = resizeW;
-        _poolResizingHeight = resizeH;
-        _mode = Mode.ResizingPool;
-        State.Notify();
-    }
-
-    private async Task OnLaneDividerPointerDown(PointerEventArgs e, DesignerLane top, DesignerLane bot)
-    {
-        if (EffectiveReadOnly) return;
-        if (_mode != Mode.Idle) return;
-
-        if (_pendingNodeDesc != null)
-        {
-            var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
-            PlaceNodeFromToolbox(wx, wy);
-            return;
-        }
-
-        _startMouseX = e.ClientX;
-        _startMouseY = e.ClientY;
-        var (_, wy2) = await ToWorldAsync(e.ClientX, e.ClientY);
-        _topLane = top;
-        _botLane = bot;
-        _laneResizeStartY = wy2;
-        _topLaneStartH = top.Height;
-        _botLaneStartY = bot.Y;
-        _botLaneStartH = bot.Height;
-        _mode = Mode.ResizingLane;
-    }
-
-    // Returns the pool whose bounds contain (wx, wy), or null.
-    private DesignerPool? FindPoolAt(double wx, double wy)
-        => State.Pools.FirstOrDefault(p =>
-            wx >= p.X && wx <= p.X + p.Width &&
-            wy >= p.Y && wy <= p.Y + p.Height);
-
-    private bool IsNodeInPool(DesignerNode node, DesignerPool pool)
-    {
-        double cx = node.X + node.Width / 2;
-        double cy = node.Y + node.Height / 2;
-        return cx >= pool.X && cx <= pool.X + pool.Width &&
-               cy >= pool.Y && cy <= pool.Y + pool.Height;
-    }
-
-    // Clamps a node position to the pool's content area (excludes pool and lane header strips)
-    // and nudges the node center away from lane divider borders.
-    private const double LaneBorderZone = 10;
-    private (double X, double Y) ClampToPoolContent(
-        DesignerPool pool, double rawX, double rawY, double nodeW, double nodeH)
-    {
-        const double poolHeaderW = 40;
-        const double laneHeaderW = 40;
-
-        double x = Math.Clamp(rawX,
-            pool.X + poolHeaderW + laneHeaderW,
-            pool.X + pool.Width - nodeW);
-        double y = Math.Clamp(rawY,
-            pool.Y,
-            pool.Y + pool.Height - nodeH);
-
-        // Push node center away from lane dividers
-        double centerY = y + nodeH / 2;
-        var sortedLanes = State.Lanes
-            .Where(l => l.Pool == pool)
-            .OrderBy(l => l.Data.Order)
-            .ToList();
-        for (int i = 0; i < sortedLanes.Count - 1; i++)
-        {
-            double divY = sortedLanes[i].Y + sortedLanes[i].Height;
-            double dist = centerY - divY;
-            if (Math.Abs(dist) < LaneBorderZone)
-            {
-                y = dist <= 0
-                    ? divY - LaneBorderZone - nodeH / 2
-                    : divY + LaneBorderZone - nodeH / 2;
-                y = Math.Clamp(y, pool.Y, pool.Y + pool.Height - nodeH);
-                break;
-            }
-        }
-
-        return (x, y);
-    }
-
-    // ======================== TOOLBOX ========================
-
-    private void OnToolboxPointerDown(PointerEventArgs e, NodeTypeDescriptor desc)
-    {
-        if (EffectiveReadOnly) return;
-        _pendingNodeDesc = desc;
-        _pendingNodeW = desc.DefaultWidth;
-        _pendingNodeH = desc.DefaultHeight;
-        _pendingNodeShape = desc.Shape;
-        _pendingNodeCss = desc.CssClass;
-        _pendingNodeTitle = desc.DisplayName;
-    }
-
-    // ======================== POINTER HANDLERS ========================
-
-    private async Task OnPointerDown(PointerEventArgs e)
-    {
-        if (_mode != Mode.Idle) return;
-
-        _startMouseX = e.ClientX;
-        _startMouseY = e.ClientY;
-
-        if (EffectiveReadOnly)
-        {
-            // View mode: any drag pans
-            BeginPan();
-            return;
-        }
-
-        var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
-
-        if (_pendingNodeDesc != null)
-        {
-            PlaceNodeFromToolbox(wx, wy);
-            return;
-        }
-
-        if (_activeTool == ActiveTool.AddSpace)
-        {
-            BeginSpaceTool(wx, wy);
-            return;
-        }
-
-        // Last node in document order renders on top, so it wins the hit-test.
-        var hitNode = State.Nodes.LastOrDefault(n =>
-            wx >= n.X && wx <= n.X + n.Width &&
-            wy >= n.Y && wy <= n.Y + n.Height);
-
-        if (hitNode != null)
-        {
-            BeginNodeDrag(hitNode, e.ShiftKey);
-            return;
-        }
-
-        _editingNode = null;
-        _snapResult = null;
-
-        if (e.Button == 1 || e.CtrlKey)
-        {
-            // Middle-click or Ctrl+click → pan
-            BeginPan();
-        }
-        else
-        {
-            // Left click → rubber band selection
-            _selectedNodes.Clear();
-            _mode = Mode.Selecting;
-            _selStartX = wx;
-            _selStartY = wy;
-            _selEndX = wx;
-            _selEndY = wy;
-            State.DeselectAll();
-            State.Notify();
-        }
-    }
-
-    private void BeginPan()
-    {
-        _mode = Mode.Panning;
-        _startPanX = Session.PanX;
-        _startPanY = Session.PanY;
-    }
-
-    private void BeginSpaceTool(double wx, double wy)
-    {
-        _mode = Mode.SpaceTool;
-        _spaceStartX = wx;
-        _spaceStartY = wy;
-        _spaceDirectionLocked = false;
-        _nodeOrigins = State.Nodes.ToDictionary(n => n, n => (n.X, n.Y));
-        State.DeselectAll();
-        _editingNode = null;
-        _snapResult = null;
-        State.Notify();
-    }
-
-    private void BeginNodeDrag(DesignerNode node, bool shiftKey)
-    {
-        if (shiftKey)
-        {
-            if (!_selectedNodes.Add(node))
-                _selectedNodes.Remove(node);
-
-            if (_selectedNodes.Count > 0)
-                State.Select(_selectedNodes.Last());
-            else
-                State.DeselectAll();
-        }
-        else
-        {
-            _selectedNodes.Clear();
-            _selectedNodes.Add(node);
-
-            if (_editingNode != null && _editingNode != node)
-                _editingNode = null;
-
-            State.Select(node);
-        }
-
-        _activeNode = node;
-        _mode = Mode.Dragging;
-        _startNodeX = node.X;
-        _startNodeY = node.Y;
-        _prevNodeX = node.X;
-        _prevNodeY = node.Y;
-        State.Notify();
-    }
-
-    private async Task OnPointerMove(PointerEventArgs e)
-    {
-        if (EffectiveReadOnly && _mode != Mode.Panning) return;
-
-        var dims = await GetCanvasRect();
-        var (wx, wy) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
-        var (sx, sy) = Session.ScreenToWorld(_startMouseX, _startMouseY, dims.Left, dims.Top);
-
-        if (_pendingNodeDesc != null)
-        {
-            if (typeof(BoundaryEvent).IsAssignableFrom(_pendingNodeDesc.NodeType))
-            {
-                var parentHint = FindParentCandidate(wx, wy);
-                if (parentHint != null)
-                {
-                    (_pendingNodeX, _pendingNodeY) = SnapToBoundaryEdge(parentHint, wx, wy, _pendingNodeW, _pendingNodeH);
-                    _snapResult = new SnapResult { TargetNode = parentHint };
-                }
-                else
-                {
-                    _pendingNodeX = wx - _pendingNodeW / 2;
-                    _pendingNodeY = wy - _pendingNodeH / 2;
-                    _snapResult = null;
-                }
-            }
-            else
-            {
-                _pendingNodeX = wx - _pendingNodeW / 2;
-                _pendingNodeY = wy - _pendingNodeH / 2;
-            }
-            State.Notify();
-            return;
-        }
-
-        // Track cursor for space tool crosshair in idle
-        if (_mode == Mode.Idle && _activeTool == ActiveTool.AddSpace)
-        {
-            _spaceCursorX = wx;
-            _spaceCursorY = wy;
-            State.Notify();
-        }
-
-        switch (_mode)
-        {
-            case Mode.Panning:
-                Session.PanX = _startPanX - (wx - sx);
-                Session.PanY = _startPanY - (wy - sy);
-                State.Notify();
-                break;
-
-            case Mode.Selecting:
-                _selEndX = wx;
-                _selEndY = wy;
-                State.Notify();
-                break;
-
-            case Mode.SpaceTool:
-                if (_nodeOrigins == null) break;
-                double spaceDx = wx - _spaceStartX;
-                double spaceDy = wy - _spaceStartY;
-
-                // Lock direction on first significant move
-                if (!_spaceDirectionLocked && (Math.Abs(spaceDx) > 5 || Math.Abs(spaceDy) > 5))
-                {
-                    _spaceDirectionLocked = true;
-                    _spaceIsHorizontal = Math.Abs(spaceDx) > Math.Abs(spaceDy);
-                }
-
-                if (!_spaceDirectionLocked) break;
-
-                foreach (var node in State.Nodes)
-                {
-                    var orig = _nodeOrigins[node];
-                    node.X = orig.X;
-                    node.Y = orig.Y;
-                }
-
-                if (_spaceIsHorizontal)
-                {
-                    foreach (var node in State.Nodes)
-                    {
-                        var orig = _nodeOrigins[node];
-                        if (orig.X > _spaceStartX)
-                            node.X = orig.X + spaceDx;
-                    }
-                }
-                else
-                {
-                    foreach (var node in State.Nodes)
-                    {
-                        var orig = _nodeOrigins[node];
-                        if (orig.Y > _spaceStartY)
-                            node.Y = orig.Y + spaceDy;
-                    }
-                }
-
-                foreach (var node in State.Nodes)
-                {
-                    var orig = _nodeOrigins[node];
-                    double dx = node.X - orig.X;
-                    double dy = node.Y - orig.Y;
-                    if (dx != 0 || dy != 0)
-                        UpdateNodeConnections(node, dx, dy);
-                }
-
-                State.MarkDirty();
-                break;
-
-            case Mode.Dragging:
-                if (_activeNode != null)
-                {
-                    double dx = wx - sx;
-                    double dy = wy - sy;
-                    double rawX = _startNodeX + dx;
-                    double rawY = _startNodeY + dy;
-
-                    if (_activeNode.NodeData is BoundaryEvent be)
-                    {
-                        var parent = State.Nodes.FirstOrDefault(n => n.NodeData.Id == be.ParentNodeId);
-                        if (parent != null)
-                        {
-                            double cursorCx = rawX + _activeNode.Width / 2;
-                            double cursorCy = rawY + _activeNode.Height / 2;
-                            var (nx, ny) = SnapToBoundaryEdge(parent, cursorCx, cursorCy, _activeNode.Width, _activeNode.Height);
-                            UpdateNodeConnections(_activeNode, nx - _prevNodeX, ny - _prevNodeY);
-                            _activeNode.X = nx;
-                            _activeNode.Y = ny;
-                            _prevNodeX = nx;
-                            _prevNodeY = ny;
-                            _snapResult = new SnapResult { TargetNode = parent };
-                        }
-                    }
-                    else
-                    {
-                        var snap = GetSnappedPosition(_activeNode, State.Nodes, rawX, rawY);
-                        double snappedX = snap.XSnapAxis != null ? snap.SnappedX : rawX;
-                        double snappedY = snap.YSnapAxis != null ? snap.SnappedY : rawY;
-
-                        // If the node is inside a pool, clamp to the pool content area.
-                        // This prevents landing in header strips or on lane borders, but
-                        // allows free movement between lanes.
-                        var containingPool = FindPoolAt(
-                            snappedX + _activeNode.Width / 2,
-                            snappedY + _activeNode.Height / 2);
-                        if (containingPool != null)
-                        {
-                            (snappedX, snappedY) = ClampToPoolContent(
-                                containingPool, snappedX, snappedY, _activeNode.Width, _activeNode.Height);
-                        }
-
-                        _activeNode.X = snappedX;
-                        _activeNode.Y = snappedY;
-                        _snapResult = snap;
-                        UpdateNodeConnections(_activeNode, snappedX - _prevNodeX, snappedY - _prevNodeY);
-                        _prevNodeX = snappedX;
-                        _prevNodeY = snappedY;
-                    }
-                    State.MarkDirty();
-                }
-                break;
-
-            case Mode.Connecting:
-                if (_draftConnection != null)
-                {
-                    _draftConnection.MouseX = wx;
-                    _draftConnection.MouseY = wy;
-
-                    if (_activeNode != null)
-                    {
-                        var (_, _, bestDir) = AnchorService.GetClosestAnchor(_activeNode, (wx, wy));
-                        _draftConnection.FixedDir = bestDir;
-                    }
-
-                    _draftConnection.TargetHint = State.Nodes.FirstOrDefault(n =>
-                        n != _activeNode &&
-                        wx >= n.X && wx <= n.X + n.Width &&
-                        wy >= n.Y && wy <= n.Y + n.Height);
-
-                    State.Notify();
-                }
-                break;
-
-            case Mode.Resizing:
-                if (_activeNode != null)
-                    ApplyResize(wx - sx, wy - sy);
-                break;
-
-            case Mode.WaypointDrag:
-                if (_activeConnection != null && _draggedWpIdx >= 0)
-                {
-                    RoutingService.DragWaypoint(_activeConnection.Waypoints, _draggedWpIdx, wx, wy);
-                    State.MarkDirty();
-                }
-                break;
-
-            case Mode.SegmentDrag:
-                if (_activeConnection != null && _segmentIdx >= 0)
-                {
-                    RoutingService.DragSegment(_activeConnection.Waypoints, _segmentIdx,
-                        ref _dragStartX, ref _dragStartY, wx, wy);
-                    State.MarkDirty();
-                }
-                break;
-
-            case Mode.DraggingPool:
-                if (_activePool != null)
-                {
-                    double targetX = _startPoolX + (wx - sx);
-                    double targetY = _startPoolY + (wy - sy);
-                    double pdx = targetX - _activePool.X;
-                    double pdy = targetY - _activePool.Y;
-                    _activePool.X = targetX;
-                    _activePool.Y = targetY;
-                    foreach (var l in State.Lanes.Where(l => l.Pool == _activePool))
-                    {
-                        l.X += pdx;
-                        l.Y += pdy;
-                    }
-                    foreach (var node in _poolDraggedNodes)
-                    {
-                        node.X += pdx;
-                        node.Y += pdy;
-                        UpdateNodeConnections(node, pdx, pdy);
-                    }
-                    State.MarkDirty();
-                }
-                break;
-
-            case Mode.ResizingLane:
-                if (_topLane != null && _botLane != null)
-                {
-                    double delta = wy - _laneResizeStartY;
-                    double newTopH = Math.Max(40, _topLaneStartH + delta);
-                    double newBotH = Math.Max(40, _botLaneStartH - delta);
-                    _topLane.Height = newTopH;
-                    _botLane.Y = _botLaneStartY + (newTopH - _topLaneStartH);
-                    _botLane.Height = newBotH;
-                    State.MarkDirty();
-                }
-                break;
-
-            case Mode.ResizingPool:
-                if (_activePool != null)
-                {
-                    if (_poolResizingWidth)
-                    {
-                        double newW = Math.Max(160, _startNodeW + (wx - sx));
-                        _activePool.Width = newW;
-                        foreach (var l in State.Lanes.Where(l => l.Pool == _activePool))
-                            l.Width = newW - 40;
-                    }
-                    if (_poolResizingHeight)
-                    {
-                        double newH = Math.Max(80, _startNodeH + (wy - sy));
-                        double dh = newH - _activePool.Height;
-                        _activePool.Height = newH;
-                        var lastLane = State.Lanes
-                            .Where(l => l.Pool == _activePool)
-                            .OrderByDescending(l => l.Data.Order)
-                            .FirstOrDefault();
-                        if (lastLane != null)
-                            lastLane.Height = Math.Max(40, lastLane.Height + dh);
-                    }
-                    State.MarkDirty();
-                }
-                break;
-        }
-    }
-
-    private async Task OnPointerUp(PointerEventArgs e)
-    {
-        if (_mode == Mode.Connecting && _draftConnection != null)
-            await TryFinalizeConnection(e.ClientX, e.ClientY);
-
-        if (_mode == Mode.Selecting)
-        {
-            double rx = Math.Min(_selStartX, _selEndX);
-            double ry = Math.Min(_selStartY, _selEndY);
-            double rw = Math.Abs(_selEndX - _selStartX);
-            double rh = Math.Abs(_selEndY - _selStartY);
-
-            if (rw > 3 || rh > 3)
-            {
-                foreach (var n in State.Nodes)
-                {
-                    if (n.X + n.Width >= rx && n.X <= rx + rw &&
-                        n.Y + n.Height >= ry && n.Y <= ry + rh)
-                    {
-                        _selectedNodes.Add(n);
-                    }
-                }
-                if (_selectedNodes.Count > 0)
-                    State.Select(_selectedNodes.Last());
-            }
-            State.Notify();
-        }
-
-        if (_mode == Mode.Dragging && _activeNode != null)
-        {
-            if (TrySplitConnectionForNode(_activeNode))
-                State.MarkDirty();
-        }
-
-        _mode = Mode.Idle;
-        _activeNode = null;
-        _activeConnection = null;
-        _activePool = null;
-        _poolDraggedNodes = [];
-        _topLane = null;
-        _botLane = null;
-        _poolResizingWidth = false;
-        _poolResizingHeight = false;
-        _draggedWpIdx = -1;
-        _segmentIdx = -1;
-        _resizeDir = ResizeDir.None;
-        _nodeOrigins = null;
-        if (_snapResult != null && _snapResult.TargetNode != null)
-        {
-            _snapResult = null;
-            State.Notify();
-        }
-    }
-
-    // ======================== NODE INTERACTIONS ========================
-
-    private void OnNodeDoubleClick(DesignerNode node)
-    {
-        if (EffectiveReadOnly) return;
-        State.Select(node);
-        _editingNode = node;
-        State.Notify();
-    }
-
-    private void ClosePropertiesPanel()
-    {
-        _editingNode = null;
-        State.Notify();
-    }
-
-    private void CloseConnectionEditor()
-    {
-        State.Select(null);
-        State.Notify();
-    }
-
-    private static string GetConnectionLabel(DesignerConnection conn)
-    {
-        var c = conn.EngineConnection;
-        if (!string.IsNullOrEmpty(c.Label)) return c.Label;
-        if (c.IsDefault) return "default";
-        if (c.Condition != null) return "[condition]";
-        if (!string.IsNullOrEmpty(c.Expression))
-            return c.Expression.Length > 18 ? c.Expression[..18] + "…" : c.Expression;
-        return "";
-    }
-
-    private void OnSidebarHoverNode(NodeBase? node)
-    {
-        _highlightedNodeId = node?.Id;
-        State.Notify();
-    }
-
-    private void OnVersionLoaded()
-    {
-        _selectedNodes.Clear();
-        _editingNode = null;
-        State.Notify();
-    }
-
-    // ======================== ANCHOR / CONNECTION ========================
-
-    private async Task OnAnchorPointerDown(PointerEventArgs e, DesignerNode node, AnchorDirection dir)
-    {
-        if (EffectiveReadOnly) return;
-
-        _startMouseX = e.ClientX;
-        _startMouseY = e.ClientY;
-
-        var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
-
-        _mode = Mode.Connecting;
-        _activeNode = node;
-        _draftConnection = new ConnectionDraft
-        {
-            FixedNode = node,
-            FixedDir = dir,
-            MouseX = wx,
-            MouseY = wy
-        };
-        State.Notify();
-    }
-
-    private async Task TryFinalizeConnection(double clientX, double clientY)
-    {
-        if (_draftConnection == null || _activeNode == null) return;
-
-        var (wx, wy) = await ToWorldAsync(clientX, clientY);
-
-        var dropNode = State.Nodes.LastOrDefault(n =>
-            n != _activeNode &&
-            wx >= n.X && wx <= n.X + n.Width &&
-            wy >= n.Y && wy <= n.Y + n.Height);
-
-        if (dropNode == null)
-        {
-            // Dropped on empty canvas: put a rerouted connection back, or just clear the draft
-            if (_rerouteOriginal != null)
-            {
-                State.Connections.Add(_rerouteOriginal);
-                _rerouteOriginal = null;
-            }
-            _draftConnection = null;
-            State.Notify();
-            return;
-        }
-
-        var fixedNode = _draftConnection.FixedNode;
-        var fixedDir = _draftConnection.FixedDir;
-
-        DesignerConnection conn;
-        if (_draftConnection.FixedEndIsTarget)
-        {
-            // Source endpoint re-drag: the dropped node becomes the new source,
-            // the fixed node keeps its target role and anchor.
-            var (_, _, sourceDir) = AnchorService.GetClosestAnchor(dropNode, (wx, wy));
-            conn = new DesignerConnection
-            {
-                Source = dropNode,
-                SourceDir = sourceDir,
-                Target = fixedNode,
-                TargetDir = fixedDir,
-                EngineConnection = new Connection { From = dropNode.NodeData, To = fixedNode.NodeData },
-            };
-        }
-        else
-        {
-            var (_, _, targetDir) = AnchorService.GetBestTargetAnchor(dropNode, (wx, wy), fixedDir);
-            conn = new DesignerConnection
-            {
-                Source = fixedNode,
-                SourceDir = fixedDir,
-                Target = dropNode,
-                TargetDir = targetDir,
-                EngineConnection = new Connection { From = fixedNode.NodeData, To = dropNode.NodeData },
-            };
-        }
-
-        conn.Waypoints = RoutingService.AutoRoute(conn.Source, conn.SourceDir, conn.Target, conn.TargetDir);
-        State.Connections.Add(conn);
-        _rerouteOriginal = null;
-        _draftConnection = null;
-        State.MarkDirty();
-    }
-
-    // ======================== CONNECTION INTERACTIONS ========================
-
-    private async Task OnConnectionPointerDown(PointerEventArgs e, DesignerConnection conn)
-    {
-        if (EffectiveReadOnly) return;
-        if (_pendingNodeDesc != null) return;
-
-        _startMouseX = e.ClientX;
-        _startMouseY = e.ClientY;
-
-        var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
-
-        int segIdx = RoutingService.FindNearestSegment(conn.Waypoints, wx, wy);
-        State.Select(conn);
-        _editingNode = null;
-
-        if (segIdx >= 0)
-        {
-            _mode = Mode.SegmentDrag;
-            _segmentIdx = segIdx;
-            _dragStartX = wx;
-            _dragStartY = wy;
-            _activeConnection = conn;
-        }
-
-        State.Notify();
-    }
-
-    private async Task OnWaypointPointerDown(PointerEventArgs e, DesignerConnection conn, int idx)
-    {
-        if (EffectiveReadOnly) return;
-
-        _startMouseX = e.ClientX;
-        _startMouseY = e.ClientY;
-
-        var (wx, wy) = await ToWorldAsync(e.ClientX, e.ClientY);
-
-        // Endpoint re-drag: detach this end and continue as a connection draft.
-        // The other end stays fixed and keeps its role, so re-dragging the source
-        // endpoint produces (new node) → (old target), not the reverse.
-        if (idx == 0 || idx == conn.Waypoints.Count - 1)
-        {
-            bool draggingSourceEnd = idx == 0;
-            var draft = new ConnectionDraft
-            {
-                FixedNode = draggingSourceEnd ? conn.Target : conn.Source,
-                FixedDir = draggingSourceEnd ? conn.TargetDir : conn.SourceDir,
-                FixedEndIsTarget = draggingSourceEnd,
-                MouseX = wx,
-                MouseY = wy
-            };
-
-            State.Connections.Remove(conn);
-            _rerouteOriginal = conn; // restored if the drag ends on empty canvas or is cancelled
-            _mode = Mode.Connecting;
-            _activeNode = draft.FixedNode;
-            _draftConnection = draft;
-            State.Notify();
-            return;
-        }
-
-        _mode = Mode.WaypointDrag;
-        _activeConnection = conn;
-        _draggedWpIdx = idx;
-        State.Notify();
-    }
-
-    // ======================== KEYBOARD ========================
-
-    private void OnKeyDown(KeyboardEventArgs e)
-    {
-        if (EffectiveReadOnly) return;
-        if (_editingNode != null) return;
-        if (e.Key == "Shift") return;
-
-        if (e.Key == "Escape")
-        {
-            _pendingNodeDesc = null;
-            if (_rerouteOriginal != null)
-            {
-                State.Connections.Add(_rerouteOriginal);
-                _rerouteOriginal = null;
-            }
-            _draftConnection = null;
-            _editingNode = null;
-            _mode = Mode.Idle;
-            _snapResult = null;
-            _selectedNodes.Clear();
-            State.DeselectAll();
-            State.Notify();
-        }
-        else if ((e.CtrlKey || e.MetaKey) && e.Key is "s" or "S")
-        {
-            _ = HandleSave();
-        }
-        else if (e.Key == "Delete" || e.Key == "Backspace")
-        {
-            DeleteSelection();
-        }
-    }
-
-    private void DeleteSelection()
-    {
-        if (_selectedNodes.Count > 0)
-        {
-            foreach (var n in _selectedNodes)
-            {
-                State.Connections.RemoveAll(c => c.Source == n || c.Target == n);
-                State.Nodes.Remove(n);
-
-                // Cascade: remove boundary events whose parent is being deleted
-                var orphans = State.Nodes
-                    .Where(child => child.NodeData is BoundaryEvent be && be.ParentNodeId == n.NodeData.Id)
-                    .ToList();
-                foreach (var orphan in orphans)
-                {
-                    State.Connections.RemoveAll(c => c.Source == orphan || c.Target == orphan);
-                    State.Nodes.Remove(orphan);
-                }
-            }
-            _selectedNodes.Clear();
-            State.DeselectAll();
-            State.MarkDirty();
-        }
-        else
-        {
-            // A connection may be selected without any nodes
-            State.DeleteSelected();
-        }
-    }
-
-    // ======================== MOUSE WHEEL ========================
-
-    private async Task OnMouseWheel(WheelEventArgs e)
-    {
-        var dims = await GetCanvasRect();
-        var (beforeX, beforeY) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
-
-        double factor = Math.Pow(1.001, -e.DeltaY);
-        Session.Zoom = Math.Clamp(Session.Zoom * factor, 0.1, 3.0);
-
-        var (afterX, afterY) = Session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
-        Session.PanX += beforeX - afterX;
-        Session.PanY += beforeY - afterY;
-
-        State.Notify();
-    }
-
-    // ======================== PLACEMENT ========================
-
-    private void PlaceNodeFromToolbox(double wx, double wy)
-    {
-        if (_pendingNodeDesc == null) return;
-
-        var instance = Activator.CreateInstance(_pendingNodeDesc.NodeType) as NodeBase;
-        if (instance == null) return;
-
-        double nodeX = wx - _pendingNodeW / 2;
-        double nodeY = wy - _pendingNodeH / 2;
-        bool isBoundary = instance is BoundaryEvent;
-
-        if (instance is BoundaryEvent boundaryEvent)
-        {
-            var parent = FindParentCandidate(wx, wy);
-            if (parent == null)
-            {
-                // No parent node under cursor: cancel placement silently
-                _pendingNodeDesc = null;
-                _snapResult = null;
-                State.Notify();
-                return;
-            }
-            (nodeX, nodeY) = SnapToBoundaryEdge(parent, wx, wy, _pendingNodeW, _pendingNodeH);
-            boundaryEvent.ParentNodeId = parent.NodeData.Id;
-        }
-        else
-        {
-            // If dropping inside a pool, clamp to content area (excludes header strips, lane borders)
-            var pool = FindPoolAt(wx, wy);
-            if (pool != null)
-                (nodeX, nodeY) = ClampToPoolContent(pool, nodeX, nodeY, _pendingNodeW, _pendingNodeH);
-        }
-
-        var node = new DesignerNode
-        {
-            NodeData = instance,
-            Title = _pendingNodeDesc.DisplayName,
-            Description = _pendingNodeDesc.Description,
-            Icon = _pendingNodeDesc.Icon,
-            CssClass = _pendingNodeDesc.CssClass,
-            Shape = _pendingNodeDesc.Shape,
-            Width = _pendingNodeW,
-            Height = _pendingNodeH,
-            X = nodeX,
-            Y = nodeY,
-        };
-
-        State.Nodes.Add(node);
-        State.Select(node);
-        _pendingNodeDesc = null;
-        _snapResult = null;
-        if (!isBoundary)
-            TrySplitConnectionForNode(node);
-        State.MarkDirty();
-    }
-
-    // ======================== RESIZE ========================
-
-    private void OnResizeStart(PointerEventArgs e, DesignerNode node, ResizeDir dir)
-    {
-        if (EffectiveReadOnly) return;
-
-        _startMouseX = e.ClientX;
-        _startMouseY = e.ClientY;
-
-        _mode = Mode.Resizing;
-        _activeNode = node;
-        _resizeDir = dir;
-        _startNodeX = node.X;
-        _startNodeY = node.Y;
-        _startNodeW = node.Width;
-        _startNodeH = node.Height;
-    }
-
-    private void ApplyResize(double dx, double dy)
-    {
-        if (_activeNode == null) return;
-        var n = _activeNode;
-
-        if (_resizeDir.HasFlag(ResizeDir.Right))
-            n.Width = Math.Max(ResizeMinW, _startNodeW + dx);
-
-        if (_resizeDir.HasFlag(ResizeDir.Bottom))
-            n.Height = Math.Max(ResizeMinH, _startNodeH + dy);
-
-        if (_resizeDir.HasFlag(ResizeDir.Left))
-        {
-            double newW = Math.Max(ResizeMinW, _startNodeW - dx);
-            if (newW > ResizeMinW || dx < 0)
-            {
-                n.X = _startNodeX + (_startNodeW - newW);
-                n.Width = newW;
-            }
-        }
-
-        if (_resizeDir.HasFlag(ResizeDir.Top))
-        {
-            double newH = Math.Max(ResizeMinH, _startNodeH - dy);
-            if (newH > ResizeMinH || dy < 0)
-            {
-                n.Y = _startNodeY + (_startNodeH - newH);
-                n.Height = newH;
-            }
-        }
-
-        // Re-project boundary events that are attached to the resized node
-        foreach (var child in State.Nodes)
-        {
-            if (child.NodeData is BoundaryEvent be && be.ParentNodeId == n.NodeData.Id)
-            {
-                double cx = child.X + child.Width / 2;
-                double cy = child.Y + child.Height / 2;
-                (child.X, child.Y) = SnapToBoundaryEdge(n, cx, cy, child.Width, child.Height);
-                UpdateNodeConnections(child, 0, 0);
-            }
-        }
-
-        UpdateNodeConnections(n, 0, 0);
-        State.MarkDirty();
-    }
-
-    // ======================== ROUTING UPDATES ========================
-
-    private void UpdateNodeConnections(DesignerNode node, double dx, double dy)
-    {
-        foreach (var conn in State.Connections)
-        {
-            if (conn.Source == node || conn.Target == node)
-            {
-                var (srcDir, tgtDir) = RoutingService.GetBestDirections(conn.Source, conn.Target);
-                conn.SourceDir = srcDir;
-                conn.TargetDir = tgtDir;
-                conn.Waypoints = RoutingService.AutoRoute(
-                    conn.Source, conn.SourceDir,
-                    conn.Target, conn.TargetDir);
-            }
-        }
-
-        // Move boundary events attached to this node and update their connections too
-        if (node.NodeData is not BoundaryEvent)
-        {
-            foreach (var child in State.Nodes)
-            {
-                if (child.NodeData is BoundaryEvent be && be.ParentNodeId == node.NodeData.Id)
-                {
-                    child.X += dx;
-                    child.Y += dy;
-                    UpdateNodeConnections(child, dx, dy);
-                }
-            }
-        }
-    }
-
-    private bool TrySplitConnectionForNode(DesignerNode node)
-    {
-        double cx = node.X + node.Width / 2;
-        double cy = node.Y + node.Height / 2;
-
-        DesignerConnection? targetConn = null;
-        foreach (var conn in State.Connections)
-        {
-            // Never split a connection the node is already part of
-            if (conn.Source == node || conn.Target == node) continue;
-
-            if (RoutingService.FindNearestSegment(conn.Waypoints, cx, cy, threshold: 15) >= 0)
-            {
-                targetConn = conn;
-                break;
-            }
-        }
-
-        if (targetConn == null) return false;
-
-        var conn1 = new DesignerConnection
-        {
-            Source = targetConn.Source,
-            SourceDir = targetConn.SourceDir,
-            Target = node,
-            TargetDir = AnchorDirection.None,
-            EngineConnection = new Connection { From = targetConn.Source.NodeData, To = node.NodeData },
-        };
-
-        var conn2 = new DesignerConnection
-        {
-            Source = node,
-            SourceDir = AnchorDirection.None,
-            Target = targetConn.Target,
-            TargetDir = targetConn.TargetDir,
-            EngineConnection = new Connection { From = node.NodeData, To = targetConn.Target.NodeData },
-        };
-
-        var (srcDir1, tgtDir1) = RoutingService.GetBestDirections(conn1.Source, conn1.Target);
-        conn1.SourceDir = srcDir1;
-        conn1.TargetDir = tgtDir1;
-        conn1.Waypoints = RoutingService.AutoRoute(conn1.Source, conn1.SourceDir, conn1.Target, conn1.TargetDir);
-
-        var (srcDir2, tgtDir2) = RoutingService.GetBestDirections(conn2.Source, conn2.Target);
-        conn2.SourceDir = srcDir2;
-        conn2.TargetDir = tgtDir2;
-        conn2.Waypoints = RoutingService.AutoRoute(conn2.Source, conn2.SourceDir, conn2.Target, conn2.TargetDir);
-
-        State.Connections.Remove(targetConn);
-        State.Connections.Add(conn1);
-        State.Connections.Add(conn2);
-        return true;
-    }
-
-    // ======================== SAVE / COMPILE / PUBLISH ========================
-
-    private async Task HandleSave()
-    {
-        var wasNew = !State.CurrentWorkflowId.HasValue;
-        State.Compile();
-        await State.SaveDraftAsync();
-        State.Notify();
-
-        if (wasNew && State.CurrentWorkflowId.HasValue)
-        {
-            var userId = User?.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!string.IsNullOrEmpty(userId))
-                await OwnershipService.GrantOwnershipAsync("Workflow", State.CurrentWorkflowId.Value, userId);
-
-            Nav.NavigateTo($"/Workflows/Edit/{State.CurrentWorkflowId}", forceLoad: true);
-        }
-    }
-
-    private void HandleCompile()
-    {
-        State.Compile();
-        State.Notify();
-    }
-
-    private void HandleTestRun()
-    {
-        State.Compile();
-        State.Notify();
-    }
-
-    // ======================== FIT TO SCREEN ========================
-
-    private void FitToScreen()
-    {
-        if (State.Nodes.Count == 0) return;
-
-        double minX = State.Nodes.Min(n => n.X);
-        double minY = State.Nodes.Min(n => n.Y);
-        double maxX = State.Nodes.Max(n => n.X + n.Width);
-        double maxY = State.Nodes.Max(n => n.Y + n.Height);
-
-        double pad = 40;
-        double cw = maxX - minX + pad * 2;
-        double ch = maxY - minY + pad * 2;
-        if (cw < 1 || ch < 1) return;
-
-        Session.Zoom = Math.Min(Session.CanvasWidth / cw, Session.CanvasHeight / ch);
-        Session.Zoom = Math.Clamp(Session.Zoom, 0.1, 3.0);
-
-        Session.PanX = minX - pad - (Session.CanvasWidth / Session.Zoom - cw) / 2;
-        Session.PanY = minY - pad - (Session.CanvasHeight / Session.Zoom - ch) / 2;
-
-        State.Notify();
-    }
-
-    // ======================== SNAPPING ========================
-
-    public static SnapResult GetSnappedPosition(
-        DesignerNode draggingNode,
-        List<DesignerNode> allNodes,
-        double rawX,
-        double rawY,
-        double threshold = 10)
-    {
-        var result = new SnapResult
-        {
-            SnappedX = rawX,
-            SnappedY = rawY
-        };
-
-        foreach (var otherNode in allNodes.Where(n => n != draggingNode))
-        {
-            // X axis snapping
-            if (Math.Abs((rawX + draggingNode.Width / 2) - (otherNode.X + otherNode.Width / 2)) < threshold)
-            {
-                result.SnappedX = (otherNode.X + otherNode.Width / 2) - (draggingNode.Width / 2);
-                result.XSnapAxis = SnapAxis.Center;
-                result.TargetNode = otherNode;
-            }
-            else if (Math.Abs(rawX - otherNode.X) < threshold)
-            {
-                result.SnappedX = otherNode.X;
-                result.XSnapAxis = SnapAxis.Start;
-                result.TargetNode = otherNode;
-            }
-            else if (Math.Abs((rawX + draggingNode.Width) - (otherNode.X + otherNode.Width)) < threshold)
-            {
-                result.SnappedX = otherNode.X + otherNode.Width - draggingNode.Width;
-                result.XSnapAxis = SnapAxis.End;
-                result.TargetNode = otherNode;
-            }
-
-            // Y axis snapping
-            if (Math.Abs((rawY + draggingNode.Height / 2) - (otherNode.Y + otherNode.Height / 2)) < threshold)
-            {
-                result.SnappedY = (otherNode.Y + otherNode.Height / 2) - (draggingNode.Height / 2);
-                result.YSnapAxis = SnapAxis.Center;
-                result.TargetNode = otherNode;
-            }
-            else if (Math.Abs(rawY - otherNode.Y) < threshold)
-            {
-                result.SnappedY = otherNode.Y;
-                result.YSnapAxis = SnapAxis.Start;
-                result.TargetNode = otherNode;
-            }
-            else if (Math.Abs((rawY + draggingNode.Height) - (otherNode.Y + otherNode.Height)) < threshold)
-            {
-                result.SnappedY = otherNode.Y + otherNode.Height - draggingNode.Height;
-                result.YSnapAxis = SnapAxis.End;
-                result.TargetNode = otherNode;
-            }
-        }
-
-        return result;
-    }
-
-    public sealed class BoundingRect
-    {
-        public double Left { get; set; }
-        public double Top { get; set; }
-        public double Width { get; set; }
-        public double Height { get; set; }
-    }
-
-    // ======================== BOUNDARY EVENT HELPERS ========================
-
-    /// <summary>
-    /// Finds the topmost non-boundary node that contains or is near (wx, wy).
-    /// The tolerance allows placement when the cursor is slightly outside the node edge.
-    /// </summary>
-    private DesignerNode? FindParentCandidate(double wx, double wy, double tolerance = 24, DesignerNode? exclude = null)
-    {
-        return State.Nodes.LastOrDefault(n =>
-            n != exclude &&
-            n.NodeData is not BoundaryEvent &&
-            wx >= n.X - tolerance && wx <= n.X + n.Width + tolerance &&
-            wy >= n.Y - tolerance && wy <= n.Y + n.Height + tolerance);
-    }
-
-    /// <summary>
-    /// Projects the point (wx, wy) onto the perimeter of <paramref name="parent"/> and
-    /// returns the top-left position for a boundary event of size (bw × bh) centred there.
-    /// </summary>
-    private static (double X, double Y) SnapToBoundaryEdge(
-        DesignerNode parent, double wx, double wy, double bw, double bh)
-    {
-        double cx = parent.X + parent.Width / 2.0;
-        double cy = parent.Y + parent.Height / 2.0;
-        double rx = parent.Width / 2.0;
-        double ry = parent.Height / 2.0;
-
-        double relX = wx - cx;
-        double relY = wy - cy;
-
-        double edgeX, edgeY;
-        if (Math.Abs(relX) < 0.001 && Math.Abs(relY) < 0.001)
-        {
-            edgeX = cx;
-            edgeY = cy + ry;
-        }
-        else
-        {
-            // t = min(rx/|relX|, ry/|relY|) gives the scale factor to reach the perimeter
-            double tx = Math.Abs(relX) > 0.001 ? rx / Math.Abs(relX) : double.MaxValue;
-            double ty = Math.Abs(relY) > 0.001 ? ry / Math.Abs(relY) : double.MaxValue;
-            double t = Math.Min(tx, ty);
-            edgeX = cx + relX * t;
-            edgeY = cy + relY * t;
-        }
-
-        return (edgeX - bw / 2.0, edgeY - bh / 2.0);
-    }
-}

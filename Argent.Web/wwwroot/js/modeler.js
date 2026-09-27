@@ -49,6 +49,23 @@ window.Modeler = {
             this.destroy(canvasElement);
         }
 
+        if (!this.pointerEventsRegistered) {
+            Blazor.registerCustomEventType('modelerpointermove', {
+                browserEventName: 'pointermove',
+                createEventArgs: event => {
+                    const canvas = event.target.closest?.('.modeler-canvas');
+                    const rect = canvas?.getBoundingClientRect();
+                    return {
+                        clientX: event.clientX,
+                        clientY: event.clientY,
+                        canvasLeft: rect?.left ?? 0,
+                        canvasTop: rect?.top ?? 0
+                    };
+                }
+            });
+            this.pointerEventsRegistered = true;
+        }
+
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const rect = entry.contentRect;
@@ -81,6 +98,16 @@ window.Modeler = {
             width: rect.width,
             height: rect.height
         };
+    },
+
+    // Modeler shortcuts are bound to the whole layout so they keep working after the user
+    // clicks a sidebar tab. Before a shortcut runs, the component checks what has focus so
+    // a keystroke meant for a property field is never hijacked.
+    activeTagName() {
+        const active = document.activeElement;
+        if (!active) return '';
+        if (active.isContentEditable) return 'INPUT';
+        return (active.tagName || '').toUpperCase();
     },
 
     syncClocks() {

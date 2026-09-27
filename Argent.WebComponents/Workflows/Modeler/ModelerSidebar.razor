@@ -36,7 +36,7 @@
                 <JsonViewer State="@State" />
                 break;
             case TabType.Errors:
-                <ErrorViewer State="@State" OnHoverNode="OnHoverNode" />
+                <ErrorViewer State="@State" OnHoverNode="@OnHoverNode" OnFocusNode="@OnFocusNode" />
                 break;
             case TabType.Access:
                 <div class="p-3">
@@ -59,8 +59,9 @@
 
 @code {
     [Parameter] public required DesignerService State { get; set; }
-    [Parameter] public EventCallback<NodeBase?> OnHoverNode { get; set; }
-    [Parameter] public EventCallback OnVersionLoaded { get; set; }
+    [Parameter] public required EventCallback<NodeBase?> OnHoverNode { get; set; }
+    [Parameter] public required EventCallback OnVersionLoaded { get; set; }
+    [Parameter] public EventCallback<NodeBase> OnFocusNode { get; set; }
 
     private enum TabType { Versions, Json, Errors, Access, Roles }
     private TabType _activeTab = TabType.Versions;

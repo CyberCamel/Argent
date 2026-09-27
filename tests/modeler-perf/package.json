@@ -1,0 +1,14 @@
+{
+  "name": "argent-modeler-perf",
+  "private": true,
+  "description": "Browser performance gate for the workflow modeler. Measures pointer-to-render latency, frame intervals and release-time work in Chromium and Firefox. Native routing timings live in Argent.WebComponents.Tests and are tracked separately.",
+  "scripts": {
+    "install:browsers": "playwright install chromium firefox",
+    "record": "playwright test --project=chromium --project=firefox",
+    "record:throttled": "playwright test --project=chromium-4x",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

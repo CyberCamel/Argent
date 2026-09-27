@@ -1,4 +1,5 @@
 using Argent.Core.Workflows;
+using System.Buffers;
 using System.Globalization;
 using System.Text;
 
@@ -23,10 +24,10 @@ public static class RoutingService
     private static bool IsHorizontal(AnchorDirection dir) =>
         dir is AnchorDirection.Left or AnchorDirection.Right;
 
-    private const double Epsilon = 0.001;
-    private const double DefaultOffset = 40;
+    internal const double Epsilon = 0.001;
+    internal const double DefaultOffset = 40;
     private const double CornerRadius = 8;
-    private const double MinArrowSpace = 18;
+    internal const double MinArrowSpace = 18;
 
     private static bool SharesX(double a, double b) => Math.Abs(a - b) < Epsilon;
     private static bool SharesY(double a, double b) => Math.Abs(a - b) < Epsilon;
@@ -34,132 +35,175 @@ public static class RoutingService
     public static List<DesignerWaypoint> AutoRoute(
         IDesignerItem source, AnchorDirection sourceDir,
         IDesignerItem target, AnchorDirection targetDir,
-        double offset = DefaultOffset)
+        double offset = DefaultOffset,
+        IEnumerable<IDesignerItem>? obstacles = null)
     {
         var (sx, sy, _) = AnchorService.GetBaseAnchor(source, sourceDir);
         var (tx, ty, _) = AnchorService.GetBaseAnchor(target, targetDir);
+        var clearance = Math.Max(MinArrowSpace + 4, Math.Min(offset, DefaultOffset));
+        var start = (X: sx + clearance * GetDirDx(sourceDir), Y: sy + clearance * GetDirDy(sourceDir));
+        var end = (X: tx + clearance * GetDirDx(targetDir), Y: ty + clearance * GetDirDy(targetDir));
 
-        offset = ClampOffset(source, sourceDir, target, offset);
+        // Route between outward-facing port stubs. The node bounds are obstacles too,
+        // so reversed and close connections go around their shapes instead of through them.
+        var boxes = new List<RouteBox> { RouteBox.Around(source, 1) };
+        if (!ReferenceEquals(source, target)) boxes.Add(RouteBox.Around(target, 1));
+        if (obstacles != null)
+            boxes.AddRange(obstacles.Where(n => !ReferenceEquals(n, source) && !ReferenceEquals(n, target))
+                .Select(n => RouteBox.Around(n, 16)));
 
-        bool sH = IsHorizontal(sourceDir);
-        bool tH = IsHorizontal(targetDir);
-
-        List<DesignerWaypoint> wps;
-
-        if (sH && tH)
-        {
-            double mx = sx + offset * GetDirDx(sourceDir);
-            wps =
-            [
-                new() { X = sx, Y = sy },
-                new() { X = mx, Y = sy },
-                new() { X = mx, Y = ty },
-                new() { X = tx, Y = ty },
-            ];
-        }
-        else if (!sH && !tH)
-        {
-            double my = sy + offset * GetDirDy(sourceDir);
-            wps =
-            [
-                new() { X = sx, Y = sy },
-                new() { X = sx, Y = my },
-                new() { X = tx, Y = my },
-                new() { X = tx, Y = ty },
-            ];
-        }
-        else if (sH)
-        {
-            wps =
-            [
-                new() { X = sx, Y = sy },
-                new() { X = tx, Y = sy },
-                new() { X = tx, Y = ty },
-            ];
-        }
-        else
-        {
-            wps =
-            [
-                new() { X = sx, Y = sy },
-                new() { X = sx, Y = ty },
-                new() { X = tx, Y = ty },
-            ];
-        }
-
+        var middle = FindClearPath(start, end, boxes);
+        var wps = new List<DesignerWaypoint> { new() { X = sx, Y = sy } };
+        wps.AddRange(middle.Select(p => new DesignerWaypoint { X = p.X, Y = p.Y }));
+        wps.Add(new DesignerWaypoint { X = tx, Y = ty });
         RemoveCollinearWaypoints(wps);
-        EnsureMinimumLastSegment(wps, MinArrowSpace);
         return wps;
     }
 
-    private static double ClampOffset(
-        IDesignerItem source, AnchorDirection sourceDir,
-        IDesignerItem target, double offset)
+    internal readonly record struct RouteBox(double Left, double Top, double Right, double Bottom)
     {
-        double scx = source.X + source.Width / 2;
-        double scy = source.Y + source.Height / 2;
-        double tcx = target.X + target.Width / 2;
-        double tcy = target.Y + target.Height / 2;
+        public static RouteBox Around(IDesignerItem node, double margin) =>
+            new(node.X - margin, node.Y - margin, node.X + node.Width + margin, node.Y + node.Height + margin);
 
-        double clamped;
-        if (IsHorizontal(sourceDir))
-        {
-            double hDist = Math.Abs(tcx - scx);
-            clamped = Math.Min(offset, Math.Max(offset * 0.3, hDist * 0.3));
-        }
-        else
-        {
-            double vDist = Math.Abs(tcy - scy);
-            clamped = Math.Min(offset, Math.Max(offset * 0.3, vDist * 0.3));
-        }
+        public bool Contains(double x, double y) =>
+            x > Left + Epsilon && x < Right - Epsilon && y > Top + Epsilon && y < Bottom - Epsilon;
 
-        return Math.Max(clamped, MinArrowSpace);
+        public bool Cuts((double X, double Y) a, (double X, double Y) b) =>
+            SharesY(a.Y, b.Y)
+                ? a.Y > Top + Epsilon && a.Y < Bottom - Epsilon && Math.Max(a.X, b.X) > Left + Epsilon && Math.Min(a.X, b.X) < Right - Epsilon
+                : a.X > Left + Epsilon && a.X < Right - Epsilon && Math.Max(a.Y, b.Y) > Top + Epsilon && Math.Min(a.Y, b.Y) < Bottom - Epsilon;
     }
 
-    private static void EnsureMinimumLastSegment(List<DesignerWaypoint> wps, double minLen)
+    private static bool IsClear((double X, double Y) a, (double X, double Y) b, List<RouteBox> boxes)
     {
-        int n = wps.Count;
-        if (n < 2) return;
+        foreach (var box in boxes)
+            if (box.Cuts(a, b)) return false;
+        return true;
+    }
 
-        int lastA = n - 2;
-        int lastB = n - 1;
-        var a = wps[lastA];
-        var b = wps[lastB];
+    private static List<(double X, double Y)> FindClearPath(
+        (double X, double Y) start, (double X, double Y) end, List<RouteBox> boxes)
+    {
+        // Most connections need no graph. These candidates have the shortest
+        // Manhattan length, and still check every obstacle before accepting them.
+        if ((SharesX(start.X, end.X) || SharesY(start.Y, end.Y)) && IsClear(start, end, boxes))
+            return [start, end];
+        var bend = (X: end.X, Y: start.Y);
+        if (IsClear(start, bend, boxes) && IsClear(bend, end, boxes))
+            return [start, bend, end];
+        bend = (start.X, end.Y);
+        if (IsClear(start, bend, boxes) && IsClear(bend, end, boxes))
+            return [start, bend, end];
 
-        double len;
-        bool isHorizontal;
-
-        if (SharesY(a.Y, b.Y))
+        var xs = new SortedSet<double> { start.X, end.X };
+        var ys = new SortedSet<double> { start.Y, end.Y };
+        foreach (var box in boxes)
         {
-            len = Math.Abs(b.X - a.X);
-            isHorizontal = true;
+            xs.Add(box.Left); xs.Add(box.Right);
+            ys.Add(box.Top); ys.Add(box.Bottom);
         }
-        else if (SharesX(a.X, b.X))
+        var xValues = xs.ToArray();
+        var yValues = ys.ToArray();
+        int width = xValues.Length, height = yValues.Length;
+        int vertices = width * height;
+
+        // Mark blocked edges once using interval differences. The old search
+        // scanned every box at every grid point and again at every visited edge.
+        // This takes O(n * (width + height) + width * height), rather than O(n^3).
+        var horizontal = ArrayPool<int>.Shared.Rent(vertices);
+        var vertical = ArrayPool<int>.Shared.Rent(vertices);
+        var costs = ArrayPool<double>.Shared.Rent(vertices * 2);
+        var previous = ArrayPool<int>.Shared.Rent(vertices * 2);
+        try
         {
-            len = Math.Abs(b.Y - a.Y);
-            isHorizontal = false;
+            Array.Clear(horizontal, 0, vertices);
+            Array.Clear(vertical, 0, vertices);
+            foreach (var box in boxes)
+            {
+                int left = Array.BinarySearch(xValues, box.Left);
+                int right = Array.BinarySearch(xValues, box.Right);
+                int top = Array.BinarySearch(yValues, box.Top);
+                int bottom = Array.BinarySearch(yValues, box.Bottom);
+                for (int y = top + 1; y < bottom; y++)
+                {
+                    if (yValues[y] <= box.Top + Epsilon || yValues[y] >= box.Bottom - Epsilon) continue;
+                    horizontal[y * width + left]++;
+                    horizontal[y * width + right]--;
+                }
+                for (int x = left + 1; x < right; x++)
+                {
+                    if (xValues[x] <= box.Left + Epsilon || xValues[x] >= box.Right - Epsilon) continue;
+                    vertical[top * width + x]++;
+                    vertical[bottom * width + x]--;
+                }
+            }
+            for (int y = 0; y < height; y++)
+                for (int x = 1; x < width; x++)
+                    horizontal[y * width + x] += horizontal[y * width + x - 1];
+            for (int y = 1; y < height; y++)
+                for (int x = 0; x < width; x++)
+                    vertical[y * width + x] += vertical[(y - 1) * width + x];
+
+            int startIndex = Array.BinarySearch(yValues, start.Y) * width + Array.BinarySearch(xValues, start.X);
+            int endIndex = Array.BinarySearch(yValues, end.Y) * width + Array.BinarySearch(xValues, end.X);
+            Array.Fill(costs, double.PositiveInfinity, 0, vertices * 2);
+            Array.Fill(previous, -1, 0, vertices * 2);
+
+            // A* uses Manhattan distance as its lower bound. Each vertex keeps two
+            // incoming-axis states so the bend penalty still participates in routing.
+            var queue = new PriorityQueue<(int State, double Cost), double>();
+            costs[startIndex * 2] = costs[startIndex * 2 + 1] = 0;
+            double initialDistance = Math.Abs(start.X - end.X) + Math.Abs(start.Y - end.Y);
+            queue.Enqueue((startIndex * 2, 0), initialDistance);
+            queue.Enqueue((startIndex * 2 + 1, 0), initialDistance);
+            int finish = -1;
+            while (queue.TryDequeue(out var current, out _))
+            {
+                int state = current.State;
+                if (current.Cost > costs[state] + Epsilon) continue;
+                int vertex = state / 2, incomingAxis = state % 2;
+                if (vertex == endIndex) { finish = state; break; }
+                int x = vertex % width, y = vertex / width;
+                if (x > 0 && horizontal[vertex - 1] == 0)
+                    Visit(vertex - 1, 0, xValues[x] - xValues[x - 1]);
+                if (x + 1 < width && horizontal[vertex] == 0)
+                    Visit(vertex + 1, 0, xValues[x + 1] - xValues[x]);
+                if (y > 0 && vertical[vertex - width] == 0)
+                    Visit(vertex - width, 1, yValues[y] - yValues[y - 1]);
+                if (y + 1 < height && vertical[vertex] == 0)
+                    Visit(vertex + width, 1, yValues[y + 1] - yValues[y]);
+
+                void Visit(int next, int axis, double distance)
+                {
+                    double cost = current.Cost + distance + (incomingAxis != axis ? 16 : 0);
+                    int nextState = next * 2 + axis;
+                    if (cost + Epsilon >= costs[nextState]) return;
+                    costs[nextState] = cost;
+                    previous[nextState] = state;
+                    double remaining = Math.Abs(xValues[next % width] - end.X) + Math.Abs(yValues[next / width] - end.Y);
+                    queue.Enqueue((nextState, cost), cost + remaining);
+                }
+            }
+
+            // Overlapping nodes can enclose a port: retain the existing fallback.
+            if (finish < 0) return [start, (start.X, end.Y), end];
+
+            var path = new List<(double X, double Y)>();
+            for (int state = finish; state >= 0; state = previous[state])
+            {
+                int vertex = state / 2;
+                path.Add((xValues[vertex % width], yValues[vertex / width]));
+            }
+            path.Reverse();
+            return path;
         }
-        else
+        finally
         {
-            return;
+            ArrayPool<int>.Shared.Return(horizontal);
+            ArrayPool<int>.Shared.Return(vertical);
+            ArrayPool<double>.Shared.Return(costs);
+            ArrayPool<int>.Shared.Return(previous);
         }
-
-        if (len >= minLen) return;
-
-        double extension = minLen - len;
-        double dx = 0, dy = 0;
-        if (isHorizontal)
-            dx = Math.Sign(b.X - a.X) * extension;
-        else
-            dy = Math.Sign(b.Y - a.Y) * extension;
-
-        for (int i = 1; i < n - 1; i++)
-        {
-            wps[i].X += dx;
-            wps[i].Y += dy;
-        }
-
-        RemoveCollinearWaypoints(wps);
     }
 
     public static string DraftPath(
@@ -322,19 +366,50 @@ public static class RoutingService
         double dx = tcx - scx;
         double dy = tcy - scy;
 
+        AnchorDirection sourceDir, targetDir;
         if (Math.Abs(dx) > Math.Abs(dy))
         {
-            return dx > 0
-                ? (AnchorDirection.Right, AnchorDirection.Left)
-                : (AnchorDirection.Left, AnchorDirection.Right);
+            sourceDir = dx > 0 ? AnchorDirection.Right : AnchorDirection.Left;
+            targetDir = dx > 0 ? AnchorDirection.Left : AnchorDirection.Right;
         }
         else
         {
-            return dy > 0
-                ? (AnchorDirection.Bottom, AnchorDirection.Top)
-                : (AnchorDirection.Top, AnchorDirection.Bottom);
+            sourceDir = dy > 0 ? AnchorDirection.Bottom : AnchorDirection.Top;
+            targetDir = dy > 0 ? AnchorDirection.Top : AnchorDirection.Bottom;
         }
+
+        // Two nodes that overlap on the dominant axis can end up with a port on the far
+        // side of its own node, which makes the connector approach from behind. The side is
+        // flipped to the one that actually faces the other node.
+        if (!Faces(source, target, sourceDir)) sourceDir = Opposite(sourceDir);
+        if (!Faces(target, source, targetDir)) targetDir = Opposite(targetDir);
+        return (sourceDir, targetDir);
     }
+
+    private static bool Faces(IDesignerItem self, IDesignerItem other, AnchorDirection dir)
+    {
+        double cx = self.X + self.Width / 2;
+        double cy = self.Y + self.Height / 2;
+        double ox = other.X + other.Width / 2;
+        double oy = other.Y + other.Height / 2;
+        return dir switch
+        {
+            AnchorDirection.Left => ox < cx,
+            AnchorDirection.Right => ox > cx,
+            AnchorDirection.Top => oy < cy,
+            AnchorDirection.Bottom => oy > cy,
+            _ => true
+        };
+    }
+
+    public static AnchorDirection Opposite(AnchorDirection dir) => dir switch
+    {
+        AnchorDirection.Left => AnchorDirection.Right,
+        AnchorDirection.Right => AnchorDirection.Left,
+        AnchorDirection.Top => AnchorDirection.Bottom,
+        AnchorDirection.Bottom => AnchorDirection.Top,
+        _ => AnchorDirection.None
+    };
 
     public static int FindNearestSegment(List<DesignerWaypoint> wps, double mx, double my, double threshold = 20.0)
     {

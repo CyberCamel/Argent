@@ -1,14 +1,25 @@
+using System.Reflection;
 using Argent.Core.Workflows;
 using Argent.Core.Workflows.Designer;
 using Argent.Core.Enums;
-using Argent.Core.Workflows;
 using Argent.Core.Workflows.Activities;
+using Argent.Core.Workflows.BoundaryEvents;
 using Argent.Core.Workflows.Modeler;
+using Argent.WebComponents.Workflows.Modeler.Interaction;
 using Argent.WebComponents.Workflows.Modeler.Routing;
+using Argent.WebComponents.Workflows.Modeler.Undo;
 using Argent.WebComponents.Workflows.Modeler.Validation;
 using System.Text.Json;
 
 namespace Argent.WebComponents.Workflows.Modeler;
+
+public enum SaveState
+{
+    Saved,
+    Unsaved,
+    Saving,
+    Failed
+}
 
 public class DesignerService(
     IWorkflowDesignerStore _store,
@@ -19,6 +30,9 @@ public class DesignerService(
     public List<DesignerPool> Pools { get; } = [];
     public List<DesignerLane> Lanes { get; } = [];
     public List<ProcessRole> Roles { get; } = [];
+
+    /// <summary>Every selected node. Dragging any of them moves the whole set.</summary>
+    public HashSet<DesignerNode> SelectedNodes { get; } = [];
 
     public DesignerNode? SelectedNode { get; set; }
     public DesignerConnection? SelectedConnection { get; set; }
@@ -47,6 +61,34 @@ public class DesignerService(
     /// <summary>Set by the hosting component on initialization from AuthenticationStateProvider.</summary>
     public string UserId { get; set; } = "Unknown";
 
+    public DesignerHistory History { get; } = new();
+
+    /// <summary>Why the last autosave failed, so the toolbar can offer a retry.</summary>
+    public string? LastSaveError { get; private set; }
+
+    public SaveState SaveState
+    {
+        get
+        {
+            if (_saving) return SaveState.Saving;
+            if (LastSaveError != null && HasUnsavedChanges) return SaveState.Failed;
+            return HasUnsavedChanges ? SaveState.Unsaved : SaveState.Saved;
+        }
+    }
+
+    private bool _saving;
+    private int _autoSaveSuspensions;
+    private DesignerSnapshot? _savedSnapshot;
+
+    public bool CanAutoSave => _autoSaveSuspensions == 0 && !_saving;
+
+    public void SuspendAutoSave() => _autoSaveSuspensions++;
+
+    public void ResumeAutoSave()
+    {
+        if (_autoSaveSuspensions > 0) _autoSaveSuspensions--;
+    }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -60,6 +102,8 @@ public class DesignerService(
         Pools.Clear();
         Lanes.Clear();
         Roles.Clear();
+        ClearSelectionFlags();
+        SelectedNodes.Clear();
         SelectedNode = null;
         SelectedConnection = null;
         SelectedPool = null;
@@ -72,6 +116,7 @@ public class DesignerService(
     public void LoadDefinition(WorkflowDefinition def)
     {
         ResetCanvas();
+        History.Clear();
 
         var nodeMap = new Dictionary<Guid, DesignerNode>();
         var metadataCache = _registry.GetRegisteredTypes().ToList();
@@ -102,24 +147,25 @@ public class DesignerService(
 
         foreach (var conn in def.Connections)
         {
-            if (nodeMap.TryGetValue(conn.From.Id, out var source) &&
-                nodeMap.TryGetValue(conn.To.Id, out var target))
-            {
-                conn.From = source.NodeData;
-                conn.To = target.NodeData;
+            if (!nodeMap.TryGetValue(conn.From.Id, out var source) ||
+                !nodeMap.TryGetValue(conn.To.Id, out var target))
+                continue;
 
-                var (srcDir, tgtDir) = RoutingService.GetBestDirections(source, target);
-                var dc = new DesignerConnection
-                {
-                    EngineConnection = conn,
-                    Source = source,
-                    Target = target,
-                    SourceDir = srcDir,
-                    TargetDir = tgtDir
-                };
-                dc.Waypoints = RoutingService.AutoRoute(dc.Source, dc.SourceDir, dc.Target, dc.TargetDir);
-                Connections.Add(dc);
-            }
+            conn.From = source.NodeData;
+            conn.To = target.NodeData;
+            conn.Id = conn.Id == Guid.Empty ? Guid.NewGuid() : conn.Id;
+
+            var dc = new DesignerConnection
+            {
+                EngineConnection = conn,
+                Source = source,
+                Target = target
+            };
+
+            // The stored route intent is reapplied here; definitions without one are
+            // routed automatically exactly as before.
+            ElasticRouter.Route(dc, Nodes);
+            Connections.Add(dc);
         }
 
         foreach (var pool in def.Pools)
@@ -155,6 +201,8 @@ public class DesignerService(
 
         Notify();
         HasUnsavedChanges = false;
+        LastSaveError = null;
+        _savedSnapshot = DesignerSnapshot.Capture(this);
     }
 
     public async Task LoadWorkflowAsync(Guid workflowId)
@@ -232,6 +280,8 @@ public class DesignerService(
             }
         }
 
+        // Connections carry their own identity and route intent, so both survive a save,
+        // a publish, a version view and a duplication without extra plumbing here.
         var def = new WorkflowDefinition
         {
             Metadata = new WorkflowMetadata
@@ -262,8 +312,8 @@ public class DesignerService(
         var result = new Dictionary<Guid, Guid>();
         foreach (var dn in Nodes)
         {
-            var cx = dn.X + dn.Width / 2.0;
-            var cy = dn.Y + dn.Height / 2.0;
+            double cx = dn.X + dn.Width / 2.0;
+            double cy = dn.Y + dn.Height / 2.0;
             var lane = Lanes.FirstOrDefault(l =>
                 cx >= l.X && cx <= l.X + l.Width &&
                 cy >= l.Y && cy <= l.Y + l.Height);
@@ -412,20 +462,51 @@ public class DesignerService(
     {
         if (LoadedVersionId.HasValue || CompiledDefinition == null) return;
 
-        var result = await _store.SaveDraftAsync(new WorkflowSaveDraftRequest
+        _saving = true;
+        LastSaveError = null;
+        Notify();
+        try
         {
-            WorkflowId = CurrentWorkflowId,
-            ExistingDraftId = LoadedDraftId,
-            Name = CurrentWorkflowName,
-            Description = CurrentWorkflowDescription,
-            Definition = CompiledDefinition,
-            UserId = UserId
-        });
+            var result = await _store.SaveDraftAsync(new WorkflowSaveDraftRequest
+            {
+                WorkflowId = CurrentWorkflowId,
+                ExistingDraftId = LoadedDraftId,
+                Name = CurrentWorkflowName,
+                Description = CurrentWorkflowDescription,
+                Definition = CompiledDefinition,
+                UserId = UserId
+            });
 
-        CurrentWorkflowId = result.WorkflowId;
-        LoadedDraftId = result.DraftId;
-        LoadedVersionId = null;
-        HasUnsavedChanges = false;
+            CurrentWorkflowId = result.WorkflowId;
+            LoadedDraftId = result.DraftId;
+            LoadedVersionId = null;
+            HasUnsavedChanges = false;
+            _savedSnapshot = DesignerSnapshot.Capture(this);
+        }
+        catch (Exception ex)
+        {
+            // The unsaved work stays in the model so the user can retry.
+            LastSaveError = ex.Message;
+            HasUnsavedChanges = true;
+        }
+        finally
+        {
+            _saving = false;
+            Notify();
+        }
+    }
+
+    /// <summary>Autosave, skipped while a gesture is open or while the canvas is read-only.</summary>
+    public async Task<bool> TryAutoSaveAsync(bool readOnly)
+    {
+        if (readOnly) return false;
+        if (CurrentWorkflowId == null) return false;   // never silently create a workflow
+        if (!CanAutoSave) return false;
+        if (!HasUnsavedChanges) return false;
+
+        Compile();
+        await SaveDraftAsync();
+        return !HasUnsavedChanges;
     }
 
     public async Task PublishVersionAsync(bool isMajor, Dictionary<Guid, RoleAudience>? initialAudiences = null)
@@ -477,6 +558,7 @@ public class DesignerService(
         var result = await _store.DiscardDraftAsync(LoadedDraftId.Value, CurrentWorkflowId.Value);
 
         ResetCanvas();
+        History.Clear();
         LoadedDraftId = null;
 
         if (result != null)
@@ -502,9 +584,8 @@ public class DesignerService(
 
     public void Select(object? item)
     {
-        SelectedNode?.IsSelected = false;
-        SelectedPool?.IsSelected = false;
-        SelectedLane?.IsSelected = false;
+        ClearSelectionFlags();
+        SelectedNodes.Clear();
         SelectedNode = null;
         SelectedConnection = null;
         SelectedPool = null;
@@ -514,6 +595,7 @@ public class DesignerService(
         {
             case DesignerNode node:
                 SelectedNode = node;
+                SelectedNodes.Add(node);
                 node.IsSelected = true;
                 break;
             case DesignerConnection conn:
@@ -532,31 +614,149 @@ public class DesignerService(
         Notify();
     }
 
+    public void SelectNodes(IEnumerable<DesignerNode> nodes, DesignerNode? active = null)
+    {
+        ClearSelectionFlags();
+        SelectedNodes.Clear();
+        SelectedConnection = null;
+        SelectedPool = null;
+        SelectedLane = null;
+
+        foreach (var node in nodes)
+        {
+            SelectedNodes.Add(node);
+            node.IsSelected = true;
+        }
+
+        SelectedNode = active ?? SelectedNodes.LastOrDefault();
+        Notify();
+    }
+
+    /// <summary>Adds or removes a node from the selection, keeping the active node sensible.</summary>
+    public void ToggleNodeSelection(DesignerNode node)
+    {
+        if (!SelectedNodes.Remove(node))
+        {
+            SelectedNodes.Add(node);
+            node.IsSelected = true;
+            SelectedNode = node;
+        }
+        else
+        {
+            node.IsSelected = false;
+            if (ReferenceEquals(SelectedNode, node))
+                SelectedNode = SelectedNodes.LastOrDefault();
+        }
+
+        SelectedConnection = null;
+        SelectedPool = null;
+        SelectedLane = null;
+        Notify();
+    }
+
+    public void ClearSelectionFlags()
+    {
+        foreach (var node in SelectedNodes) node.IsSelected = false;
+        if (SelectedPool != null) SelectedPool.IsSelected = false;
+        if (SelectedLane != null) SelectedLane.IsSelected = false;
+    }
+
     public void DeselectAll() => Select(null);
 
     public void Notify() => OnChange?.Invoke();
     public void MarkDirty() { HasUnsavedChanges = true; Notify(); }
 
-    public void DeleteSelected()
+    /// <summary>
+    /// Applies property changes as one undoable step. Consecutive edits of the same
+    /// property collapse into a single entry, so typing in a field is one undo.
+    /// </summary>
+    public void ApplyEdits(string description, params (object Target, string Property, object? Value)[] edits)
     {
-        if (SelectedNode != null)
+        if (edits.Length == 0) return;
+
+        var entries = new PropertyChangeCommand.Entry[edits.Length];
+        for (int i = 0; i < edits.Length; i++)
         {
-            Connections.RemoveAll(c => c.Source == SelectedNode || c.Target == SelectedNode);
-            Nodes.Remove(SelectedNode);
-            SelectedNode = null;
-            MarkDirty();
+            var property = edits[i].Target.GetType().GetProperty(edits[i].Property)
+                ?? throw new ArgumentException($"No property {edits[i].Property} on {edits[i].Target.GetType().Name}.");
+            var oldValue = property.GetValue(edits[i].Target);
+            entries[i] = new PropertyChangeCommand.Entry(edits[i].Target, property, oldValue, edits[i].Value);
+            property.SetValue(edits[i].Target, edits[i].Value);
         }
-        else if (SelectedConnection != null)
+
+        History.Push(new PropertyChangeCommand(description, entries));
+        MarkDirty();
+    }
+
+    public void Undo()
+    {
+        var command = History.Undo();
+        if (command == null) return;
+        command.Undo(this);
+        EvaluateDirtyState();
+    }
+
+    public void Redo()
+    {
+        var command = History.Redo();
+        if (command == null) return;
+        command.Redo(this);
+        EvaluateDirtyState();
+    }
+
+    /// <summary>
+    /// Undoing back to the state that was last saved clears the dirty flag, so a user who
+    /// explores a change and takes it back does not have to save an unchanged draft.
+    /// </summary>
+    private void EvaluateDirtyState()
+    {
+        if (_savedSnapshot == null) return;
+        var current = DesignerSnapshot.Capture(this);
+        HasUnsavedChanges = _savedSnapshot.DiffersFrom(current);
+        Notify();
+    }
+
+    /// <summary>Removes the selected nodes, connections, pool or lane as one undoable step.</summary>
+    public void DeleteSelection()
+    {
+        if (SelectedNodes.Count > 0)
+        {
+            var doomed = new HashSet<DesignerNode>(SelectedNodes);
+            // Boundary events attached to a deleted node go with it.
+            bool added;
+            do
+            {
+                added = false;
+                foreach (var child in Nodes.Where(n =>
+                             n.NodeData is BoundaryEvent boundary &&
+                             doomed.Any(p => p.NodeData.Id == boundary.ParentNodeId)).ToList())
+                {
+                    if (doomed.Add(child)) added = true;
+                }
+            } while (added);
+
+            Connections.RemoveAll(c => doomed.Contains(c.Source) || doomed.Contains(c.Target));
+            Nodes.RemoveAll(doomed.Contains);
+            DeselectAll();
+            MarkDirty();
+            return;
+        }
+
+        if (SelectedConnection != null)
         {
             Connections.Remove(SelectedConnection);
             SelectedConnection = null;
             MarkDirty();
+            return;
         }
-        else if (SelectedPool != null)
+
+        if (SelectedPool != null)
         {
             RemovePool(SelectedPool);
+            return;
         }
-        else if (SelectedLane != null)
+
+        if (SelectedLane != null)
         {
             RemoveLane(SelectedLane);
         }

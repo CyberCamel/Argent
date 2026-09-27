@@ -3,6 +3,8 @@
 @using Argent.Core.Workflows
 @using Argent.Core.Workflows.Execution
 @using Argent.WebComponents.Workflows.Modeler
+@using Argent.WebComponents.Workflows.Modeler.Interaction
+@using Argent.WebComponents.Workflows.Modeler.Navigation
 @using Argent.WebComponents.Workflows.Modeler.Routing
 @using Microsoft.JSInterop
 @inject IWorkflowInstanceViewStore InstanceViewStore
@@ -202,16 +204,17 @@ else
                 !nodeMap.TryGetValue(conn.To.Id,   out var tgt))
                 continue;
 
-            var (srcDir, tgtDir) = RoutingService.GetBestDirections(src, tgt);
             var dc = new DesignerConnection
             {
                 EngineConnection = conn,
                 Source    = src,
                 Target    = tgt,
-                SourceDir = srcDir,
-                TargetDir = tgtDir,
             };
-            dc.Waypoints = RoutingService.AutoRoute(dc.Source, dc.SourceDir, dc.Target, dc.TargetDir);
+
+            // The published layout is reproduced exactly, including any route the designer
+            // positioned by hand. Execution-state styling and read-only behaviour are the
+            // only differences from the modeler view.
+            ElasticRouter.Route(dc, _nodes);
             _connections.Add(dc);
         }
     }
@@ -246,40 +249,28 @@ else
             ? _nodes.Where(n => _activeNodeIds.Contains(n.NodeData.Id)).ToList()
             : _nodes;
 
+        if (focus.Count == 0) return;
         double minX = focus.Min(n => n.X);
         double minY = focus.Min(n => n.Y);
         double maxX = focus.Max(n => n.X + n.Width);
         double maxY = focus.Max(n => n.Y + n.Height);
 
-        double pad = 80;
-        double cw = maxX - minX + pad * 2;
-        double ch = maxY - minY + pad * 2;
-        if (cw < 1 || ch < 1) return;
-
-        _session.Zoom = Math.Clamp(Math.Min(_session.CanvasWidth / cw, _session.CanvasHeight / ch), 0.1, 3.0);
-        _session.PanX = minX - pad - (_session.CanvasWidth  / _session.Zoom - cw) / 2;
-        _session.PanY = minY - pad - (_session.CanvasHeight / _session.Zoom - ch) / 2;
+        CanvasNavigation.Focus(_session, new GeometryEditor.Bounds(minX, minY, maxX - minX, maxY - minY), 80);
     }
 
+    /// <summary>Frames the nodes and their connectors, matching the designer's fit.</summary>
     private void FitToScreen()
     {
-        if (_nodes.Count == 0) return;
+        var bounds = _nodes.Select(n => new GeometryEditor.Bounds(n.X, n.Y, n.Width, n.Height)).ToList();
+        foreach (var conn in _connections)
+        {
+            if (conn.Waypoints.Count == 0) continue;
+            double minX = conn.Waypoints.Min(w => w.X), minY = conn.Waypoints.Min(w => w.Y);
+            double maxX = conn.Waypoints.Max(w => w.X), maxY = conn.Waypoints.Max(w => w.Y);
+            bounds.Add(new GeometryEditor.Bounds(minX, minY, maxX - minX, maxY - minY));
+        }
 
-        double minX = _nodes.Min(n => n.X);
-        double minY = _nodes.Min(n => n.Y);
-        double maxX = _nodes.Max(n => n.X + n.Width);
-        double maxY = _nodes.Max(n => n.Y + n.Height);
-
-        double pad = 40;
-        double cw = maxX - minX + pad * 2;
-        double ch = maxY - minY + pad * 2;
-        if (cw < 1 || ch < 1) return;
-
-        _session.Zoom = Math.Clamp(Math.Min(_session.CanvasWidth / cw, _session.CanvasHeight / ch), 0.1, 3.0);
-        _session.PanX = minX - pad - (_session.CanvasWidth  / _session.Zoom - cw) / 2;
-        _session.PanY = minY - pad - (_session.CanvasHeight / _session.Zoom - ch) / 2;
-
-        StateHasChanged();
+        if (CanvasNavigation.FitToContent(_session, bounds)) StateHasChanged();
     }
 
     private string GetVisitClass(Guid nodeId)
@@ -317,14 +308,7 @@ else
     private async Task OnWheel(WheelEventArgs e)
     {
         var dims = await JS.InvokeAsync<CanvasBounds>("Modeler.getDimensions", _canvas);
-        var (beforeX, beforeY) = _session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
-
-        _session.Zoom = Math.Clamp(_session.Zoom * Math.Pow(1.001, -e.DeltaY), 0.1, 3.0);
-
-        var (afterX, afterY) = _session.ScreenToWorld(e.ClientX, e.ClientY, dims.Left, dims.Top);
-        _session.PanX += beforeX - afterX;
-        _session.PanY += beforeY - afterY;
-
+        CanvasNavigation.ZoomToCursor(_session, e.ClientX, e.ClientY, dims.Left, dims.Top, e.DeltaY);
         StateHasChanged();
     }
 

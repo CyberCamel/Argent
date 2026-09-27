@@ -78,16 +78,16 @@
 @code {
     [Parameter] public required DesignerService State { get; set; }
     [Parameter] public EventCallback<NodeBase?> OnHoverNode { get; set; }
+    [Parameter] public EventCallback<NodeBase> OnFocusNode { get; set; }
 
     private async Task OnItemHover(NodeBase? node) => await OnHoverNode.InvokeAsync(node);
 
+    /// <summary>Selecting an entry also frames the node, so the user sees what it refers to.</summary>
     private async Task OnItemClick(NodeBase? node)
     {
         if (node == null) return;
         var designerNode = State.Nodes.FirstOrDefault(n => n.NodeData == node);
-        if (designerNode != null)
-        {
-            State.Select(designerNode);
-        }
+        if (designerNode != null) State.SelectNodes([designerNode], designerNode);
+        await OnFocusNode.InvokeAsync(node);
     }
 }

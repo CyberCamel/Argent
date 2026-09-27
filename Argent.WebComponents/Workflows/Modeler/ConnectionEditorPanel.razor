@@ -6,6 +6,7 @@
 @using Argent.Core.Workflows.Activities
 @using Argent.WebComponents.Workflows.Modeler
 @using Argent.WebComponents.Forms.Designer
+@using CoreConnection = Argent.Core.Workflows.Connection
 @inject IDomainObjectDefinitionService DomainObjectDefinitions
 @inject IFormDesignerStore FormDesignerStore
 @inject IStringLocalizer<SharedResource> Localizer
@@ -28,7 +29,7 @@
                 <label class="modeler-properties-label">@Localizer["ConnectionEditorPanel.Label"]</label>
                 <input class="modeler-properties-input"
                        value="@_conn.Label"
-                       @oninput="@(e => { _conn.Label = e.Value?.ToString(); State.MarkDirty(); })" />
+                       @oninput="@(e => SetLabel(e.Value?.ToString()))" />
             </div>
             @if (_isGateway)
             {
@@ -159,28 +160,37 @@
         if (_fields.Count == 0) _fields = null;
     }
 
+    private void SetLabel(string? label) =>
+        State.ApplyEdits("Connection label", (_conn, nameof(CoreConnection.Label), label));
+
+    // Every edit goes through the service so it is one undoable step, and so turning on
+    // the default path clears the condition in the same step.
     private void OnIsDefaultChanged(ChangeEventArgs e)
     {
-        _conn.IsDefault = (bool)(e.Value ?? false);
-        if (_conn.IsDefault) _conn.Condition = null;
-        State.MarkDirty();
+        bool isDefault = (bool)(e.Value ?? false);
+        if (isDefault)
+            State.ApplyEdits("Default path", (_conn, nameof(CoreConnection.IsDefault), true), (_conn, nameof(CoreConnection.Condition), null));
+        else
+            State.ApplyEdits("Default path", (_conn, nameof(CoreConnection.IsDefault), false));
     }
 
-    private void OnConditionChanged(Condition? c)
-    {
-        _conn.Condition = c;
-        State.MarkDirty();
-    }
+    private void OnConditionChanged(Condition? c) =>
+        State.ApplyEdits("Connection condition", (_conn, nameof(CoreConnection.Condition), c));
 
     private void OnConditionEdited() => State.MarkDirty();
 
     private void UpdateAction(string? label = null, string? appearance = null, string? confirm = null)
     {
-        _conn.TaskAction ??= new TaskActionPresentation();
-        if (label is not null) _conn.TaskAction.Label = label;
-        if (appearance is not null) _conn.TaskAction.Appearance = appearance;
-        if (confirm is not null) _conn.TaskAction.Confirm = confirm;
-        State.MarkDirty();
+        if (_conn.TaskAction == null)
+        {
+            // Creating the presentation and editing it are the same undo step.
+            State.ApplyEdits("Task action", (_conn, nameof(CoreConnection.TaskAction),
+                new TaskActionPresentation { Label = label, Appearance = appearance, Confirm = confirm }));
+            return;
+        }
+        if (label is not null) State.ApplyEdits("Task action label", (_conn.TaskAction, nameof(TaskActionPresentation.Label), label));
+        if (appearance is not null) State.ApplyEdits("Task action appearance", (_conn.TaskAction, nameof(TaskActionPresentation.Appearance), appearance));
+        if (confirm is not null) State.ApplyEdits("Task action confirmation", (_conn.TaskAction, nameof(TaskActionPresentation.Confirm), confirm));
     }
 
     private void HandleClose() => OnClose.InvokeAsync();

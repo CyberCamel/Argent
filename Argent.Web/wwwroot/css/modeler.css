@@ -225,6 +225,27 @@
 .modeler-save-status.dirty {
     color: #fbbf24;
 }
+.modeler-save-status.saving {
+    color: #818cf8;
+}
+.modeler-save-status.failed {
+    color: #f87171;
+}
+
+/* A failed autosave keeps the unsaved work in the model and offers a retry. */
+.modeler-save-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    color: #fecaca;
+    background: rgba(239, 68, 68, 0.12);
+    border-bottom: 1px solid rgba(239, 68, 68, 0.35);
+}
+.modeler-save-error span {
+    flex: 1;
+}
 
 .modeler-tool-group {
     display: flex;
@@ -232,6 +253,89 @@
     padding: 2px;
     background: var(--md-bg-raised);
     border-radius: 6px;
+}
+
+/* Relative wrapper so a dropdown can hang below a toolbar button. */
+.modeler-tool-wrap {
+    position: relative;
+    display: flex;
+}
+
+.modeler-menu,
+.modeler-shortcuts {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 40;
+    min-width: 190px;
+    padding: 6px;
+    background: var(--md-bg-raised);
+    border: 1px solid var(--md-border);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.modeler-menu-title {
+    padding: 6px 8px 2px;
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--md-muted);
+}
+
+.modeler-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    text-align: left;
+    color: var(--md-text);
+    background: none;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.modeler-menu-item:hover {
+    background: var(--md-hover-bg);
+}
+
+/* Anchored inside the canvas so it is never clipped by the canvas overflow. */
+.modeler-shortcuts {
+    left: 12px;
+    right: auto;
+    top: 12px;
+    bottom: auto;
+    min-width: 280px;
+    max-height: calc(100% - 24px);
+    overflow-y: auto;
+}
+
+.modeler-shortcuts-title {
+    padding: 4px 8px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--md-text);
+}
+
+.modeler-shortcut-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 3px 8px;
+    font-size: 0.75rem;
+    color: var(--md-text-secondary);
+}
+.modeler-shortcut-row kbd {
+    flex: 0 0 128px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.6875rem;
+    color: var(--md-text);
+    background: var(--md-canvas-bg);
+    border: 1px solid var(--md-border);
+    border-radius: 4px;
+    padding: 1px 5px;
 }
 
 .modeler-tool-btn {
@@ -262,6 +366,17 @@
 
 .modeler-tool-btn-active:hover {
     background: var(--md-muted);
+}
+
+/* Keyboard focus must stay visible on every modeler control. */
+.modeler-btn-icon:focus-visible,
+.modeler-tool-btn:focus-visible,
+.modeler-menu-item:focus-visible,
+.modeler-error-item:focus-visible,
+.modeler-canvas:focus-visible,
+.modeler-shortcut-row kbd:focus-visible {
+    outline: 2px solid #818cf8;
+    outline-offset: 1px;
 }
 
 .modeler-zoom-label {
@@ -989,9 +1104,21 @@
     stroke-width: 2.5;
 }
 
+/* The stored route is temporarily unsatisfiable, so an automatic route is shown. */
+.modeler-conn-routing-suspended .modeler-conn-path {
+    stroke-dasharray: 4 4;
+    opacity: 0.75;
+}
+
+/* Preview of the connection a dragged node would be inserted into. */
+.modeler-conn-insert-target .modeler-conn-path {
+    color: #4ade80;
+    stroke-width: 3;
+}
+
 .modeler-draft-path {
     fill: none;
-    color: #818cf8;
+    color: #f87171;
     stroke: currentColor;
     stroke-width: 2;
     stroke-linejoin: round;
@@ -999,6 +1126,37 @@
     stroke-dasharray: 6 3;
     pointer-events: none;
 }
+
+/* A drop on a valid target turns the draft green. */
+.modeler-draft-valid {
+    color: #4ade80;
+}
+
+.modeler-drop-target {
+    fill: none;
+    stroke: #4ade80;
+    stroke-width: 2;
+    stroke-dasharray: 5 4;
+    pointer-events: none;
+}
+
+.modeler-node-drop-target .modeler-node-shape {
+    stroke: #4ade80;
+    stroke-width: 3;
+}
+
+/* Axis guide shown while a connector segment is being moved. */
+.modeler-segment-guide {
+    stroke: #818cf8;
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.modeler-cursor-pan { cursor: grab; }
+.modeler-cursor-ns  { cursor: ns-resize; }
+.modeler-cursor-ew  { cursor: ew-resize; }
 
 .modeler-waypoint {
     fill: #818cf8;
@@ -1468,14 +1626,17 @@
     stroke-dasharray: 6 3;
 }
 
+/* The plate keeps a label legible over connectors, corner arcs and arrowheads. */
+.modeler-conn-label-bg {
+    fill: var(--md-canvas-bg);
+    opacity: 0.88;
+}
+
 .modeler-conn-label {
     font-size: 10px;
     fill: var(--md-text-secondary);
     text-anchor: middle;
     dominant-baseline: middle;
-    paint-order: stroke;
-    stroke: var(--md-canvas-bg);
-    stroke-width: 3px;
     font-family: monospace;
     pointer-events: none;
     user-select: none;
